@@ -22,6 +22,7 @@ Keep this file short. Each entry should be one line in the form:
 - [Provider Extensibility Remaining Implementation](ADR_PROVIDER_EXTENSIBILITY_REMAINING_IMPLEMENTATION.md) — Remaining extensibility slices after provider selector/OAuth work
 - [Native Heterogeneous Provider Engines](ADR_NATIVE_HETEROGENEOUS_PROVIDER_ENGINES.md) — Native Claude/Gemini/Copilot provider engine strategy
 - [Public Adapter SDK And Schema Migrations](ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS.md) — Next-phase compatibility ADR for public adapter config, schema generation, SDK exposure, and migrations
+- [Public Adapter SDK And Schema Migrations Tracking](ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS_TRACKING.md) — Active Stage 0 tracker for adapter public schema proposal, owner map, and compatibility tests
 - [External-Agent Interop Detector Consolidation](ADR_EXTERNAL_AGENT_INTEROP_DETECTORS_CONSOLIDATION.md) — Dispatch authority for consolidated Gemini CLI, Hermes Agent, and GBrain redacted Stage 0 detectors
 - [Gemini CLI Tool Extensions](ADR_GEMINI_CLI_TOOL_EXTENSIONS.md) — Historical source evidence; Gemini requirements consolidated into external-agent interop detector ADR
 - [Hermes Agent Tool Extensions](ADR_HERMES_AGENT_TOOL_EXTENSIONS.md) — Historical source evidence; Hermes requirements consolidated into external-agent interop detector ADR

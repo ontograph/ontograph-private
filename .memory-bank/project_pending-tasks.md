@@ -27,7 +27,9 @@ Reuse anchors:
 - Python/TypeScript SDK artifact generation
 
 Next actions:
-- Review the proposed ADR and split accepted implementation tasks into schema, app-server, SDK, and conformance tracks.
+- Review the Stage 0 schema proposal in `ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS.md`.
+- Accept or revise the proposed TOML shape, enum constraints, and validation rules.
+- Convert accepted compatibility tests into schema, app-server, SDK, and conformance implementation tracks.
 
 ## Blocked Tasks
 

@@ -56,6 +56,101 @@ The next implementation stage must first define and verify a public compatibilit
 
 Any runtime implementation must plug into the existing provider/model-provider owner rather than creating a second provider factory or registry.
 
+## Stage 0 Schema Proposal
+
+This section is a proposal only. It does not authorize implementation until the tracking file marks implementation readiness as accepted.
+
+Proposed TOML shape:
+
+```toml
+[provider_adapters.example]
+enabled = false
+protocol_version = "provider-adapter.v1"
+provider_id = "example"
+command = "/absolute/path/to/example-adapter"
+args = ["--stdio"]
+source = "user"
+trust = "explicit"
+credential_ref = "mcp_server/example"
+disabled_reason = "not_validated"
+
+[provider_adapters.example.capabilities]
+model_list = true
+execute_stream = true
+tool_calls = false
+image_input = false
+
+[provider_adapters.example.timeouts]
+handshake_timeout_ms = 30000
+model_list_timeout_ms = 10000
+first_event_timeout_ms = 60000
+idle_timeout_ms = 300000
+shutdown_timeout_ms = 5000
+
+[provider_adapters.example.limits]
+max_request_bytes = 1048576
+max_event_bytes = 65536
+max_stderr_bytes = 65536
+max_event_count = 10000
+max_total_stream_bytes = 8388608
+```
+
+Proposed enum constraints:
+
+- `source`: `user`, `system`, `enterprise_managed`
+- `trust`: `explicit`, `managed`
+- `disabled_reason`: `not_validated`, `protocol_mismatch`, `unsupported_capability`, `command_not_absolute`, `command_missing`, `policy_blocked`
+
+Proposed validation rules:
+
+- `command` must be absolute.
+- `args` must be argv elements, not a shell command string.
+- `enabled = true` requires `trust = "explicit"` or `trust = "managed"`.
+- project-local config may declare adapter metadata, but must not enable execution without a higher-trust user/system/enterprise layer.
+- all timeout and limit values are clamped to hard-coded maxima.
+- `credential_ref` must be an opaque reference, never raw credential material.
+- unknown adapter ids remain inert and diagnosable, not fatal to unrelated config loading.
+
+Proposed Rust ownership if accepted:
+
+- `codex-rs/config/src/config_toml.rs`: schema-backed config structs only.
+- `codex-rs/model-provider`: adapter registration/selection owner.
+- `codex-rs/adapter-protocol`: protocol and conformance fixture owner.
+- app-server v2: status/diagnostic APIs only if a UI or SDK needs management visibility.
+- SDKs: generated or mirrored types only after app-server/config schema is accepted.
+
+## Stage 0 Surface Map
+
+| Surface | Owner | Proposed Change | Required Verification |
+| --- | --- | --- | --- |
+| Config TOML | `ConfigToml` | Add `provider_adapters` only after proposal acceptance | `just write-config-schema`, config loader compatibility tests |
+| Runtime selection | `codex-rs/model-provider` | Consume validated adapter descriptors through existing provider ownership | GitNexus impact on provider creation and model catalog flows |
+| Adapter protocol | `codex-rs/adapter-protocol` | Expand public conformance fixtures, not runtime execution | adapter-protocol tests and fixture review |
+| App-server v2 | app-server protocol v2 | Expose adapter status only if needed; experimental first | `just write-app-server-schema`, app-server protocol tests |
+| Python SDK | `sdk/python/scripts/update_sdk_artifacts.py` | Regenerate types from schema/runtime artifacts | SDK artifact workflow tests |
+| TypeScript SDK | `sdk/typescript` | Mirror accepted public contract only after schema acceptance | TypeScript SDK tests |
+
+## Stage 0 Compatibility Test Plan
+
+Required before public config implementation:
+
+- config without `provider_adapters` loads unchanged
+- disabled adapter config loads without executing anything
+- project-local enabled adapter is inert unless user/system/enterprise trust permits it
+- relative `command` is rejected with a redacted diagnostic
+- `args` are serialized as argv arrays and never shell-expanded
+- raw credential-looking fields are rejected or redacted in diagnostics
+- unknown capabilities are preserved for diagnostics but not treated as enabled
+- timeout and stream cap values above hard maxima are rejected or clamped with explicit tests
+- generated `config.schema.json` matches fixtures
+
+Required before app-server or SDK exposure:
+
+- stable schema excludes experimental adapter management APIs
+- experimental schema includes adapter status APIs only with `experimentalApi`
+- Python and TypeScript generated/mirrored types match the accepted wire shape
+- SDK examples use inert transcript adapters only
+
 ## Public Config Requirements
 
 Any public config must be schema-backed and include:
@@ -122,9 +217,9 @@ Initial GitNexus query for adapter SDK/schema migration found these relevant own
 
 ## Next Implementation Tasks
 
-1. Draft a concrete public adapter config schema proposal.
-2. Map the schema proposal to `ConfigToml`, app-server v2, Python SDK, and TypeScript SDK surfaces.
-3. Define compatibility tests and generated-schema commands required for any implementation PR.
+1. Review and accept or revise the Stage 0 schema proposal.
+2. Convert the Stage 0 compatibility test plan into implementation tasks.
+3. Add config schema structs and tests only after the schema proposal is accepted.
 4. Extend `adapter-protocol` conformance fixtures only after the public schema shape is accepted.
 
 ## Non-Goals

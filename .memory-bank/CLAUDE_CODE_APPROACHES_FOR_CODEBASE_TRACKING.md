@@ -36,7 +36,10 @@ Manager rule: before starting any task, update this file with status, GitNexus c
   - Python SDK artifact generation paths
 - Initial output:
   - `ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS.md`
-- Current next action: Review ADR and split accepted work into schema, app-server, SDK, and conformance implementation tracks.
+- Follow-up output:
+  - `ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS_TRACKING.md`
+  - Stage 0 schema proposal, surface map, and compatibility test plan in the ADR.
+- Current next action: Review and accept or revise Stage 0 schema proposal before any public config/API implementation.
 
 ## Blocked Task: Claude OAuth Import Wiring & Live Validation
 
@@ -57,3 +60,4 @@ Manager rule: before starting any task, update this file with status, GitNexus c
 - 2026-06-07: Verified and marked External-agent import internals as `done`.
 - 2026-06-08: Committed core plan slice as `e32502e`.
 - 2026-06-08: Marked Claude OAuth live validation blocked pending real redacted sample and opened public adapter SDK/schema migration ADR.
+- 2026-06-08: Added public adapter Stage 0 schema proposal, owner-surface map, and compatibility test plan.
