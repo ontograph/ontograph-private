@@ -21,6 +21,7 @@ Keep this file short. Each entry should be one line in the form:
 - [Claude OAuth Provider Refactor](ADR_CLAUDE_OAUTH_PROVIDER_REFACTOR.md) — Original Claude OAuth provider integration/refactor decision record
 - [Provider Extensibility Remaining Implementation](ADR_PROVIDER_EXTENSIBILITY_REMAINING_IMPLEMENTATION.md) — Remaining extensibility slices after provider selector/OAuth work
 - [Native Heterogeneous Provider Engines](ADR_NATIVE_HETEROGENEOUS_PROVIDER_ENGINES.md) — Native Claude/Gemini/Copilot provider engine strategy
+- [Public Adapter SDK And Schema Migrations](ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS.md) — Next-phase compatibility ADR for public adapter config, schema generation, SDK exposure, and migrations
 - [External-Agent Interop Detector Consolidation](ADR_EXTERNAL_AGENT_INTEROP_DETECTORS_CONSOLIDATION.md) — Dispatch authority for consolidated Gemini CLI, Hermes Agent, and GBrain redacted Stage 0 detectors
 - [Gemini CLI Tool Extensions](ADR_GEMINI_CLI_TOOL_EXTENSIONS.md) — Historical source evidence; Gemini requirements consolidated into external-agent interop detector ADR
 - [Hermes Agent Tool Extensions](ADR_HERMES_AGENT_TOOL_EXTENSIONS.md) — Historical source evidence; Hermes requirements consolidated into external-agent interop detector ADR
@@ -45,6 +46,6 @@ Keep this file short. Each entry should be one line in the form:
 - [GitNexus Reinstall](audit_session-2026-06-08-gitnexus-reinstall.md) — Restoration of GitNexus CLI, MCP config, skills, and codebase index
 - [Lean-ctx Core Backbone Challenge](audit_session-2026-06-08-lean-ctx-core-backbone-challenge.md) — ADR challenge accepting only a narrow operational backbone contract for core
 - [GitNexus Wrapper Path And Analyze Fix](audit_session-2026-06-08-gitnexus-wrapper-path-and-analyze-fix.md) — Local wrapper restored as `gitnexus`; analyzer schema gap fixed and repo-specific skills generated
-- [Claude OAuth ADR Codebase Review](audit_session-2026-06-08-claude-oauth-adr-codebase-review.md) — GitNexus-backed review confirming prep is done but runtime Claude OAuth import remains blocked
+- [Claude OAuth ADR Codebase Review](audit_session-2026-06-08-claude-oauth-adr-codebase-review.md) — GitNexus-backed review with addendum: runtime wiring exists, live validation remains blocked
 - [Third-Party Dependency Consolidation](audit_session-2026-06-08-third-party-dependency-consolidation.md) — GitNexus and lean-ctx dependency boundaries consolidated into one operational evidence backbone
 - [External-Agent Interop ADR Consolidation](audit_session-2026-06-08-external-agent-interop-adr-consolidation.md) — Gemini CLI, Hermes Agent, and GBrain interop ADRs consolidated into one detector contract

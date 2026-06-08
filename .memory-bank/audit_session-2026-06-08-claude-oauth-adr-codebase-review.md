@@ -47,3 +47,9 @@ Stage 1 cannot close until one real redacted Claude MCP connector credential sam
 - local or recoverable refresh behavior
 - authenticated MCP server status
 - successful MCP server call
+
+## 2026-06-08 Addendum
+
+Commit `e32502e` added runtime wiring from `ExternalAgentConfigService::import` to `import_mcp_oauth_credentials`, `parse_claude_oauth_import_sample`, `StoredOAuthTokens::from_bearer_token_parts`, and `save_oauth_tokens`.
+
+The remaining blocker is now live validation only: no `CLAUDE_OAUTH_REDACTED_SAMPLE` was available in the environment, so the ignored live-sample validator and authenticated MCP server status/call checks still cannot close.

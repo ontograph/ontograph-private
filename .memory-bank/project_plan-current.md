@@ -23,14 +23,16 @@ This file is a memory-bank summary, not the dispatch source of truth. Update the
 | 5 | External adapter protocol safety | 16-30 | done |
 | 6 | Session/context bounded diagnostics | 1, 87, 89, 100, 104, 109-111, 117, 119-121, 124, 130, 132, 140, 181, 185 | done |
 | 7 | External-agent import internals | 213-215, 217, 218, 220 | done |
-| 8 | Claude OAuth Import Wiring & Validation | Audit Gap | in_progress |
+| 8 | Claude OAuth Import Wiring & Validation | Audit Gap | blocked |
+| 9 | Public adapter SDK and schema migrations ADR | Next Phase | in_progress |
 
 ## Counts
 
 - Total tracked core-natural point IDs: 86.
 - Done: 86.
-- In progress: 1 (Audit gaps).
+- In progress: 1 (Next phase ADR).
 - Pending: 0.
+- Blocked: 1 (Claude OAuth live sample validation).
 - Not done: 0.
 
 ## Next Phase
@@ -38,7 +40,7 @@ This file is a memory-bank summary, not the dispatch source of truth. Update the
 All tracked project-plan tasks from the initial core-natural approaches slice are complete.
 
 Upcoming work depends on:
-- ADR for public adapter SDK and schema migrations.
+- ADR for public adapter SDK and schema migrations. (in progress)
 - Rollout of TUI context visualization.
 - Multi-agent goal orchestration refinements.
 

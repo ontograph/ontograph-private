@@ -23,20 +23,28 @@ Manager rule: before starting any task, update this file with status, GitNexus c
 | 5 | External adapter protocol safety | 16-30 | done | manager + sub-agents | provider construction/capability/status abstractions, stream event normalization, credential scope metadata, shared redaction | ADR fixture tests, provider runtime tests |
 | 6 | Session/context bounded diagnostics | 1, 87, 89, 100, 104, 109-111, 117, 119-121, 124, 130, 132, 140, 181, 185 | done | manager + sub-agents | `Session::make_turn_context`, `new_turn_context_from_configuration`, context fragments, compaction/resume tests, TUI snapshots | context/session/TUI tests |
 | 7 | External-agent import internals | 213-215, 217, 218, 220 | done | manager + sub-agents | `ExternalAgentConfigService::import`, request processor import, `claude_oauth_import`, migration tests, startup prompt flow | import tests, no-secret snapshots |
-| 8 | Claude OAuth Import Wiring & Live Validation | Audit Gap | in_progress | manager + sub-agents | `ExternalAgentConfigService::import`, `parse_claude_oauth_import_sample`, `save_oauth_tokens` | App-server tests, live sample validation |
+| 8 | Claude OAuth Import Wiring & Live Validation | Audit Gap | blocked | manager + sub-agents | `ExternalAgentConfigService::import`, `parse_claude_oauth_import_sample`, `save_oauth_tokens` | App-server tests, live sample validation |
+| 9 | Public adapter SDK and schema migrations ADR | Next Phase | in_progress | manager | `ADR_EXTERNAL_PROVIDER_ADAPTER_RUNTIME.md`, `adapter-protocol`, `ConfigToml`, app-server v2 schema, SDK artifact generation | ADR review, schema/test plan |
 
-## Active Task: Claude OAuth Import Wiring & Live Validation
+## Active Task: Public adapter SDK and schema migrations ADR
+
+- Started: 2026-06-08
+- GitNexus context reviewed:
+  - `codex-rs/adapter-protocol`
+  - `ConfigToml`
+  - app-server v2 schema generation paths
+  - Python SDK artifact generation paths
+- Initial output:
+  - `ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS.md`
+- Current next action: Review ADR and split accepted work into schema, app-server, SDK, and conformance implementation tracks.
+
+## Blocked Task: Claude OAuth Import Wiring & Live Validation
 
 - Started: 2026-06-08
 - Addressing gaps from `audit_session-2026-06-08-claude-oauth-adr-codebase-review.md`.
-- GitNexus context required before code edits:
-  - `ExternalAgentConfigService`
-  - `ExternalAgentConfigMigrationItemType`
-  - `save_oauth_tokens`
-- Initial split:
-  - Agent Generalist: Wire `parse_claude_oauth_import_sample` and `save_oauth_tokens` into `ExternalAgentConfigService::detect_migrations` and `import`. Fix all resulting compiler and protocol processor errors.
-  - Agent Generalist (Next): Un-ignore and validate the live sample tests, implement `mcpServerStatus/list` validation.
-- Current next action: Dispatch sub-agent to wire the runtime import.
+- Runtime wiring exists in `ExternalAgentConfigService::import_mcp_oauth_credentials`.
+- Blocked on missing `CLAUDE_OAUTH_REDACTED_SAMPLE`.
+- Current next action: user supplies one real redacted Claude MCP connector credential sample, then run the ignored validator and authenticated MCP status/call checks.
 
 ## Log
 
@@ -47,3 +55,5 @@ Manager rule: before starting any task, update this file with status, GitNexus c
 - 2026-06-07: Verified and marked External adapter protocol safety as `done`.
 - 2026-06-07: Verified and marked Session/context bounded diagnostics as `done`.
 - 2026-06-07: Verified and marked External-agent import internals as `done`.
+- 2026-06-08: Committed core plan slice as `e32502e`.
+- 2026-06-08: Marked Claude OAuth live validation blocked pending real redacted sample and opened public adapter SDK/schema migration ADR.

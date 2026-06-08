@@ -12,7 +12,34 @@ Authority: `CLAUDE_CODE_APPROACHES_FOR_CODEBASE_TRACKING.md`.
 
 ## Active Tasks
 
-None. All tracked project-plan slices are complete.
+### Public Adapter SDK And Schema Migrations ADR
+
+Status: `in_progress`.
+
+Goal:
+- Define the compatibility contract before public adapter config, schema generation, app-server exposure, or SDK APIs are implemented.
+
+Reuse anchors:
+- `ADR_EXTERNAL_PROVIDER_ADAPTER_RUNTIME.md`
+- `codex-rs/adapter-protocol`
+- `ConfigToml`
+- app-server v2 schema generation
+- Python/TypeScript SDK artifact generation
+
+Next actions:
+- Review the proposed ADR and split accepted implementation tasks into schema, app-server, SDK, and conformance tracks.
+
+## Blocked Tasks
+
+### Claude OAuth Live Validation
+
+Status: `blocked`.
+
+Reason:
+- No `CLAUDE_OAUTH_REDACTED_SAMPLE` path is available in the environment.
+
+Needed:
+- One real redacted Claude MCP connector credential sample that preserves non-secret schema fields.
 
 ## Done
 
