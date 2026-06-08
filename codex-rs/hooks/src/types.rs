@@ -11,10 +11,21 @@ use serde::Serializer;
 
 pub type HookFn = Arc<dyn for<'a> Fn(&'a HookPayload) -> BoxFuture<'a, HookResult> + Send + Sync>;
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HookAction {
+    Allow,
+    Warn { message: String },
+    Block { message: String },
+    SystemMessage { content: String },
+}
+
 #[derive(Debug)]
 pub enum HookResult {
     /// Success: hook completed successfully.
     Success,
+    /// Action: hook completed with a specific policy action.
+    Action(HookAction),
     /// FailedContinue: hook failed, but other subsequent hooks should still execute and the
     /// operation should continue.
     FailedContinue(Box<dyn std::error::Error + Send + Sync + 'static>),
@@ -25,7 +36,10 @@ pub enum HookResult {
 
 impl HookResult {
     pub fn should_abort_operation(&self) -> bool {
-        matches!(self, Self::FailedAbort(_))
+        matches!(
+            self,
+            Self::FailedAbort(_) | Self::Action(HookAction::Block { .. })
+        )
     }
 }
 

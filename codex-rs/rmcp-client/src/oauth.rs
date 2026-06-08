@@ -19,6 +19,7 @@
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
+use anyhow::ensure;
 use codex_config::types::OAuthCredentialsStoreMode;
 use oauth2::AccessToken;
 use oauth2::RefreshToken;
@@ -61,6 +62,47 @@ pub struct StoredOAuthTokens {
     pub token_response: WrappedOAuthTokenResponse,
     #[serde(default)]
     pub expires_at: Option<u64>,
+}
+
+/// Raw bearer-token fields that can be normalized into Codex MCP OAuth storage.
+#[derive(Clone, PartialEq, Eq)]
+pub struct OAuthBearerTokenParts {
+    pub server_name: String,
+    pub url: String,
+    pub client_id: String,
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub scopes: Vec<String>,
+    pub expires_at: Option<u64>,
+}
+
+impl StoredOAuthTokens {
+    /// Builds stored MCP OAuth tokens from externally imported bearer-token fields.
+    pub fn from_bearer_token_parts(parts: OAuthBearerTokenParts) -> Self {
+        let mut token_response = OAuthTokenResponse::new(
+            AccessToken::new(parts.access_token),
+            BasicTokenType::Bearer,
+            VendorExtraTokenFields::default(),
+        );
+
+        if let Some(refresh_token) = parts.refresh_token {
+            token_response.set_refresh_token(Some(RefreshToken::new(refresh_token)));
+        }
+
+        if !parts.scopes.is_empty() {
+            token_response.set_scopes(Some(parts.scopes.into_iter().map(Scope::new).collect()));
+        }
+
+        let mut tokens = Self {
+            server_name: parts.server_name,
+            url: parts.url,
+            client_id: parts.client_id,
+            token_response: WrappedOAuthTokenResponse(token_response),
+            expires_at: parts.expires_at,
+        };
+        refresh_expires_in_from_timestamp(&mut tokens);
+        tokens
+    }
 }
 
 /// Wrap OAuthTokenResponse to allow for partial equality comparison.
@@ -144,6 +186,7 @@ fn load_oauth_tokens_from_keyring<K: KeyringStore>(
         Ok(Some(serialized)) => {
             let mut tokens: StoredOAuthTokens = serde_json::from_str(&serialized)
                 .context("failed to deserialize OAuth tokens from keyring")?;
+            validate_stored_oauth_tokens(&tokens).context("invalid OAuth tokens from keyring")?;
             refresh_expires_in_from_timestamp(&mut tokens);
             Ok(Some(tokens))
         }
@@ -176,6 +219,7 @@ fn save_oauth_tokens_with_keyring<K: KeyringStore>(
     server_name: &str,
     tokens: &StoredOAuthTokens,
 ) -> Result<()> {
+    validate_stored_oauth_tokens(tokens).context("invalid OAuth tokens")?;
     let serialized = serde_json::to_string(tokens).context("failed to serialize OAuth tokens")?;
 
     let key = compute_store_key(server_name, &tokens.url)?;
@@ -356,12 +400,25 @@ impl OAuthPersistor {
         {
             let manager = self.inner.authorization_manager.clone();
             let guard = manager.lock().await;
-            guard.refresh_token().await.with_context(|| {
-                format!(
-                    "failed to refresh OAuth tokens for server {}",
-                    self.inner.server_name
-                )
-            })?;
+
+            let res = tokio::time::timeout(Duration::from_secs(60), guard.refresh_token()).await;
+            match res {
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => {
+                    return Err(error).with_context(|| {
+                        format!(
+                            "failed to refresh OAuth tokens for server {}",
+                            self.inner.server_name
+                        )
+                    });
+                }
+                Err(_) => {
+                    anyhow::bail!(
+                        "OAuth token refresh timed out for server {}",
+                        self.inner.server_name
+                    );
+                }
+            }
         }
 
         self.persist_if_needed().await
@@ -400,6 +457,9 @@ fn load_oauth_tokens_from_file(server_name: &str, url: &str) -> Result<Option<St
             continue;
         }
 
+        validate_fallback_token_entry(entry)
+            .context("invalid OAuth tokens in fallback credentials file")?;
+
         let mut token_response = OAuthTokenResponse::new(
             AccessToken::new(entry.access_token.clone()),
             BasicTokenType::Bearer,
@@ -431,6 +491,7 @@ fn load_oauth_tokens_from_file(server_name: &str, url: &str) -> Result<Option<St
 }
 
 fn save_oauth_tokens_to_file(tokens: &StoredOAuthTokens) -> Result<()> {
+    validate_stored_oauth_tokens(tokens).context("invalid OAuth tokens")?;
     let key = compute_store_key(&tokens.server_name, &tokens.url)?;
     let mut store = read_fallback_file()?.unwrap_or_default();
 
@@ -457,6 +518,48 @@ fn save_oauth_tokens_to_file(tokens: &StoredOAuthTokens) -> Result<()> {
 
     store.insert(key, entry);
     write_fallback_file(&store)
+}
+
+fn validate_stored_oauth_tokens(tokens: &StoredOAuthTokens) -> Result<()> {
+    ensure_non_empty_oauth_field("server_name", &tokens.server_name)?;
+    ensure_non_empty_oauth_field("url", &tokens.url)?;
+    ensure_non_empty_oauth_field("client_id", &tokens.client_id)?;
+
+    let token_response = &tokens.token_response.0;
+    ensure_non_empty_oauth_field("access_token", token_response.access_token().secret())?;
+    if let Some(refresh_token) = token_response.refresh_token() {
+        ensure_non_empty_oauth_field("refresh_token", refresh_token.secret())?;
+    }
+    if let Some(scopes) = token_response.scopes() {
+        for scope in scopes {
+            ensure_non_empty_oauth_field("scope", &scope.to_string())?;
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_fallback_token_entry(entry: &FallbackTokenEntry) -> Result<()> {
+    ensure_non_empty_oauth_field("server_name", &entry.server_name)?;
+    ensure_non_empty_oauth_field("server_url", &entry.server_url)?;
+    ensure_non_empty_oauth_field("client_id", &entry.client_id)?;
+    ensure_non_empty_oauth_field("access_token", &entry.access_token)?;
+    if let Some(refresh_token) = &entry.refresh_token {
+        ensure_non_empty_oauth_field("refresh_token", refresh_token)?;
+    }
+    for scope in &entry.scopes {
+        ensure_non_empty_oauth_field("scope", scope)?;
+    }
+
+    Ok(())
+}
+
+fn ensure_non_empty_oauth_field(field: &str, value: &str) -> Result<()> {
+    ensure!(
+        !value.trim().is_empty(),
+        "invalid OAuth token record: missing {field}"
+    );
+    Ok(())
 }
 
 fn delete_oauth_tokens_from_file(key: &str) -> Result<bool> {
@@ -746,6 +849,81 @@ mod tests {
     }
 
     #[test]
+    fn load_oauth_tokens_rejects_malformed_keyring_record_without_leaking_tokens() -> Result<()> {
+        let _env = TempCodexHome::new();
+        let store = MockKeyringStore::default();
+        let mut tokens = sample_tokens();
+        let mut response = OAuthTokenResponse::new(
+            AccessToken::new(String::new()),
+            BasicTokenType::Bearer,
+            VendorExtraTokenFields::default(),
+        );
+        response.set_refresh_token(Some(RefreshToken::new(
+            "super-secret-refresh-token".to_string(),
+        )));
+        tokens.token_response = WrappedOAuthTokenResponse(response);
+        let serialized = serde_json::to_string(&tokens)?;
+        let key = super::compute_store_key(&tokens.server_name, &tokens.url)?;
+        store.save(KEYRING_SERVICE, &key, &serialized)?;
+
+        let error = super::load_oauth_tokens_from_keyring(&store, &tokens.server_name, &tokens.url)
+            .expect_err("malformed keyring tokens should fail validation");
+        assert_error_redacts_oauth_tokens(&error, &["super-secret-refresh-token"]);
+        assert!(
+            error
+                .to_string()
+                .contains("invalid OAuth tokens from keyring")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn load_oauth_tokens_rejects_malformed_fallback_record_without_leaking_tokens() -> Result<()> {
+        let _env = TempCodexHome::new();
+        let tokens = sample_tokens();
+        let key = super::compute_store_key(&tokens.server_name, &tokens.url)?;
+        let mut store = super::FallbackFile::new();
+        store.insert(
+            key,
+            FallbackTokenEntry {
+                server_name: tokens.server_name.clone(),
+                server_url: tokens.url.clone(),
+                client_id: " ".to_string(),
+                access_token: "super-secret-access-token".to_string(),
+                expires_at: None,
+                refresh_token: Some("super-secret-refresh-token".to_string()),
+                scopes: Vec::new(),
+            },
+        );
+        super::write_fallback_file(&store)?;
+
+        let error = super::load_oauth_tokens_from_file(&tokens.server_name, &tokens.url)
+            .expect_err("malformed fallback tokens should fail validation");
+        assert_error_redacts_oauth_tokens(
+            &error,
+            &["super-secret-access-token", "super-secret-refresh-token"],
+        );
+        assert!(
+            error
+                .to_string()
+                .contains("invalid OAuth tokens in fallback credentials file")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn save_oauth_tokens_rejects_malformed_record_without_leaking_tokens() {
+        let _env = TempCodexHome::new();
+        let mut tokens = sample_tokens();
+        tokens.client_id = String::new();
+
+        let error = super::save_oauth_tokens_to_file(&tokens)
+            .expect_err("malformed tokens should fail validation before save");
+        assert_error_redacts_oauth_tokens(&error, &["access-token", "refresh-token"]);
+        assert!(error.to_string().contains("invalid OAuth tokens"));
+    }
+
+    #[test]
     fn delete_oauth_tokens_removes_all_storage() -> Result<()> {
         let _env = TempCodexHome::new();
         let store = MockKeyringStore::default();
@@ -885,6 +1063,56 @@ mod tests {
             actual_response.expires_in().is_some(),
             expected_response.expires_in().is_some()
         );
+    }
+
+    fn assert_error_redacts_oauth_tokens(error: &anyhow::Error, secrets: &[&str]) {
+        let message = format!("{error:?}");
+        for secret in secrets {
+            assert!(
+                !message.contains(secret),
+                "error should not contain OAuth secret {secret:?}: {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn from_bearer_token_parts_builds_stored_oauth_tokens() {
+        let expires_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_millis() as u64
+            + 600_000;
+
+        let actual = StoredOAuthTokens::from_bearer_token_parts(OAuthBearerTokenParts {
+            server_name: "linear".to_string(),
+            url: "https://mcp.linear.app/sse".to_string(),
+            client_id: "client-id".to_string(),
+            access_token: "access-token".to_string(),
+            refresh_token: Some("refresh-token".to_string()),
+            scopes: vec!["read".to_string(), "write".to_string()],
+            expires_at: Some(expires_at),
+        });
+
+        let mut response = OAuthTokenResponse::new(
+            AccessToken::new("access-token".to_string()),
+            BasicTokenType::Bearer,
+            VendorExtraTokenFields::default(),
+        );
+        response.set_refresh_token(Some(RefreshToken::new("refresh-token".to_string())));
+        response.set_scopes(Some(vec![
+            Scope::new("read".to_string()),
+            Scope::new("write".to_string()),
+        ]));
+        let mut expected = StoredOAuthTokens {
+            server_name: "linear".to_string(),
+            url: "https://mcp.linear.app/sse".to_string(),
+            client_id: "client-id".to_string(),
+            token_response: WrappedOAuthTokenResponse(response),
+            expires_at: Some(expires_at),
+        };
+        super::refresh_expires_in_from_timestamp(&mut expected);
+
+        assert_tokens_match_without_expiry(&actual, &expected);
     }
 
     fn sample_tokens() -> StoredOAuthTokens {

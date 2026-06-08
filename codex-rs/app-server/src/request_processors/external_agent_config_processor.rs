@@ -119,6 +119,9 @@ impl ExternalAgentConfigRequestProcessor {
                         CoreMigrationItemType::Sessions => {
                             ExternalAgentConfigMigrationItemType::Sessions
                         }
+                        CoreMigrationItemType::McpOauthCredentials => {
+                            ExternalAgentConfigMigrationItemType::McpOauthCredentials
+                        }
                     },
                     description: migration_item.description,
                     cwd: migration_item.cwd,
@@ -426,6 +429,9 @@ impl ExternalAgentConfigRequestProcessor {
                             }
                             ExternalAgentConfigMigrationItemType::Sessions => {
                                 CoreMigrationItemType::Sessions
+                            }
+                            ExternalAgentConfigMigrationItemType::McpOauthCredentials => {
+                                CoreMigrationItemType::McpOauthCredentials
                             }
                         },
                         description: migration_item.description,

@@ -127,6 +127,54 @@ fn prompt_options(
     }
 }
 
+#[test]
+fn sanitize_mcp_tool_result_removes_images_when_unsupported() {
+    let result = Ok(CallToolResult {
+        content: vec![
+            serde_json::json!({
+                "type": "text",
+                "text": "Here is an image:"
+            }),
+            serde_json::json!({
+                "type": "image",
+                "data": "base64data",
+                "mimeType": "image/png"
+            }),
+        ],
+        structured_content: None,
+        is_error: None,
+        meta: None,
+    });
+
+    let sanitized = sanitize_mcp_tool_result_for_model(false, result).unwrap();
+
+    assert_eq!(sanitized.content.len(), 2);
+    assert_eq!(sanitized.content[0]["type"], "text");
+    assert_eq!(sanitized.content[1]["type"], "text");
+    assert_eq!(
+        sanitized.content[1]["text"],
+        "<image content omitted because you do not support image input>"
+    );
+}
+
+#[test]
+fn sanitize_mcp_tool_result_preserves_images_when_supported() {
+    let result = Ok(CallToolResult {
+        content: vec![serde_json::json!({
+            "type": "image",
+            "data": "base64data",
+            "mimeType": "image/png"
+        })],
+        structured_content: None,
+        is_error: None,
+        meta: None,
+    });
+
+    let sanitized = sanitize_mcp_tool_result_for_model(true, result.clone()).unwrap();
+
+    assert_eq!(sanitized.content, result.unwrap().content);
+}
+
 #[tokio::test]
 async fn execute_mcp_tool_call_records_replayable_correlation() -> anyhow::Result<()> {
     let temp = tempdir()?;

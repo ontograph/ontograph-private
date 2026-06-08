@@ -1,10 +1,25 @@
 # Rust/codex-rs
 
+## Memory Bank
+
+Use `.memory-bank/` as the project memory layer for this repository.
+
+- At the start of any non-trivial task, read `.memory-bank/MEMORY.md` first, then open only the linked memory files relevant to the task.
+- Treat `.memory-bank/MEMORY.md` as the short index; keep it concise and link-oriented.
+- Treat `.memory-bank/CLAUDE_CODE_APPROACHES_FOR_CODEBASE_TRACKING.md` as the authoritative dispatch/status file for the current project plan. Memory-bank files summarize and route context; they do not replace tracking files, ADRs, or GitNexus.
+- Update `.memory-bank/project_plan-current.md` and `.memory-bank/project_pending-tasks.md` when project-plan status, counts, next steps, or dispatch order changes.
+- Update `.memory-bank/project_architecture.md` when an architecture owner, flow, or change-home rule changes.
+- Add an `.memory-bank/audit_session-YYYY-MM-DD-*.md` entry for major closure, verification, or decision events, and link it from `.memory-bank/MEMORY.md`.
+- Keep memory-bank updates factual and compact; do not paste long logs, full diffs, or raw test output.
+- Do not store secrets, tokens, credentials, cookies, authorization headers, keychain paths, or raw private user data in memory-bank files.
+- When memory-bank content conflicts with code, GitNexus, ADRs, or tracking files, verify from the authoritative source and update the stale memory entry.
+
 In the codex-rs folder where the rust code lives:
 
 - Crate names are prefixed with `codex-`. For example, the `core` folder's crate is named `codex-core`
 - When using format! and you can inline variables into {}, always do that.
 - Install any commands the repo relies on (for example `just`, `rg`, or `cargo-insta`) if they aren't already available before running instructions here.
+- When running build or test commands that compile code, limit build parallelism to 8 CPUs. For Cargo/Just commands, set `CARGO_BUILD_JOBS=8`; for Bazel commands, pass `--jobs=8`.
 - Never add or modify any code related to `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` or `CODEX_SANDBOX_ENV_VAR`.
   - You operate in a sandbox where `CODEX_SANDBOX_NETWORK_DISABLED=1` will be set whenever you use the `shell` tool. Any existing code that uses `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` was authored with this fact in mind. It is often used to early exit out of tests that the author knew you would not be able to run given your sandbox limitations.
   - Similarly, when you spawn a process using Seatbelt (`/usr/bin/sandbox-exec`), `CODEX_SANDBOX=seatbelt` will be set on the child process. Integration tests that want to run Seatbelt themselves cannot be run under Seatbelt, so checks for `CODEX_SANDBOX=seatbelt` are also often used to early exit out of tests, as appropriate.
@@ -75,6 +90,26 @@ Particularly when introducing a new concept/feature/API, before adding to `codex
 - It is time to introduce a new crate to the Cargo workspace for your new functionality. Refactor existing code as necessary to make this happen.
 
 Likewise, when reviewing code, do not hesitate to push back on PRs that would unnecessarily add code to `codex-core`.
+
+## Architecture Reuse Rules
+
+Before implementing provider, auth, MCP, hooks, shell, session/context, diagnostics, or external-agent import work:
+
+- Reuse existing architecture first. Do not create a second provider factory, provider registry, model catalog, runtime stream abstraction, capability resolver, OAuth token parser, credential persistence layer, redactor, MCP status pipeline, hook matcher, hook registry, policy evaluator, shell permission parser, shell launcher, context injection path, or external-agent import service.
+- Use GitNexus `context` on the target symbol/module and record the existing caller/callee surface before implementation. If editing a symbol, run GitNexus impact first and report the blast radius.
+- Extend the existing owner when it exists: provider work belongs in `model-provider`; OAuth persistence belongs in auth/login or provider auth boundaries; MCP work belongs in `rmcp-client`, `codex-mcp`, or existing MCP processors; hook work belongs in `hooks`; shell/sandbox work belongs beside the existing runtime and sandbox modules; context work belongs in session/context modules; external-agent import work belongs in the existing migration/import services.
+- Add a new module only when the current owner would become too large or mix unrelated concepts. The new module must plug into the existing owner rather than bypassing it.
+- Prefer existing test harnesses and fixtures. If a new helper is necessary, document why existing helpers cannot express the case.
+- Public config keys, app-server APIs, SDK behavior, schemas, dashboards, wizards, support bundles, and export paths require an ADR and compatibility tests before implementation.
+- Security-sensitive diagnostics must reuse or extend shared sanitization/redaction behavior. Tests must fail if a token, cookie, authorization header, keychain path, or raw credential value appears in output.
+- Anything injected into model context must use bounded context fragment architecture with hard caps.
+
+## Ontocode Rename Rule
+
+- Treat `Ontocode` / `ontocode` as the target project identity for rename and migration work.
+- When a task requires renaming code objects, prefer the new Ontocode name for crates, modules, types, functions, commands, package metadata, docs, and user-visible surfaces unless a compatibility boundary requires the old name.
+- Never rename code objects with broad find-and-replace. Use GitNexus rename/impact analysis and preserve compatibility shims where external integrations, persisted state, config keys, CLI commands, app-server APIs, package names, or rollout/session data still depend on the old name.
+- Before removing any old-name alias, document the migration path and verify affected execution flows with GitNexus `detect_changes`.
 
 ## Code Review Rules
 
@@ -284,3 +319,54 @@ This project uses Python 3+. You should not use the `__future__` module.
 
 If you need to worry about feature compatibility between different 3.xx point releases, check the
 closest `pyproject.toml`'s `requires-python` field to see what minimum runtime version is supported.
+
+<!-- lean-ctx -->
+## lean-ctx
+
+Prefer lean-ctx MCP tools over native equivalents for token savings.
+Full rules: @LEAN-CTX.md
+<!-- /lean-ctx -->
+
+<!-- gitnexus:start -->
+# GitNexus — Code Intelligence
+
+This project is indexed by GitNexus as **codex** (72144 symbols, 164215 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+
+> If any GitNexus tool warns the index is stale, run `gitnexus analyze --skills --skip-agents-md` in terminal first.
+
+## Always Do
+
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+
+## Never Do
+
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+
+## Resources
+
+| Resource | Use for |
+|----------|---------|
+| `gitnexus://repo/codex/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/codex/clusters` | All functional areas |
+| `gitnexus://repo/codex/processes` | All execution flows |
+| `gitnexus://repo/codex/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+
+<!-- gitnexus:end -->

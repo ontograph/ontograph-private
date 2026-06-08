@@ -625,13 +625,16 @@ const REDACTED_URL_VALUE: &str = "<redacted>";
 const SENSITIVE_URL_QUERY_KEYS: &[&str] = &[
     "access_token",
     "api_key",
+    "authorization",
     "client_secret",
     "code",
     "code_verifier",
+    "cookie",
     "id_token",
     "key",
     "refresh_token",
     "requested_token",
+    "set-cookie",
     "state",
     "subject_token",
     "token",
@@ -1420,10 +1423,23 @@ mod tests {
 
     #[test]
     fn redact_sensitive_query_value_only_scrubs_known_keys() {
-        assert_eq!(
-            redact_sensitive_query_value("code", "abc123"),
-            "<redacted>".to_string()
-        );
+        for key in [
+            "access_token",
+            "Authorization",
+            "client_secret",
+            "code",
+            "Cookie",
+            "id_token",
+            "refresh_token",
+            "Set-Cookie",
+        ] {
+            assert_eq!(
+                redact_sensitive_query_value(key, "secret-value"),
+                "<redacted>".to_string(),
+                "{key} should be redacted"
+            );
+        }
+
         assert_eq!(
             redact_sensitive_query_value("redirect_uri", "http://localhost:1455/auth/callback"),
             "http://localhost:1455/auth/callback".to_string()
@@ -1433,7 +1449,7 @@ mod tests {
     #[test]
     fn redact_sensitive_url_parts_preserves_safe_url_shape() {
         let mut url = url::Url::parse(
-            "https://user:pass@auth.openai.com/oauth/token?code=abc123&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback#frag",
+            "https://user:pass@auth.openai.com/oauth/token?code=abc123&client_secret=client-secret&access_token=access-secret&refresh_token=refresh-secret&id_token=id-secret&Authorization=Bearer%20secret&Cookie=session%3Dsecret&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback#frag",
         )
         .expect("valid url");
 
@@ -1441,7 +1457,7 @@ mod tests {
 
         assert_eq!(
             url.as_str(),
-            "https://auth.openai.com/oauth/token?code=%3Credacted%3E&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
+            "https://auth.openai.com/oauth/token?code=%3Credacted%3E&client_secret=%3Credacted%3E&access_token=%3Credacted%3E&refresh_token=%3Credacted%3E&id_token=%3Credacted%3E&Authorization=%3Credacted%3E&Cookie=%3Credacted%3E&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
         );
     }
 

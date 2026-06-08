@@ -236,16 +236,12 @@ impl Session {
         clippy::await_holding_invalid_type,
         reason = "MCP resource calls are serialized through the session-owned manager guard"
     )]
-    pub async fn list_resources(
-        &self,
-        server: &str,
-        params: Option<PaginatedRequestParams>,
-    ) -> anyhow::Result<ListResourcesResult> {
+    pub async fn list_resources(&self, server: &str) -> anyhow::Result<ListResourcesResult> {
         self.services
             .mcp_connection_manager
             .read()
             .await
-            .list_resources(server, params)
+            .list_resources(server)
             .await
     }
 
@@ -256,16 +252,14 @@ impl Session {
     pub async fn list_resource_templates(
         &self,
         server: &str,
-        params: Option<PaginatedRequestParams>,
     ) -> anyhow::Result<ListResourceTemplatesResult> {
         self.services
             .mcp_connection_manager
             .read()
             .await
-            .list_resource_templates(server, params)
+            .list_resource_templates(server)
             .await
     }
-
     #[expect(
         clippy::await_holding_invalid_type,
         reason = "MCP resource calls are serialized through the session-owned manager guard"

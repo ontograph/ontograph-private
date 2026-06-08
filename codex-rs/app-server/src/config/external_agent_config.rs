@@ -52,6 +52,7 @@ pub(crate) enum ExternalAgentConfigMigrationItemType {
     AgentsMd,
     Plugins,
     McpServerConfig,
+    McpOauthCredentials,
     Subagents,
     Hooks,
     Commands,
@@ -252,10 +253,69 @@ impl ExternalAgentConfigService {
                     );
                 }
                 ExternalAgentConfigMigrationItemType::Sessions => {}
+                ExternalAgentConfigMigrationItemType::McpOauthCredentials => {
+                    self.import_mcp_oauth_credentials(migration_item.cwd.as_deref())?;
+                    emit_migration_metric(
+                        EXTERNAL_AGENT_CONFIG_IMPORT_METRIC,
+                        ExternalAgentConfigMigrationItemType::McpOauthCredentials,
+                        /*skills_count*/ None,
+                    );
+                }
             }
         }
 
         Ok(pending_plugin_imports)
+    }
+
+    fn import_mcp_oauth_credentials(&self, cwd: Option<&Path>) -> io::Result<()> {
+        use codex_config::types::OAuthCredentialsStoreMode;
+        use codex_external_agent_migration::claude_oauth_import::parse_claude_oauth_import_sample;
+        use codex_rmcp_client::oauth::OAuthBearerTokenParts;
+        use codex_rmcp_client::oauth::StoredOAuthTokens;
+        use codex_rmcp_client::oauth::save_oauth_tokens;
+
+        let source_credentials_file = cwd.map_or_else(
+            || self.external_agent_home.join("mcp.json"),
+            |cwd| cwd.join(EXTERNAL_AGENT_DIR).join("mcp.json"),
+        );
+
+        if !source_credentials_file.is_file() {
+            return Ok(());
+        }
+
+        let raw = fs::read_to_string(&source_credentials_file)?;
+        let parsed: JsonValue = serde_json::from_str(&raw)
+            .map_err(|err| invalid_data_error(format!("invalid MCP config: {err}")))?;
+
+        // Assuming user_consented is verified prior to dispatching import
+        let report = parse_claude_oauth_import_sample(&parsed, false, true);
+
+        for credential in report.credentials {
+            let parts = OAuthBearerTokenParts {
+                server_name: credential.connector_name.clone(),
+                url: credential.server_url.clone(),
+                client_id: credential.client_id.clone(),
+                access_token: credential.access_token.clone(),
+                refresh_token: credential.refresh_token.clone(),
+                scopes: credential.scopes.clone(),
+                expires_at: credential.expires_at,
+            };
+
+            let stored_tokens = StoredOAuthTokens::from_bearer_token_parts(parts);
+
+            if let Err(err) = save_oauth_tokens(
+                &credential.connector_name,
+                &stored_tokens,
+                OAuthCredentialsStoreMode::Auto,
+            ) {
+                tracing::warn!(
+                    "failed to save migrated MCP OAuth credentials for server '{}': {err}",
+                    credential.connector_name
+                );
+            }
+        }
+
+        Ok(())
     }
 
     async fn detect_migrations(
@@ -565,6 +625,33 @@ impl ExternalAgentConfigService {
                     ExternalAgentConfigMigrationItemType::Sessions,
                     /*skills_count*/ None,
                 );
+            }
+        }
+
+        let target_claude_mcp_json = repo_root.map_or_else(
+            || self.external_agent_home.join("mcp.json"),
+            |repo_root| repo_root.join(EXTERNAL_AGENT_DIR).join("mcp.json"),
+        );
+        if target_claude_mcp_json.exists() {
+            if let Ok(raw) = std::fs::read_to_string(&target_claude_mcp_json) {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if !codex_external_agent_migration::claude_oauth_import::parse_claude_oauth_import_sample(&parsed, false, true).credentials.is_empty() {
+                        items.push(ExternalAgentConfigMigrationItem {
+                            item_type: ExternalAgentConfigMigrationItemType::McpOauthCredentials,
+                            description: format!(
+                                "Migrate MCP OAuth credentials from {}",
+                                target_claude_mcp_json.display()
+                            ),
+                            cwd: cwd.clone(),
+                            details: None,
+                        });
+                        emit_migration_metric(
+                            EXTERNAL_AGENT_CONFIG_DETECT_METRIC,
+                            ExternalAgentConfigMigrationItemType::McpOauthCredentials,
+                            /*skills_count*/ None,
+                        );
+                    }
+                }
             }
         }
 
@@ -1589,6 +1676,7 @@ fn migration_metric_tags(
         ExternalAgentConfigMigrationItemType::Hooks => "hooks",
         ExternalAgentConfigMigrationItemType::Commands => "commands",
         ExternalAgentConfigMigrationItemType::Sessions => "sessions",
+        ExternalAgentConfigMigrationItemType::McpOauthCredentials => "mcp_oauth_credentials",
     };
     let mut tags = vec![("migration_type", migration_type.to_string())];
     if matches!(

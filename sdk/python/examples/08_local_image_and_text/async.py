@@ -5,26 +5,22 @@ _EXAMPLES_ROOT = Path(__file__).resolve().parents[1]
 if str(_EXAMPLES_ROOT) not in sys.path:
     sys.path.insert(0, str(_EXAMPLES_ROOT))
 
-from _bootstrap import (
-    ensure_local_sdk_src,
-    runtime_config,
-    temporary_sample_image_path,
-)
+from _bootstrap import ensure_local_sdk_src, runtime_config, temporary_sample_image_path
 
 ensure_local_sdk_src()
 
 import asyncio
 
-from openai_codex import AsyncCodex, LocalImageInput, TextInput
+from openai_codex import AsyncOntocode, LocalImageInput, TextInput
 
 
 async def main() -> None:
     with temporary_sample_image_path() as image_path:
-        async with AsyncCodex(config=runtime_config()) as codex:
+        async with AsyncOntocode(config=runtime_config()) as codex:
             thread = await codex.thread_start(
-                model="gpt-5.4", config={"model_reasoning_effort": "high"}
+                model="gpt-5.4",
+                config={"model_reasoning_effort": "high"},
             )
-
             turn = await thread.turn(
                 [
                     TextInput(
@@ -34,7 +30,6 @@ async def main() -> None:
                 ]
             )
             result = await turn.run()
-
             print("Status:", result.status)
             print(result.final_response)
 

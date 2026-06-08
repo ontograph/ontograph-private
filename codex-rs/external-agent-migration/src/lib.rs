@@ -1,5 +1,7 @@
 //! Migration helpers for importing external-agent configuration into Codex.
 
+pub mod claude_oauth_import;
+
 use codex_hooks::HOOK_EVENT_NAMES;
 use codex_hooks::HOOK_EVENT_NAMES_WITH_MATCHERS;
 use serde_json::Value as JsonValue;

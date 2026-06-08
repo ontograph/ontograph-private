@@ -62,3 +62,4 @@ pub(crate) use subagent_notification::SubagentNotification;
 pub(crate) use turn_aborted::TurnAborted;
 pub(crate) use user_instructions::UserInstructions;
 pub(crate) use user_shell_command::UserShellCommand;
+pub mod diagnostic;

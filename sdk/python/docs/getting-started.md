@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide gets a published OpenAI Codex Python SDK beta installation running
+This guide gets a published OpenAI Ontocode Python SDK beta installation running
 with a multi-turn thread.
 
 ## 1. Install
@@ -14,7 +14,7 @@ pip install openai-codex
 Requirements:
 
 - Python `>=3.10`
-- An existing Codex account session, or one of the login flows below
+- An existing Ontocode account session, or one of the login flows below
 
 The SDK installs its compatible `openai-codex-cli-bin` runtime dependency
 automatically. While beta releases are the only published SDK releases, this
@@ -23,13 +23,13 @@ use `pip install --pre openai-codex` to opt into a newer prerelease.
 
 ## 2. Authenticate When Needed
 
-Existing Codex authentication is reused automatically. For ChatGPT browser
+Existing Ontocode authentication is reused automatically. For ChatGPT browser
 login:
 
 ```python
-from openai_codex import Codex
+from openai_codex import Ontocode
 
-with Codex() as codex:
+with Ontocode() as codex:
     login = codex.login_chatgpt()
     print(login.auth_url)
     print(login.wait().success)
@@ -38,7 +38,7 @@ with Codex() as codex:
 For device-code login:
 
 ```python
-with Codex() as codex:
+with Ontocode() as codex:
     login = codex.login_chatgpt_device_code()
     print(login.verification_url, login.user_code)
     print(login.wait().success)
@@ -47,7 +47,7 @@ with Codex() as codex:
 For API-key login:
 
 ```python
-with Codex() as codex:
+with Ontocode() as codex:
     codex.login_api_key("sk-...")
     print(codex.account().account)
 ```
@@ -55,9 +55,9 @@ with Codex() as codex:
 ## 3. Run A Turn
 
 ```python
-from openai_codex import Codex, Sandbox
+from openai_codex import Ontocode, Sandbox
 
-with Codex() as codex:
+with Ontocode() as codex:
     thread = codex.thread_start(sandbox=Sandbox.workspace_write)
     result = thread.run("Say hello in one sentence.")
 
@@ -77,9 +77,9 @@ or interrupting an active turn.
 Use one enum for the initial thread and later turn overrides:
 
 ```python
-from openai_codex import Codex, Sandbox
+from openai_codex import Ontocode, Sandbox
 
-with Codex() as codex:
+with Ontocode() as codex:
     thread = codex.thread_start(sandbox=Sandbox.workspace_write)
     thread.run("Make the requested changes.")
     review = thread.run("Review the diff only.", sandbox=Sandbox.read_only)
@@ -92,15 +92,15 @@ Available presets:
   configured writable roots; this is the normal default for workspace work.
 - `Sandbox.full_access`: run without filesystem access restrictions.
 
-When `sandbox=` is omitted, Codex uses its configured default. A turn override
+When `sandbox=` is omitted, Ontocode uses its configured default. A turn override
 also applies to subsequent turns on that thread.
 
 ## 5. Continue A Thread
 
 ```python
-from openai_codex import Codex
+from openai_codex import Ontocode
 
-with Codex() as codex:
+with Ontocode() as codex:
     thread = codex.thread_start()
     thread.run("Summarize Rust ownership in two bullets.")
     result = thread.run("Now explain it to a Python developer.")
@@ -110,7 +110,7 @@ with Codex() as codex:
 To resume a stored thread later:
 
 ```python
-with Codex() as codex:
+with Ontocode() as codex:
     thread = codex.thread_resume("thr_123")
     print(thread.run("Continue where we left off.").final_response)
 ```
@@ -120,11 +120,11 @@ with Codex() as codex:
 ```python
 import asyncio
 
-from openai_codex import AsyncCodex, Sandbox
+from openai_codex import AsyncOntocode, Sandbox
 
 
 async def main() -> None:
-    async with AsyncCodex() as codex:
+    async with AsyncOntocode() as codex:
         thread = await codex.thread_start(sandbox=Sandbox.workspace_write)
         result = await thread.run("Continue where we left off.")
         print(result.final_response)
@@ -139,11 +139,11 @@ Python's built-in documentation tools cover the curated SDK surface:
 
 ```python
 import openai_codex
-from openai_codex import Codex, CodexConfig
+from openai_codex import Ontocode, OntocodeConfig
 
 help(openai_codex)
-help(Codex)
-help(CodexConfig)
+help(Ontocode)
+help(OntocodeConfig)
 ```
 
 ```bash

@@ -84,7 +84,7 @@ pub fn parse_powershell_command_into_plain_commands(
 
 /// This function attempts to find a powershell.exe executable on the system.
 pub fn try_find_powershell_executable_blocking() -> Option<AbsolutePathBuf> {
-    try_find_powershellish_executable_in_path(&["powershell.exe"])
+    try_find_powershellish_executable_in_path(&["powershell.exe", "powershell"])
 }
 
 /// This function attempts to find a pwsh.exe executable on the system.
@@ -98,8 +98,12 @@ pub fn try_find_powershell_executable_blocking() -> Option<AbsolutePathBuf> {
 /// has installed pwsh.exe, it may not be available in the system PATH, in which
 /// case we attempt to locate it via other means.
 pub fn try_find_pwsh_executable_blocking() -> Option<AbsolutePathBuf> {
-    if let Some(ps_home) = std::process::Command::new("cmd")
-        .args(["/C", "pwsh", "-NoProfile", "-Command", "$PSHOME"])
+    if let Some(ps_home) = std::process::Command::new(if cfg!(windows) { "cmd" } else { "sh" })
+        .args(if cfg!(windows) {
+            vec!["/C", "pwsh", "-NoProfile", "-Command", "$PSHOME"]
+        } else {
+            vec!["-c", "pwsh -NoProfile -Command '$PSHOME'"]
+        })
         .output()
         .ok()
         .and_then(|out| {
@@ -111,14 +115,15 @@ pub fn try_find_pwsh_executable_blocking() -> Option<AbsolutePathBuf> {
             (!trimmed.is_empty()).then(|| trimmed.to_string())
         })
     {
-        let candidate = AbsolutePathBuf::resolve_path_against_base("pwsh.exe", &ps_home);
+        let exe_name = if cfg!(windows) { "pwsh.exe" } else { "pwsh" };
+        let candidate = AbsolutePathBuf::resolve_path_against_base(exe_name, &ps_home);
 
         if is_powershellish_executable_available(candidate.as_path()) {
             return Some(candidate);
         }
     }
 
-    try_find_powershellish_executable_in_path(&["pwsh.exe"])
+    try_find_powershellish_executable_in_path(&["pwsh.exe", "pwsh"])
 }
 
 fn try_find_powershellish_executable_in_path(candidates: &[&str]) -> Option<AbsolutePathBuf> {
@@ -143,11 +148,28 @@ fn try_find_powershellish_executable_in_path(candidates: &[&str]) -> Option<Abso
 
 fn is_powershellish_executable_available(powershell_or_pwsh_exe: &std::path::Path) -> bool {
     // This test works for both powershell.exe and pwsh.exe.
-    std::process::Command::new(powershell_or_pwsh_exe)
+    // Use a timeout to prevent hanging on zombie or broken executables.
+    use std::time::Duration;
+    use wait_timeout::ChildExt;
+
+    let mut child = match std::process::Command::new(powershell_or_pwsh_exe)
         .args(["-NoLogo", "-NoProfile", "-Command", "Write-Output ok"])
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(_) => return false,
+    };
+
+    match child.wait_timeout(Duration::from_secs(5)) {
+        Ok(Some(status)) => status.success(),
+        Ok(None) => {
+            let _ = child.kill();
+            false
+        }
+        Err(_) => false,
+    }
 }
 
 #[cfg(test)]

@@ -18,10 +18,12 @@ use codex_protocol::account::ProviderAccount;
 use codex_protocol::error::Result;
 use codex_protocol::openai_models::ModelsResponse;
 
+use crate::descriptor::ProviderDescriptor;
 use crate::provider::ModelProvider;
 use crate::provider::ProviderAccountResult;
 use crate::provider::ProviderAccountState;
 use crate::provider::ProviderCapabilities;
+use crate::provider::ProviderRuntimeEngine;
 use auth::resolve_provider_auth;
 pub(crate) use catalog::static_model_catalog;
 use catalog::with_default_only_service_tier;
@@ -56,12 +58,12 @@ impl ModelProvider for AmazonBedrockModelProvider {
         &self.info
     }
 
+    fn runtime_engine(&self) -> ProviderRuntimeEngine {
+        ProviderRuntimeEngine::AmazonBedrockResponses
+    }
+
     fn capabilities(&self) -> ProviderCapabilities {
-        ProviderCapabilities {
-            namespace_tools: true,
-            image_generation: false,
-            web_search: false,
-        }
+        ProviderDescriptor::for_provider(&self.info).capabilities()
     }
 
     fn approval_review_preferred_model(&self) -> &'static str {
@@ -143,6 +145,8 @@ mod tests {
                 namespace_tools: true,
                 image_generation: false,
                 web_search: false,
+                requires_openai_auth: false,
+                supports_models_route_probe: false,
             }
         );
     }

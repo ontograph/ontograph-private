@@ -119,11 +119,45 @@ pub(crate) fn matcher_pattern_for_event(
     }
 }
 
+use std::cell::RefCell;
+use std::num::NonZeroUsize;
+
+use lru::LruCache;
+use regex::Regex;
+
+thread_local! {
+    static REGEX_CACHE: RefCell<LruCache<String, Option<Regex>>> = RefCell::new(LruCache::new(NonZeroUsize::new(100).unwrap()));
+}
+
 pub(crate) fn validate_matcher_pattern(matcher: &str) -> Result<(), regex::Error> {
     if is_match_all_matcher(matcher) || is_exact_matcher(matcher) {
         return Ok(());
     }
-    regex::Regex::new(matcher).map(|_| ())
+
+    REGEX_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some(res) = cache.get(matcher) {
+            return match res {
+                Some(_) => Ok(()),
+                None => {
+                    // We need to re-parse to get the error if we cached a failure.
+                    // This is rare so we just re-parse.
+                    Regex::new(matcher).map(|_| ())
+                }
+            };
+        }
+
+        match Regex::new(matcher) {
+            Ok(regex) => {
+                cache.put(matcher.to_string(), Some(regex));
+                Ok(())
+            }
+            Err(err) => {
+                cache.put(matcher.to_string(), None);
+                Err(err)
+            }
+        }
+    })
 }
 
 pub(crate) fn matches_matcher(matcher: Option<&str>, input: Option<&str>) -> bool {
@@ -135,9 +169,25 @@ pub(crate) fn matches_matcher(matcher: Option<&str>, input: Option<&str>) -> boo
             .unwrap_or(false),
         Some(matcher) => input
             .and_then(|input| {
-                regex::Regex::new(matcher)
-                    .ok()
-                    .map(|regex| regex.is_match(input))
+                REGEX_CACHE.with(|cache| {
+                    let mut cache = cache.borrow_mut();
+                    let regex = if let Some(cached) = cache.get(matcher) {
+                        cached.as_ref()
+                    } else {
+                        match Regex::new(matcher) {
+                            Ok(regex) => {
+                                cache.put(matcher.to_string(), Some(regex));
+                                cache.get(matcher).and_then(|c| c.as_ref())
+                            }
+                            Err(_) => {
+                                cache.put(matcher.to_string(), None);
+                                None
+                            }
+                        }
+                    };
+
+                    regex.map(|r| r.is_match(input))
+                })
             })
             .unwrap_or(false),
     }

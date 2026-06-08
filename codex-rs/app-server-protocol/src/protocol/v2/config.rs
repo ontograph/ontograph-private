@@ -556,6 +556,9 @@ pub enum ExternalAgentConfigMigrationItemType {
     #[serde(rename = "SESSIONS")]
     #[ts(rename = "SESSIONS")]
     Sessions,
+    #[serde(rename = "MCP_OAUTH_CREDENTIALS")]
+    #[ts(rename = "MCP_OAUTH_CREDENTIALS")]
+    McpOauthCredentials,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]

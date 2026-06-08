@@ -43,13 +43,13 @@ function createEarlyExitChild(exitCode = 2): FakeChildProcess {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-describe("CodexExec", () => {
+describe("OntocodeExec", () => {
   it("rejects when exit happens before stdout closes", async () => {
-    const { CodexExec } = await import("../src/exec");
+    const { OntocodeExec } = await import("../src/exec");
     const child = createEarlyExitChild();
     spawnMock.mockReturnValue(child as unknown as child_process.ChildProcess);
 
-    const exec = new CodexExec("codex");
+    const exec = new OntocodeExec("codex");
     const runPromise = (async () => {
       for await (const _ of exec.run({ input: "hi" })) {
         // no-op
@@ -67,12 +67,12 @@ describe("CodexExec", () => {
     expect(result.status).toBe("rejected");
     if (result.status === "rejected") {
       expect(result.error).toBeInstanceOf(Error);
-      expect(result.error.message).toMatch(/Codex Exec exited/);
+      expect(result.error.message).toMatch(/Ontocode Exec exited/);
     }
   });
 
   it("places resume args before image args", async () => {
-    const { CodexExec } = await import("../src/exec");
+    const { OntocodeExec } = await import("../src/exec");
     spawnMock.mockClear();
     const child = new FakeChildProcess();
     spawnMock.mockReturnValue(child as unknown as child_process.ChildProcess);
@@ -83,7 +83,7 @@ describe("CodexExec", () => {
       child.emit("exit", 0, null);
     });
 
-    const exec = new CodexExec("codex");
+    const exec = new OntocodeExec("codex");
     for await (const _ of exec.run({ input: "hi", images: ["img.png"], threadId: "thread-id" })) {
       // no-op
     }
@@ -97,8 +97,8 @@ describe("CodexExec", () => {
     expect(resumeIndex).toBeLessThan(imageIndex);
   });
 
-  it("allows overriding the env passed to the Codex CLI", async () => {
-    const { CodexExec } = await import("../src/exec");
+  it("allows overriding the env passed to the Ontocode CLI", async () => {
+    const { OntocodeExec } = await import("../src/exec");
     spawnMock.mockClear();
     const child = new FakeChildProcess();
     spawnMock.mockReturnValue(child as unknown as child_process.ChildProcess);
@@ -112,7 +112,7 @@ describe("CodexExec", () => {
     process.env.CODEX_ENV_SHOULD_NOT_LEAK = "leak";
 
     try {
-      const exec = new CodexExec("codex", {
+      const exec = new OntocodeExec("codex", {
         CODEX_HOME: "/tmp/codex-home",
         CUSTOM_ENV: "custom",
       });

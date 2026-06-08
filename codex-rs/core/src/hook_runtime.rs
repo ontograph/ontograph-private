@@ -463,6 +463,18 @@ pub(crate) async fn run_legacy_after_agent_hook(
         let hook_name = hook_outcome.hook_name;
         let (error, should_abort) = match hook_outcome.result {
             codex_hooks::HookResult::Success => continue,
+            codex_hooks::HookResult::Action(codex_hooks::HookAction::Allow) => continue,
+            codex_hooks::HookResult::Action(codex_hooks::HookAction::Warn { message }) => {
+                tracing::warn!(turn_id = %turn_context.sub_id, "hook {hook_name} issued warning: {message}");
+                continue;
+            }
+            codex_hooks::HookResult::Action(codex_hooks::HookAction::SystemMessage { .. }) => {
+                continue;
+            }
+            codex_hooks::HookResult::Action(codex_hooks::HookAction::Block { message }) => (
+                anyhow::anyhow!("hook {hook_name} blocked operation: {message}").into(),
+                true,
+            ),
             codex_hooks::HookResult::FailedContinue(error) => (error, false),
             codex_hooks::HookResult::FailedAbort(error) => (error, true),
         };

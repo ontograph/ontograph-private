@@ -2,6 +2,7 @@
 members = [
     "aws-auth",
     "analytics",
+    "adapter-protocol",
     "agent-graph-store",
     "agent-identity",
     "backend-client",
@@ -131,6 +132,7 @@ license = "Apache-2.0"
 [workspace.dependencies]
 # Internal
 app_test_support = { path = "app-server/tests/common" }
+codex-adapter-protocol = { path = "adapter-protocol" }
 codex-analytics = { path = "analytics" }
 codex-agent-graph-store = { path = "agent-graph-store" }
 codex-agent-identity = { path = "agent-identity" }

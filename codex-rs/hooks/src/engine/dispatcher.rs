@@ -16,6 +16,7 @@ use super::ConfiguredHandler;
 use super::command_runner::CommandRunResult;
 use super::command_runner::run_command;
 use crate::events::common::matches_matcher;
+use tracing::warn;
 
 #[derive(Debug)]
 pub(crate) struct ParsedHandler<T> {
@@ -86,6 +87,8 @@ pub(crate) fn running_summary(handler: &ConfiguredHandler) -> HookRunSummary {
     }
 }
 
+const MAX_HOOK_ITERATIONS: usize = 10;
+
 pub(crate) async fn execute_handlers<T>(
     shell: &CommandShell,
     handlers: Vec<ConfiguredHandler>,
@@ -94,6 +97,22 @@ pub(crate) async fn execute_handlers<T>(
     turn_id: Option<String>,
     parse: fn(&ConfiguredHandler, CommandRunResult, Option<String>) -> ParsedHandler<T>,
 ) -> Vec<ParsedHandler<T>> {
+    if handlers.is_empty() {
+        return Vec::new();
+    }
+
+    // Protection against infinite loops (e.g. stop hook triggering stop)
+    let handlers = if handlers.len() > MAX_HOOK_ITERATIONS {
+        warn!(
+            "Hook loop detected: too many handlers ({}) for a single event. Capping to {}.",
+            handlers.len(),
+            MAX_HOOK_ITERATIONS
+        );
+        handlers.into_iter().take(MAX_HOOK_ITERATIONS).collect()
+    } else {
+        handlers
+    };
+
     let mut pending = FuturesUnordered::new();
     for (configured_order, handler) in handlers.into_iter().enumerate() {
         let input_json = input_json.clone();

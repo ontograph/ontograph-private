@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from ._message_router import MessageRouter
 from ._version import __version__ as SDK_VERSION
-from .errors import CodexError, TransportClosedError
+from .errors import OntocodeError, TransportClosedError
 from .generated.notification_registry import NOTIFICATION_MODELS
 from .generated.v2_all import (
     AccountLoginCompletedNotification,
@@ -141,19 +141,19 @@ def _path_env_key(env: dict[str, str]) -> str:
 
 
 @dataclass(frozen=True)
-class CodexBinResolverOps:
+class OntocodeBinResolverOps:
     installed_codex_path: Callable[[], Path]
     path_exists: Callable[[Path], bool]
 
 
-def _default_codex_bin_resolver_ops() -> CodexBinResolverOps:
-    return CodexBinResolverOps(
+def _default_ontocode_bin_resolver_ops() -> OntocodeBinResolverOps:
+    return OntocodeBinResolverOps(
         installed_codex_path=_installed_codex_path,
         path_exists=lambda path: path.exists(),
     )
 
 
-def resolve_codex_bin(config: "CodexConfig", ops: CodexBinResolverOps) -> Path:
+def resolve_ontocode_bin(config: "OntocodeConfig", ops: OntocodeBinResolverOps) -> Path:
     if config.codex_bin is not None:
         codex_bin = Path(config.codex_bin)
         if not ops.path_exists(codex_bin):
@@ -166,16 +166,16 @@ def resolve_codex_bin(config: "CodexConfig", ops: CodexBinResolverOps) -> Path:
     return ops.installed_codex_path()
 
 
-def _resolve_codex_bin(config: "CodexConfig") -> Path:
-    return resolve_codex_bin(config, _default_codex_bin_resolver_ops())
+def _resolve_ontocode_bin(config: "OntocodeConfig") -> Path:
+    return resolve_ontocode_bin(config, _default_ontocode_bin_resolver_ops())
 
 
 @dataclass(slots=True)
-class CodexConfig:
-    """Configuration for launching and identifying the local Codex runtime.
+class OntocodeConfig:
+    """Configuration for launching and identifying the local Ontocode runtime.
 
-    Most callers can use ``Codex()`` without configuration. Set ``codex_bin``
-    only when intentionally using a specific local Codex executable.
+    Most callers can use ``Ontocode()`` without configuration. Set ``codex_bin``
+    only when intentionally using a specific local Ontocode executable.
     """
 
     codex_bin: str | None = None
@@ -189,15 +189,15 @@ class CodexConfig:
     experimental_api: bool = True
 
 
-class CodexClient:
+class OntocodeClient:
     """Synchronous typed JSON-RPC client for `codex app-server` over stdio."""
 
     def __init__(
         self,
-        config: CodexConfig | None = None,
+        config: OntocodeConfig | None = None,
         approval_handler: ApprovalHandler | None = None,
     ) -> None:
-        self.config = config or CodexConfig()
+        self.config = config or OntocodeConfig()
         self._approval_handler = approval_handler or self._default_approval_handler
         self._proc: subprocess.Popen[str] | None = None
         self._lock = threading.Lock()
@@ -206,7 +206,7 @@ class CodexClient:
         self._stderr_thread: threading.Thread | None = None
         self._reader_thread: threading.Thread | None = None
 
-    def __enter__(self) -> "CodexClient":
+    def __enter__(self) -> "OntocodeClient":
         self.start()
         return self
 
@@ -221,7 +221,7 @@ class CodexClient:
         if self.config.launch_args_override is not None:
             args = list(self.config.launch_args_override)
         else:
-            codex_bin = _resolve_codex_bin(self.config)
+            codex_bin = _resolve_ontocode_bin(self.config)
             if self.config.codex_bin is None:
                 path_dirs = _installed_codex_path_dirs()
             args = [str(codex_bin)]
@@ -295,7 +295,7 @@ class CodexClient:
     ) -> ModelT:
         result = self._request_raw(method, params)
         if not isinstance(result, dict):
-            raise CodexError(f"{method} response must be a JSON object")
+            raise OntocodeError(f"{method} response must be a JSON object")
         return response_model.model_validate(result)
 
     def _request_raw(self, method: str, params: JsonObject | None = None) -> JsonValue:
@@ -683,12 +683,19 @@ class CodexClient:
         try:
             message = json.loads(line)
         except json.JSONDecodeError as exc:
-            raise CodexError(f"Invalid JSON-RPC line: {line!r}") from exc
+            raise OntocodeError(f"Invalid JSON-RPC line: {line!r}") from exc
 
         if not isinstance(message, dict):
-            raise CodexError(f"Invalid JSON-RPC payload: {message!r}")
+            raise OntocodeError(f"Invalid JSON-RPC payload: {message!r}")
         return message
 
 
 def default_codex_home() -> str:
     return str(Path.home() / ".codex")
+
+
+CodexBinResolverOps = OntocodeBinResolverOps
+CodexConfig = OntocodeConfig
+CodexClient = OntocodeClient
+resolve_codex_bin = resolve_ontocode_bin
+_resolve_codex_bin = _resolve_ontocode_bin

@@ -1,12 +1,12 @@
-"""Python SDK for running Codex workflows.
+"""Python SDK for running Ontocode workflows.
 
-Start with :class:`Codex` for synchronous applications or
-:class:`AsyncCodex` for async applications. Most programs create a thread and
+Start with :class:`Ontocode` for synchronous applications or
+:class:`AsyncOntocode` for async applications. Most programs create a thread and
 run a turn::
 
-    from openai_codex import Codex, Sandbox
+    from openai_codex import Ontocode, Sandbox
 
-    with Codex() as codex:
+    with Ontocode() as codex:
         thread = codex.thread_start(sandbox=Sandbox.workspace_write)
         result = thread.run("Describe this project.")
         print(result.final_response)
@@ -18,6 +18,7 @@ from .api import (
     AsyncChatgptLoginHandle,
     AsyncCodex,
     AsyncDeviceCodeLoginHandle,
+    AsyncOntocode,
     AsyncThread,
     AsyncTurnHandle,
     ChatgptLoginHandle,
@@ -28,6 +29,7 @@ from .api import (
     InputItem,
     LocalImageInput,
     MentionInput,
+    Ontocode,
     RunInput,
     Sandbox,
     SkillInput,
@@ -36,7 +38,7 @@ from .api import (
     TurnHandle,
     TurnResult,
 )
-from .client import CodexConfig
+from .client import CodexConfig, OntocodeConfig
 from .errors import (
     CodexError,
     CodexRpcError,
@@ -45,6 +47,8 @@ from .errors import (
     InvalidRequestError,
     JsonRpcError,
     MethodNotFoundError,
+    OntocodeError,
+    OntocodeRpcError,
     ParseError,
     RetryLimitExceededError,
     ServerBusyError,
@@ -55,6 +59,9 @@ from .retry import retry_on_overload
 
 __all__ = [
     "__version__",
+    "OntocodeConfig",
+    "Ontocode",
+    "AsyncOntocode",
     "CodexConfig",
     "Codex",
     "AsyncCodex",
@@ -78,9 +85,11 @@ __all__ = [
     "SkillInput",
     "MentionInput",
     "retry_on_overload",
+    "OntocodeError",
     "CodexError",
     "TransportClosedError",
     "JsonRpcError",
+    "OntocodeRpcError",
     "CodexRpcError",
     "ParseError",
     "InvalidRequestError",

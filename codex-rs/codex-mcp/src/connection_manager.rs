@@ -58,9 +58,9 @@ use codex_rmcp_client::ElicitationResponse;
 use rmcp::model::ElicitationCapability;
 use rmcp::model::ListResourceTemplatesResult;
 use rmcp::model::ListResourcesResult;
-use rmcp::model::PaginatedRequestParams;
 use rmcp::model::ReadResourceRequestParams;
 use rmcp::model::ReadResourceResult;
+
 use rmcp::model::RequestId;
 use rmcp::model::Resource;
 use rmcp::model::ResourceTemplate;
@@ -550,7 +550,7 @@ impl McpConnectionManager {
     /// Returns a single map that contains all resources. Each key is the
     /// server name and the value is a vector of resources.
     pub async fn list_all_resources(&self) -> HashMap<String, Vec<Resource>> {
-        let mut join_set = JoinSet::new();
+        let mut join_set: JoinSet<Result<(String, Vec<Resource>), anyhow::Error>> = JoinSet::new();
 
         let clients_snapshot = &self.clients;
 
@@ -563,33 +563,8 @@ impl McpConnectionManager {
             let client = managed_client.client.clone();
 
             join_set.spawn(async move {
-                let mut collected: Vec<Resource> = Vec::new();
-                let mut cursor: Option<String> = None;
-
-                loop {
-                    let params = cursor.as_ref().map(|next| {
-                        PaginatedRequestParams::default().with_cursor(Some(next.clone()))
-                    });
-                    let response = match client.list_resources(params, timeout).await {
-                        Ok(result) => result,
-                        Err(err) => return (server_name, Err(err)),
-                    };
-
-                    collected.extend(response.resources);
-
-                    match response.next_cursor {
-                        Some(next) => {
-                            if cursor.as_ref() == Some(&next) {
-                                return (
-                                    server_name,
-                                    Err(anyhow!("resources/list returned duplicate cursor")),
-                                );
-                            }
-                            cursor = Some(next);
-                        }
-                        None => return (server_name, Ok(collected)),
-                    }
-                }
+                let response = client.list_resources(timeout).await?;
+                Ok((server_name, response.resources))
             });
         }
 
@@ -597,11 +572,11 @@ impl McpConnectionManager {
 
         while let Some(join_res) = join_set.join_next().await {
             match join_res {
-                Ok((server_name, Ok(resources))) => {
+                Ok(Ok((server_name, resources))) => {
                     aggregated.insert(server_name, resources);
                 }
-                Ok((server_name, Err(err))) => {
-                    warn!("Failed to list resources for MCP server '{server_name}': {err:#}");
+                Ok(Err(err)) => {
+                    warn!("Failed to list resources for MCP server: {err:#}");
                 }
                 Err(err) => {
                     warn!("Task panic when listing resources for MCP server: {err:#}");
@@ -615,7 +590,8 @@ impl McpConnectionManager {
     /// Returns a single map that contains all resource templates. Each key is the
     /// server name and the value is a vector of resource templates.
     pub async fn list_all_resource_templates(&self) -> HashMap<String, Vec<ResourceTemplate>> {
-        let mut join_set = JoinSet::new();
+        let mut join_set: JoinSet<Result<(String, Vec<ResourceTemplate>), anyhow::Error>> =
+            JoinSet::new();
 
         let clients_snapshot = &self.clients;
 
@@ -628,35 +604,8 @@ impl McpConnectionManager {
             let timeout = managed_client.tool_timeout;
 
             join_set.spawn(async move {
-                let mut collected: Vec<ResourceTemplate> = Vec::new();
-                let mut cursor: Option<String> = None;
-
-                loop {
-                    let params = cursor.as_ref().map(|next| {
-                        PaginatedRequestParams::default().with_cursor(Some(next.clone()))
-                    });
-                    let response = match client.list_resource_templates(params, timeout).await {
-                        Ok(result) => result,
-                        Err(err) => return (server_name_cloned, Err(err)),
-                    };
-
-                    collected.extend(response.resource_templates);
-
-                    match response.next_cursor {
-                        Some(next) => {
-                            if cursor.as_ref() == Some(&next) {
-                                return (
-                                    server_name_cloned,
-                                    Err(anyhow!(
-                                        "resources/templates/list returned duplicate cursor"
-                                    )),
-                                );
-                            }
-                            cursor = Some(next);
-                        }
-                        None => return (server_name_cloned, Ok(collected)),
-                    }
-                }
+                let response = client.list_resource_templates(timeout).await?;
+                Ok((server_name_cloned, response.resource_templates))
             });
         }
 
@@ -664,13 +613,11 @@ impl McpConnectionManager {
 
         while let Some(join_res) = join_set.join_next().await {
             match join_res {
-                Ok((server_name, Ok(templates))) => {
+                Ok(Ok((server_name, templates))) => {
                     aggregated.insert(server_name, templates);
                 }
-                Ok((server_name, Err(err))) => {
-                    warn!(
-                        "Failed to list resource templates for MCP server '{server_name}': {err:#}"
-                    );
+                Ok(Err(err)) => {
+                    warn!("Failed to list resource templates for MCP server: {err:#}");
                 }
                 Err(err) => {
                     warn!("Task panic when listing resource templates for MCP server: {err:#}");
@@ -730,17 +677,13 @@ impl McpConnectionManager {
     }
 
     /// List resources from the specified server.
-    pub async fn list_resources(
-        &self,
-        server: &str,
-        params: Option<PaginatedRequestParams>,
-    ) -> Result<ListResourcesResult> {
+    pub async fn list_resources(&self, server: &str) -> Result<ListResourcesResult> {
         let managed = self.client_by_name(server).await?;
         let timeout = managed.tool_timeout;
 
         managed
             .client
-            .list_resources(params, timeout)
+            .list_resources(timeout)
             .await
             .with_context(|| format!("resources/list failed for `{server}`"))
     }
@@ -749,14 +692,13 @@ impl McpConnectionManager {
     pub async fn list_resource_templates(
         &self,
         server: &str,
-        params: Option<PaginatedRequestParams>,
     ) -> Result<ListResourceTemplatesResult> {
         let managed = self.client_by_name(server).await?;
         let client = managed.client.clone();
         let timeout = managed.tool_timeout;
 
         client
-            .list_resource_templates(params, timeout)
+            .list_resource_templates(timeout)
             .await
             .with_context(|| format!("resources/templates/list failed for `{server}`"))
     }

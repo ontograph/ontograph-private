@@ -56,6 +56,8 @@ pub(crate) struct TotalTokenUsageBreakdown {
     pub all_history_items_model_visible_bytes: i64,
     pub estimated_tokens_of_items_added_since_last_successful_api_response: i64,
     pub estimated_bytes_of_items_added_since_last_successful_api_response: i64,
+    pub model_tokens: i64,
+    pub tool_tokens: i64,
 }
 
 impl ContextManager {
@@ -329,6 +331,28 @@ impl ContextManager {
             .unwrap_or_default();
         let items_after_last_model_generated = self.items_after_last_model_generated_item();
 
+        let mut tool_tokens = 0i64;
+        let mut model_tokens = last_usage.total_tokens;
+
+        for item in &self.items {
+            let tokens = estimate_item_token_count(item);
+            match item {
+                ResponseItem::FunctionCallOutput { .. }
+                | ResponseItem::CustomToolCallOutput { .. }
+                | ResponseItem::LocalShellCall { .. }
+                | ResponseItem::ToolSearchOutput { .. } => {
+                    tool_tokens = tool_tokens.saturating_add(tokens);
+                }
+                _ => {}
+            }
+        }
+
+        // For items added since last response, we conservatively add to model_tokens for now.
+        for item in items_after_last_model_generated {
+            let tokens = estimate_item_token_count(item);
+            model_tokens = model_tokens.saturating_add(tokens);
+        }
+
         TotalTokenUsageBreakdown {
             last_api_response_total_tokens: last_usage.total_tokens,
             all_history_items_model_visible_bytes: self
@@ -346,6 +370,8 @@ impl ContextManager {
                     .iter()
                     .map(estimate_response_item_model_visible_bytes)
                     .fold(0i64, i64::saturating_add),
+            model_tokens,
+            tool_tokens,
         }
     }
 

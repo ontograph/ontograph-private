@@ -16,7 +16,7 @@ import {
 } from "./responsesProxy";
 import { createMockClient, createTestClient } from "./testCodex";
 
-describe("Codex", () => {
+describe("Ontocode", () => {
   it("returns thread events", async () => {
     const { url, close } = await startResponsesTestProxy({
       statusCode: 200,
@@ -408,7 +408,7 @@ describe("Codex", () => {
     }
   });
 
-  it("passes CodexOptions config overrides as TOML --config flags", async () => {
+  it("passes OntocodeOptions config overrides as TOML --config flags", async () => {
     const { url, close } = await startResponsesTestProxy({
       statusCode: 200,
       responseBodies: [
@@ -449,7 +449,7 @@ describe("Codex", () => {
     }
   });
 
-  it("lets thread options override CodexOptions config overrides", async () => {
+  it("lets thread options override OntocodeOptions config overrides", async () => {
     const { url, close } = await startResponsesTestProxy({
       statusCode: 200,
       responseBodies: [

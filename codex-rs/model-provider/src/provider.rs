@@ -16,6 +16,8 @@ use codex_protocol::openai_models::ModelsResponse;
 use crate::amazon_bedrock::AmazonBedrockModelProvider;
 use crate::auth::auth_manager_for_provider;
 use crate::auth::resolve_provider_auth;
+use crate::descriptor::ProviderDescriptor;
+use crate::descriptor::ProviderEngine;
 use crate::models_endpoint::OpenAiModelsEndpoint;
 
 /// Optional provider-backed features that Codex may expose at runtime.
@@ -28,6 +30,8 @@ pub struct ProviderCapabilities {
     pub namespace_tools: bool,
     pub image_generation: bool,
     pub web_search: bool,
+    pub requires_openai_auth: bool,
+    pub supports_models_route_probe: bool,
 }
 
 impl Default for ProviderCapabilities {
@@ -36,6 +40,8 @@ impl Default for ProviderCapabilities {
             namespace_tools: true,
             image_generation: true,
             web_search: true,
+            requires_openai_auth: true,
+            supports_models_route_probe: true,
         }
     }
 }
@@ -74,6 +80,43 @@ pub type ProviderAccountResult = std::result::Result<ProviderAccountState, Provi
 /// require a backend-specific model ID.
 pub const DEFAULT_APPROVAL_REVIEW_PREFERRED_MODEL: &str = "codex-auto-review";
 
+/// Internal runtime protocol used by the core model client.
+///
+/// This is intentionally separate from public `WireApi` configuration so native
+/// built-in providers can be staged without adding new config/schema values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderRuntimeEngine {
+    OpenAiResponses,
+    AmazonBedrockResponses,
+    AnthropicMessages,
+    GeminiGenerateContent,
+    GitHubCopilot,
+}
+
+impl fmt::Display for ProviderRuntimeEngine {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OpenAiResponses => write!(f, "openai-responses"),
+            Self::AmazonBedrockResponses => write!(f, "amazon-bedrock-responses"),
+            Self::AnthropicMessages => write!(f, "anthropic-messages"),
+            Self::GeminiGenerateContent => write!(f, "gemini-generate-content"),
+            Self::GitHubCopilot => write!(f, "github-copilot"),
+        }
+    }
+}
+
+impl ProviderRuntimeEngine {
+    pub(crate) fn from_provider_engine(engine: ProviderEngine) -> Self {
+        match engine {
+            ProviderEngine::OpenAiResponses => Self::OpenAiResponses,
+            ProviderEngine::AmazonBedrockResponses => Self::AmazonBedrockResponses,
+            ProviderEngine::AnthropicMessages => Self::AnthropicMessages,
+            ProviderEngine::GeminiGenerateContent => Self::GeminiGenerateContent,
+            ProviderEngine::GitHubCopilot => Self::GitHubCopilot,
+        }
+    }
+}
+
 /// Runtime provider abstraction used by model execution.
 ///
 /// Implementations own provider-specific behavior for a model backend. The
@@ -83,6 +126,11 @@ pub const DEFAULT_APPROVAL_REVIEW_PREFERRED_MODEL: &str = "codex-auto-review";
 pub trait ModelProvider: fmt::Debug + Send + Sync {
     /// Returns the configured provider metadata.
     fn info(&self) -> &ModelProviderInfo;
+
+    /// Returns the internal runtime protocol used to execute model requests.
+    fn runtime_engine(&self) -> ProviderRuntimeEngine {
+        ProviderRuntimeEngine::OpenAiResponses
+    }
 
     /// Returns the provider-owned capability upper bounds.
     fn capabilities(&self) -> ProviderCapabilities {
@@ -144,16 +192,45 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
 /// Shared runtime model provider handle.
 pub type SharedModelProvider = Arc<dyn ModelProvider>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProviderKind {
+    Configured,
+    AmazonBedrock,
+}
+
+impl ProviderKind {
+    fn for_provider(provider_info: &ModelProviderInfo) -> Self {
+        Self::for_descriptor(ProviderDescriptor::for_provider(provider_info))
+    }
+
+    fn for_descriptor(descriptor: ProviderDescriptor) -> Self {
+        match descriptor.engine() {
+            ProviderEngine::OpenAiResponses => Self::Configured,
+            ProviderEngine::AmazonBedrockResponses => Self::AmazonBedrock,
+            ProviderEngine::AnthropicMessages
+            | ProviderEngine::GeminiGenerateContent
+            | ProviderEngine::GitHubCopilot => Self::Configured,
+        }
+    }
+
+    fn create_provider(
+        self,
+        provider_info: ModelProviderInfo,
+        auth_manager: Option<Arc<AuthManager>>,
+    ) -> SharedModelProvider {
+        match self {
+            Self::Configured => Arc::new(ConfiguredModelProvider::new(provider_info, auth_manager)),
+            Self::AmazonBedrock => Arc::new(AmazonBedrockModelProvider::new(provider_info)),
+        }
+    }
+}
+
 /// Creates the default runtime model provider for configured provider metadata.
 pub fn create_model_provider(
     provider_info: ModelProviderInfo,
     auth_manager: Option<Arc<AuthManager>>,
 ) -> SharedModelProvider {
-    if provider_info.is_amazon_bedrock() {
-        Arc::new(AmazonBedrockModelProvider::new(provider_info))
-    } else {
-        Arc::new(ConfiguredModelProvider::new(provider_info, auth_manager))
-    }
+    ProviderKind::for_provider(&provider_info).create_provider(provider_info, auth_manager)
 }
 
 /// Runtime model provider backed by configured `ModelProviderInfo`.
@@ -177,6 +254,16 @@ impl ConfiguredModelProvider {
 impl ModelProvider for ConfiguredModelProvider {
     fn info(&self) -> &ModelProviderInfo {
         &self.info
+    }
+
+    fn runtime_engine(&self) -> ProviderRuntimeEngine {
+        ProviderRuntimeEngine::from_provider_engine(
+            ProviderDescriptor::for_provider(&self.info).engine(),
+        )
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderDescriptor::for_provider(&self.info).capabilities()
     }
 
     fn auth_manager(&self) -> Option<Arc<AuthManager>> {
@@ -352,6 +439,66 @@ mod tests {
     }
 
     #[test]
+    fn provider_kind_classifies_openai_provider_as_configured() {
+        assert_eq!(
+            ProviderKind::for_provider(&ModelProviderInfo::create_openai_provider(
+                /*base_url*/ None
+            )),
+            ProviderKind::Configured
+        );
+    }
+
+    #[test]
+    fn provider_kind_classifies_amazon_bedrock_provider() {
+        assert_eq!(
+            ProviderKind::for_provider(&ModelProviderInfo::create_amazon_bedrock_provider(
+                /*aws*/ None
+            )),
+            ProviderKind::AmazonBedrock
+        );
+    }
+
+    #[test]
+    fn provider_kind_classifies_copilot_provider_as_configured_runtime() {
+        assert_eq!(
+            ProviderKind::for_provider(&ModelProviderInfo {
+                name: "GitHub Copilot".to_string(),
+                requires_openai_auth: false,
+                ..Default::default()
+            }),
+            ProviderKind::Configured
+        );
+    }
+
+    #[test]
+    fn provider_kind_classifies_anthropic_descriptor_as_configured_runtime() {
+        assert_eq!(
+            ProviderKind::for_provider(&ModelProviderInfo {
+                name: "Anthropic".to_string(),
+                base_url: Some("https://api.anthropic.com/v1".to_string()),
+                env_key: Some("ANTHROPIC_API_KEY".to_string()),
+                requires_openai_auth: false,
+                ..Default::default()
+            }),
+            ProviderKind::Configured
+        );
+    }
+
+    #[test]
+    fn provider_kind_classifies_gemini_descriptor_as_configured_runtime() {
+        assert_eq!(
+            ProviderKind::for_provider(&ModelProviderInfo {
+                name: "Gemini".to_string(),
+                base_url: Some("https://generativelanguage.googleapis.com/v1beta".to_string()),
+                env_key: Some("GEMINI_API_KEY".to_string()),
+                requires_openai_auth: false,
+                ..Default::default()
+            }),
+            ProviderKind::Configured
+        );
+    }
+
+    #[test]
     fn configured_provider_uses_default_capabilities() {
         let provider = create_model_provider(
             ModelProviderInfo::create_openai_provider(/*base_url*/ None),
@@ -359,6 +506,77 @@ mod tests {
         );
 
         assert_eq!(provider.capabilities(), ProviderCapabilities::default());
+    }
+
+    #[test]
+    fn configured_provider_uses_openai_responses_runtime_engine() {
+        let provider = create_model_provider(
+            ModelProviderInfo::create_openai_provider(/*base_url*/ None),
+            /*auth_manager*/ None,
+        );
+
+        assert_eq!(
+            provider.runtime_engine(),
+            ProviderRuntimeEngine::OpenAiResponses
+        );
+    }
+
+    #[test]
+    fn configured_gemini_provider_uses_gemini_generate_content_runtime_engine() {
+        let provider = create_model_provider(
+            ModelProviderInfo {
+                name: "Gemini".to_string(),
+                base_url: Some("https://generativelanguage.googleapis.com/v1beta".to_string()),
+                env_key: Some("GEMINI_API_KEY".to_string()),
+                requires_openai_auth: false,
+                ..Default::default()
+            },
+            /*auth_manager*/ None,
+        );
+
+        assert_eq!(
+            provider.runtime_engine(),
+            ProviderRuntimeEngine::GeminiGenerateContent
+        );
+    }
+
+    #[test]
+    fn configured_provider_capabilities_follow_auth_requirement() {
+        let provider = create_model_provider(
+            ModelProviderInfo {
+                requires_openai_auth: false,
+                ..ModelProviderInfo::create_openai_provider(/*base_url*/ None)
+            },
+            /*auth_manager*/ None,
+        );
+
+        assert_eq!(
+            provider.capabilities(),
+            ProviderCapabilities {
+                requires_openai_auth: false,
+                ..ProviderCapabilities::default()
+            }
+        );
+    }
+
+    #[test]
+    fn configured_azure_provider_disables_models_route_probe() {
+        let provider = create_model_provider(
+            ModelProviderInfo {
+                name: "azure".to_string(),
+                base_url: Some("https://example.openai.azure.com/openai/v1".to_string()),
+                ..ModelProviderInfo::create_openai_provider(/*base_url*/ None)
+            },
+            /*auth_manager*/ None,
+        );
+
+        assert_eq!(
+            provider.capabilities(),
+            ProviderCapabilities {
+                supports_models_route_probe: false,
+                ..ProviderCapabilities::default()
+            }
+        );
     }
 
     #[test]
@@ -417,6 +635,19 @@ mod tests {
         );
 
         assert!(provider.auth_manager().is_none());
+    }
+
+    #[test]
+    fn amazon_bedrock_provider_uses_bedrock_runtime_engine() {
+        let provider = create_model_provider(
+            ModelProviderInfo::create_amazon_bedrock_provider(/*aws*/ None),
+            /*auth_manager*/ None,
+        );
+
+        assert_eq!(
+            provider.runtime_engine(),
+            ProviderRuntimeEngine::AmazonBedrockResponses
+        );
     }
 
     #[test]

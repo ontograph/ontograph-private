@@ -345,9 +345,7 @@ pub(crate) async fn list_tools_for_client_uncached(
     timeout: Option<Duration>,
     server_instructions: Option<&str>,
 ) -> Result<Vec<ToolInfo>> {
-    let resp = client
-        .list_tools_with_connector_ids(/*params*/ None, timeout)
-        .await?;
+    let resp = client.list_tools_with_connector_ids(timeout).await?;
     let tools = resp
         .tools
         .into_iter()

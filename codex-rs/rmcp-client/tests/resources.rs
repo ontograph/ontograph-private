@@ -71,9 +71,7 @@ async fn rmcp_client_can_list_and_read_resources() -> anyhow::Result<()> {
         )
         .await?;
 
-    let list = client
-        .list_resources(/*params*/ None, Some(Duration::from_secs(5)))
-        .await?;
+    let list = client.list_resources(Some(Duration::from_secs(5))).await?;
     let memo = list
         .resources
         .iter()
@@ -94,7 +92,7 @@ async fn rmcp_client_can_list_and_read_resources() -> anyhow::Result<()> {
         .no_annotation()
     );
     let templates = client
-        .list_resource_templates(/*params*/ None, Some(Duration::from_secs(5)))
+        .list_resource_templates(Some(Duration::from_secs(5)))
         .await?;
     assert_eq!(
         templates,

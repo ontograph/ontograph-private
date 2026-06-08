@@ -1,11 +1,11 @@
-# OpenAI Codex Python SDK (Beta)
+# OpenAI Ontocode Python SDK (Beta)
 
-Build Python applications that start Codex threads, run turns, stream progress,
+Build Python applications that start Ontocode threads, run turns, stream progress,
 and control workspace access.
 
 ## Install
 
-Install the SDK:
+Install the SDK. The package name remains `openai-codex` in this stage for compatibility:
 
 ```bash
 pip install openai-codex
@@ -13,13 +13,13 @@ pip install openai-codex
 
 ## Quickstart
 
-The SDK reuses your existing Codex authentication when one is already
+The SDK reuses your existing Ontocode authentication when one is already
 available:
 
 ```python
-from openai_codex import Codex
+from openai_codex import Ontocode
 
-with Codex() as codex:
+with Ontocode() as codex:
     thread = codex.thread_start()
     result = thread.run("Explain this repository in three bullets.")
     print(result.final_response)
@@ -30,13 +30,13 @@ collected items, and token usage.
 
 ## Authentication
 
-Existing Codex authentication is reused automatically. To start ChatGPT
+Existing Ontocode authentication is reused automatically. To start ChatGPT
 browser login explicitly:
 
 ```python
-from openai_codex import Codex
+from openai_codex import Ontocode
 
-with Codex() as codex:
+with Ontocode() as codex:
     login = codex.login_chatgpt()
     print(login.auth_url)
     print(login.wait().success)
@@ -45,7 +45,7 @@ with Codex() as codex:
 For device-code login:
 
 ```python
-with Codex() as codex:
+with Ontocode() as codex:
     login = codex.login_chatgpt_device_code()
     print(login.verification_url, login.user_code)
     login.wait()
@@ -54,13 +54,13 @@ with Codex() as codex:
 For API-key login:
 
 ```python
-with Codex() as codex:
+with Ontocode() as codex:
     codex.login_api_key("sk-...")
 ```
 
 ## Built-In Help
 
-Use Python's standard `help(openai_codex)`, `help(Codex)`, or
+Use Python's standard `help(openai_codex)`, `help(Ontocode)`, or
 `python -m pydoc openai_codex` documentation tools.
 
 ## Documentation

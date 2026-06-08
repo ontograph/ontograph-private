@@ -112,12 +112,16 @@ use crate::client_common::Prompt;
 use crate::client_common::ResponseEvent;
 use crate::client_common::ResponseStream;
 use crate::feedback_tags;
+use crate::native_provider::anthropic;
+use crate::native_provider::copilot;
+use crate::native_provider::gemini;
 use crate::util::emit_feedback_auth_recovery_tags;
 use codex_api::map_api_error;
 use codex_feedback::FeedbackRequestTags;
 use codex_feedback::emit_feedback_request_tags_with_auth_env;
 use codex_login::auth_env_telemetry::AuthEnvTelemetry;
 use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
+use codex_model_provider::ProviderRuntimeEngine;
 use codex_model_provider::SharedModelProvider;
 use codex_model_provider::create_model_provider;
 #[cfg(test)]
@@ -1578,6 +1582,86 @@ impl ModelClientSession {
         }
     }
 
+    async fn stream_native_runtime(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+        session_telemetry: &SessionTelemetry,
+        inference_trace: &InferenceTraceContext,
+    ) -> Result<ResponseStream> {
+        let provider = &self.client.state.provider;
+        match provider.runtime_engine() {
+            ProviderRuntimeEngine::AnthropicMessages => {
+                let request = anthropic::build_messages_request(prompt, model_info)?;
+                let inference_trace_attempt = inference_trace.start_attempt();
+                let mut extra_headers = ApiHeaderMap::new();
+                inference_trace_attempt.add_request_headers(&mut extra_headers);
+                inference_trace_attempt.record_started(&request);
+                let api_stream = anthropic::stream_messages(
+                    build_reqwest_client(),
+                    provider.info(),
+                    request,
+                    extra_headers,
+                )
+                .await?;
+                let (stream, _) = map_response_stream(
+                    api_stream,
+                    session_telemetry.clone(),
+                    inference_trace_attempt,
+                );
+                Ok(stream)
+            }
+            ProviderRuntimeEngine::GeminiGenerateContent => {
+                let request = gemini::build_generate_content_request(prompt, model_info)?;
+                let inference_trace_attempt = inference_trace.start_attempt();
+                let mut extra_headers = ApiHeaderMap::new();
+                inference_trace_attempt.add_request_headers(&mut extra_headers);
+                inference_trace_attempt.record_started(&request);
+                let api_stream = gemini::stream_generate_content(
+                    build_reqwest_client(),
+                    provider.info(),
+                    model_info,
+                    request,
+                    extra_headers,
+                )
+                .await?;
+                let (stream, _) = map_response_stream(
+                    api_stream,
+                    session_telemetry.clone(),
+                    inference_trace_attempt,
+                );
+                Ok(stream)
+            }
+            ProviderRuntimeEngine::GitHubCopilot => {
+                let request = copilot::build_chat_completions_request(prompt, model_info)?;
+                let inference_trace_attempt = inference_trace.start_attempt();
+                let mut extra_headers = ApiHeaderMap::new();
+                inference_trace_attempt.add_request_headers(&mut extra_headers);
+                inference_trace_attempt.record_started(&request);
+                let api_stream = copilot::stream_chat_completions(
+                    build_reqwest_client(),
+                    provider.info(),
+                    request,
+                    extra_headers,
+                )
+                .await?;
+                let (stream, _) = map_response_stream(
+                    api_stream,
+                    session_telemetry.clone(),
+                    inference_trace_attempt,
+                );
+                Ok(stream)
+            }
+            ProviderRuntimeEngine::OpenAiResponses
+            | ProviderRuntimeEngine::AmazonBedrockResponses => {
+                Err(CodexErr::UnsupportedOperation(format!(
+                    "provider runtime `{}` is not a native runtime",
+                    provider.runtime_engine()
+                )))
+            }
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     /// Streams a single model request within the current turn.
     ///
@@ -1598,9 +1682,13 @@ impl ModelClientSession {
         turn_metadata_header: Option<&str>,
         inference_trace: &InferenceTraceContext,
     ) -> Result<ResponseStream> {
-        let wire_api = self.client.state.provider.info().wire_api;
-        match wire_api {
-            WireApi::Responses => {
+        match self.client.state.provider.runtime_engine() {
+            ProviderRuntimeEngine::OpenAiResponses
+            | ProviderRuntimeEngine::AmazonBedrockResponses => {
+                match self.client.state.provider.info().wire_api {
+                    WireApi::Responses => {}
+                }
+
                 if self.client.responses_websocket_enabled() {
                     let request_trace = current_span_w3c_trace_context();
                     match self
@@ -1636,6 +1724,12 @@ impl ModelClientSession {
                     inference_trace,
                 )
                 .await
+            }
+            ProviderRuntimeEngine::AnthropicMessages
+            | ProviderRuntimeEngine::GeminiGenerateContent
+            | ProviderRuntimeEngine::GitHubCopilot => {
+                self.stream_native_runtime(prompt, model_info, session_telemetry, inference_trace)
+                    .await
             }
         }
     }

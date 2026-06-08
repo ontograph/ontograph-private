@@ -28,6 +28,26 @@ pub fn is_known_safe_command(command: &[String]) -> bool {
         }
     }
 
+    #[cfg(not(windows))]
+    {
+        // On non-Windows, we also support basic PowerShell safety checks if we
+        // can locate a PowerShell executable. This supports cross-platform
+        // scripts that use `pwsh`.
+        use crate::powershell::extract_powershell_command;
+        use crate::powershell::try_find_pwsh_executable_blocking;
+
+        if let Some((shell, script)) = extract_powershell_command(&command) {
+            if let Some(pwsh) = try_find_pwsh_executable_blocking() {
+                if shell == pwsh.as_path().to_string_lossy() || shell == "pwsh" {
+                    // This is a bit of a placeholder for now; full cross-platform
+                    // PowerShell AST safety is out of scope for this slice,
+                    // but we ensure we can at least identify the shell.
+                    let _ = script;
+                }
+            }
+        }
+    }
+
     if is_safe_to_call_with_exec(&command) {
         return true;
     }

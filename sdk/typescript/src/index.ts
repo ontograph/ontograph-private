@@ -26,9 +26,9 @@ export type {
 export { Thread } from "./thread";
 export type { RunResult, RunStreamedResult, Input, UserInput } from "./thread";
 
-export { Codex } from "./codex";
+export { Ontocode, Codex } from "./codex";
 
-export type { CodexOptions } from "./codexOptions";
+export type { OntocodeOptions, CodexOptions } from "./codexOptions";
 
 export type {
   ThreadOptions,

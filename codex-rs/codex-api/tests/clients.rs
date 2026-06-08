@@ -16,6 +16,7 @@ use codex_api::ResponsesOptions;
 use codex_client::HttpTransport;
 use codex_client::Request;
 use codex_client::RequestBody;
+use codex_client::RequestTelemetry;
 use codex_client::Response;
 use codex_client::StreamResponse;
 use codex_client::TransportError;
@@ -145,6 +146,83 @@ struct FlakyTransport {
     state: Arc<Mutex<i64>>,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum FirstStreamFailure {
+    Http(StatusCode),
+    Timeout,
+}
+
+#[derive(Clone)]
+struct FailsOnceStreamTransport {
+    state: Arc<Mutex<i64>>,
+    failure: FirstStreamFailure,
+}
+
+impl FailsOnceStreamTransport {
+    fn new(failure: FirstStreamFailure) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(0)),
+            failure,
+        }
+    }
+
+    fn attempts(&self) -> i64 {
+        *self
+            .state
+            .lock()
+            .unwrap_or_else(|err| panic!("mutex poisoned: {err}"))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RequestTelemetryEvent {
+    attempt: u64,
+    status: Option<StatusCode>,
+    error: Option<&'static str>,
+}
+
+#[derive(Clone, Default)]
+struct RecordingRequestTelemetry {
+    events: Arc<Mutex<Vec<RequestTelemetryEvent>>>,
+}
+
+impl RecordingRequestTelemetry {
+    fn take_events(&self) -> Vec<RequestTelemetryEvent> {
+        let mut guard = self
+            .events
+            .lock()
+            .unwrap_or_else(|err| panic!("mutex poisoned: {err}"));
+        std::mem::take(&mut *guard)
+    }
+}
+
+impl RequestTelemetry for RecordingRequestTelemetry {
+    fn on_request(
+        &self,
+        attempt: u64,
+        status: Option<StatusCode>,
+        error: Option<&TransportError>,
+        _duration: Duration,
+    ) {
+        let error = error.map(|err| match err {
+            TransportError::Http { .. } => "http",
+            TransportError::Timeout => "timeout",
+            TransportError::Network(_) => "network",
+            TransportError::Build(_) => "build",
+            TransportError::RetryLimit => "retry_limit",
+        });
+        let mut guard = self
+            .events
+            .lock()
+            .unwrap_or_else(|err| panic!("mutex poisoned: {err}"));
+        guard.push(RequestTelemetryEvent {
+            attempt,
+            status,
+            error,
+        });
+    }
+}
+
 impl Default for FlakyTransport {
     fn default() -> Self {
         Self::new()
@@ -234,6 +312,46 @@ impl HttpTransport for FlakyTransport {
 
         if *attempts == 1 {
             return Err(TransportError::Network("first attempt fails".to_string()));
+        }
+
+        let stream = futures::stream::iter(vec![Ok(Bytes::from(
+            r#"event: message
+data: {"id":"resp-1","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"hi"}]}]}
+
+"#,
+        ))]);
+
+        Ok(StreamResponse {
+            status: StatusCode::OK,
+            headers: HeaderMap::new(),
+            bytes: Box::pin(stream),
+        })
+    }
+}
+
+#[async_trait]
+impl HttpTransport for FailsOnceStreamTransport {
+    async fn execute(&self, _req: Request) -> Result<Response, TransportError> {
+        Err(TransportError::Build("execute should not run".to_string()))
+    }
+
+    async fn stream(&self, req: Request) -> Result<StreamResponse, TransportError> {
+        let mut attempts = self
+            .state
+            .lock()
+            .unwrap_or_else(|err| panic!("mutex poisoned: {err}"));
+        *attempts += 1;
+
+        if *attempts == 1 {
+            return match self.failure {
+                FirstStreamFailure::Http(status) => Err(TransportError::Http {
+                    status,
+                    url: Some(req.url),
+                    headers: Some(HeaderMap::new()),
+                    body: Some("provider unavailable".to_string()),
+                }),
+                FirstStreamFailure::Timeout => Err(TransportError::Timeout),
+            };
         }
 
         let stream = futures::stream::iter(vec![Ok(Bytes::from(
@@ -348,6 +466,131 @@ async fn streaming_client_retries_on_transport_error() -> Result<()> {
         )
         .await?;
     assert_eq!(transport.attempts(), 2);
+    Ok(())
+}
+
+#[tokio::test]
+async fn streaming_client_retries_timeout_and_records_attempt_diagnostics() -> Result<()> {
+    let transport = FailsOnceStreamTransport::new(FirstStreamFailure::Timeout);
+    let telemetry = RecordingRequestTelemetry::default();
+
+    let mut provider = provider("openai");
+    provider.retry.max_attempts = 2;
+
+    let client = ResponsesClient::new(transport.clone(), provider, Arc::new(NoAuth))
+        .with_telemetry(Some(Arc::new(telemetry.clone())), None);
+    let body = serde_json::json!({ "model": "gpt-test" });
+    let _stream = client
+        .stream(
+            body,
+            HeaderMap::new(),
+            Compression::None,
+            /*turn_state*/ None,
+        )
+        .await?;
+
+    assert_eq!(transport.attempts(), 2);
+    assert_eq!(
+        telemetry.take_events(),
+        vec![
+            RequestTelemetryEvent {
+                attempt: 0,
+                status: None,
+                error: Some("timeout"),
+            },
+            RequestTelemetryEvent {
+                attempt: 1,
+                status: Some(StatusCode::OK),
+                error: None,
+            },
+        ]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn streaming_client_retries_5xx_and_records_attempt_diagnostics() -> Result<()> {
+    let transport =
+        FailsOnceStreamTransport::new(FirstStreamFailure::Http(StatusCode::SERVICE_UNAVAILABLE));
+    let telemetry = RecordingRequestTelemetry::default();
+
+    let mut provider = provider("openai");
+    provider.retry.max_attempts = 2;
+    provider.retry.retry_5xx = true;
+
+    let client = ResponsesClient::new(transport.clone(), provider, Arc::new(NoAuth))
+        .with_telemetry(Some(Arc::new(telemetry.clone())), None);
+    let body = serde_json::json!({ "model": "gpt-test" });
+    let _stream = client
+        .stream(
+            body,
+            HeaderMap::new(),
+            Compression::None,
+            /*turn_state*/ None,
+        )
+        .await?;
+
+    assert_eq!(transport.attempts(), 2);
+    assert_eq!(
+        telemetry.take_events(),
+        vec![
+            RequestTelemetryEvent {
+                attempt: 0,
+                status: Some(StatusCode::SERVICE_UNAVAILABLE),
+                error: Some("http"),
+            },
+            RequestTelemetryEvent {
+                attempt: 1,
+                status: Some(StatusCode::OK),
+                error: None,
+            },
+        ]
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn streaming_client_does_not_retry_429_when_provider_disables_429_retry() -> Result<()> {
+    let transport =
+        FailsOnceStreamTransport::new(FirstStreamFailure::Http(StatusCode::TOO_MANY_REQUESTS));
+    let telemetry = RecordingRequestTelemetry::default();
+
+    let mut provider = provider("openai");
+    provider.retry.max_attempts = 2;
+    provider.retry.retry_429 = false;
+
+    let client = ResponsesClient::new(transport.clone(), provider, Arc::new(NoAuth))
+        .with_telemetry(Some(Arc::new(telemetry.clone())), None);
+    let body = serde_json::json!({ "model": "gpt-test" });
+    let result = client
+        .stream(
+            body,
+            HeaderMap::new(),
+            Compression::None,
+            /*turn_state*/ None,
+        )
+        .await;
+
+    let err = match result {
+        Ok(_) => panic!("429 should fail without retry when retry_429 is disabled"),
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        ApiError::Transport(TransportError::Http {
+            status: StatusCode::TOO_MANY_REQUESTS,
+            ..
+        })
+    ));
+    assert_eq!(transport.attempts(), 1);
+    assert_eq!(
+        telemetry.take_events(),
+        vec![RequestTelemetryEvent {
+            attempt: 0,
+            status: Some(StatusCode::TOO_MANY_REQUESTS),
+            error: Some("http"),
+        }]
+    );
     Ok(())
 }
 

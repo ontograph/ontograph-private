@@ -49,6 +49,7 @@ pub(crate) mod mcp;
 mod mcp_skill_dependencies;
 mod mcp_tool_approval_templates;
 mod mcp_tool_exposure;
+mod native_provider;
 mod network_policy_decision;
 pub(crate) mod network_proxy_loader;
 pub use mcp::McpManager;

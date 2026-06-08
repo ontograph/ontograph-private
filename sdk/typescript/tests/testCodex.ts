@@ -1,7 +1,7 @@
 import path from "node:path";
 
-import { Codex } from "../src/codex";
-import type { CodexConfigObject } from "../src/codexOptions";
+import { Ontocode } from "../src/codex";
+import type { OntocodeConfigObject } from "../src/codexOptions";
 
 export const codexExecPath =
   process.env.CODEX_EXEC_PATH ??
@@ -10,14 +10,14 @@ export const codexExecPath =
 type CreateTestClientOptions = {
   apiKey?: string;
   baseUrl?: string;
-  config?: CodexConfigObject;
+  config?: OntocodeConfigObject;
   env?: Record<string, string>;
   inheritEnv?: boolean;
 };
 
 export type TestClient = {
   cleanup: () => void;
-  client: Codex;
+  client: Ontocode;
 };
 
 export function createMockClient(url: string): TestClient {
@@ -42,7 +42,7 @@ export function createTestClient(options: CreateTestClientOptions = {}): TestCli
 
   return {
     cleanup: () => {},
-    client: new Codex({
+    client: new Ontocode({
       codexPathOverride: codexExecPath,
       baseUrl: options.baseUrl,
       apiKey: options.apiKey,
@@ -54,9 +54,9 @@ export function createTestClient(options: CreateTestClientOptions = {}): TestCli
 
 function mergeTestConfig(
   baseUrl: string | undefined,
-  config: CodexConfigObject | undefined,
-): CodexConfigObject | undefined {
-  const mergedConfig: CodexConfigObject | undefined =
+  config: OntocodeConfigObject | undefined,
+): OntocodeConfigObject | undefined {
+  const mergedConfig: OntocodeConfigObject | undefined =
     !baseUrl || hasExplicitProviderConfig(config)
       ? config
       : {
@@ -86,7 +86,7 @@ function mergeTestConfig(
   };
 }
 
-function hasExplicitProviderConfig(config: CodexConfigObject | undefined): boolean {
+function hasExplicitProviderConfig(config: OntocodeConfigObject | undefined): boolean {
   return config?.model_provider !== undefined || config?.model_providers !== undefined;
 }
 

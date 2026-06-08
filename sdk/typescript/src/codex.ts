@@ -1,20 +1,20 @@
-import { CodexOptions } from "./codexOptions";
-import { CodexExec } from "./exec";
+import { OntocodeOptions } from "./codexOptions";
+import { OntocodeExec } from "./exec";
 import { Thread } from "./thread";
 import { ThreadOptions } from "./threadOptions";
 
 /**
- * Codex is the main class for interacting with the Codex agent.
+ * Ontocode is the main class for interacting with the Ontocode agent.
  *
  * Use the `startThread()` method to start a new thread or `resumeThread()` to resume a previously started thread.
  */
-export class Codex {
-  private exec: CodexExec;
-  private options: CodexOptions;
+export class Ontocode {
+  private exec: OntocodeExec;
+  private options: OntocodeOptions;
 
-  constructor(options: CodexOptions = {}) {
+  constructor(options: OntocodeOptions = {}) {
     const { codexPathOverride, env, config } = options;
-    this.exec = new CodexExec(codexPathOverride, env, config);
+    this.exec = new OntocodeExec(codexPathOverride, env, config);
     this.options = options;
   }
 
@@ -37,3 +37,5 @@ export class Codex {
     return new Thread(this.exec, this.options, options, id);
   }
 }
+
+export { Ontocode as Codex };

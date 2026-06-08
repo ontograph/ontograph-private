@@ -434,55 +434,125 @@ impl RmcpClient {
         Ok(initialize_result)
     }
 
-    pub async fn list_tools(
+    pub(crate) async fn run_paginated_operation<T, A, F, Fut, C>(
         &self,
-        params: Option<PaginatedRequestParams>,
+        label: &str,
         timeout: Option<Duration>,
-    ) -> Result<ListToolsResult> {
-        self.refresh_oauth_if_needed().await;
-        let result = self
-            .run_service_operation("tools/list", timeout, move |service| {
-                let params = params.clone();
-                async move { service.list_tools(params).await }.boxed()
-            })
+        mut collector: C,
+        operation: F,
+    ) -> Result<Vec<A>>
+    where
+        F: Fn(
+                Arc<RunningService<RoleClient, ElicitationClientService>>,
+                Option<PaginatedRequestParams>,
+            ) -> Fut
+            + Send
+            + Sync,
+        Fut: std::future::Future<
+                Output = std::result::Result<(Vec<T>, Option<String>), rmcp::service::ServiceError>,
+            > + Send,
+        C: FnMut(&mut Vec<A>, Vec<T>) + Send,
+    {
+        let mut collected = Vec::new();
+        let mut cursor: Option<String> = None;
+
+        loop {
+            let params = cursor
+                .as_ref()
+                .map(|next| PaginatedRequestParams::default().with_cursor(Some(next.clone())));
+
+            let service = self.service().await?;
+            let (page, next_cursor) = Self::run_service_operation_once(
+                Arc::clone(&service),
+                label,
+                timeout,
+                self.elicitation_pause_state.clone(),
+                &|s| operation(s, params.clone()),
+            )
             .await?;
+
+            collector(&mut collected, page);
+
+            match next_cursor {
+                Some(next) => {
+                    if cursor.as_ref() == Some(&next) {
+                        return Err(anyhow!("{label} returned duplicate cursor"));
+                    }
+                    cursor = Some(next);
+                }
+                None => break,
+            }
+        }
+
         self.persist_oauth_tokens().await;
-        Ok(result)
+        Ok(collected)
+    }
+    /// Triggers a proactive refresh of OAuth tokens if the client is in a state that supports it.
+    pub async fn refresh_auth(&self) {
+        self.refresh_oauth_if_needed().await;
+    }
+
+    pub async fn list_tools(&self, timeout: Option<Duration>) -> Result<ListToolsResult> {
+        self.refresh_oauth_if_needed().await;
+        let tools = self
+            .run_paginated_operation(
+                "tools/list",
+                timeout,
+                |acc, page| acc.extend(page),
+                |service, params| {
+                    async move {
+                        let res = service.list_tools(params).await?;
+                        Ok((res.tools, res.next_cursor))
+                    }
+                    .boxed()
+                },
+            )
+            .await?;
+        Ok(ListToolsResult {
+            tools,
+            next_cursor: None,
+            meta: None,
+        })
     }
 
     pub async fn list_tools_with_connector_ids(
         &self,
-        params: Option<PaginatedRequestParams>,
         timeout: Option<Duration>,
     ) -> Result<ListToolsWithConnectorIdResult> {
         self.refresh_oauth_if_needed().await;
-        let result = self
-            .run_service_operation("tools/list", timeout, move |service| {
-                let params = params.clone();
-                async move { service.list_tools(params).await }.boxed()
-            })
+        let tools = self
+            .run_paginated_operation(
+                "tools/list",
+                timeout,
+                |acc, page: Vec<Tool>| {
+                    acc.extend(page.into_iter().map(|tool| {
+                        let meta = tool.meta.as_ref();
+                        let connector_id = Self::meta_string(meta, "connector_id");
+                        let connector_name = Self::meta_string(meta, "connector_name")
+                            .or_else(|| Self::meta_string(meta, "connector_display_name"));
+                        let connector_description =
+                            Self::meta_string(meta, "connector_description")
+                                .or_else(|| Self::meta_string(meta, "connectorDescription"));
+                        ToolWithConnectorId {
+                            tool,
+                            connector_id,
+                            connector_name,
+                            connector_description,
+                        }
+                    }))
+                },
+                |service, params| {
+                    async move {
+                        let res = service.list_tools(params).await?;
+                        Ok((res.tools, res.next_cursor))
+                    }
+                    .boxed()
+                },
+            )
             .await?;
-        let tools = result
-            .tools
-            .into_iter()
-            .map(|tool| {
-                let meta = tool.meta.as_ref();
-                let connector_id = Self::meta_string(meta, "connector_id");
-                let connector_name = Self::meta_string(meta, "connector_name")
-                    .or_else(|| Self::meta_string(meta, "connector_display_name"));
-                let connector_description = Self::meta_string(meta, "connector_description")
-                    .or_else(|| Self::meta_string(meta, "connectorDescription"));
-                Ok(ToolWithConnectorId {
-                    tool,
-                    connector_id,
-                    connector_name,
-                    connector_description,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        self.persist_oauth_tokens().await;
+
         Ok(ListToolsWithConnectorIdResult {
-            next_cursor: result.next_cursor,
+            next_cursor: None,
             tools,
         })
     }
@@ -495,36 +565,53 @@ impl RmcpClient {
             .map(str::to_string)
     }
 
-    pub async fn list_resources(
-        &self,
-        params: Option<PaginatedRequestParams>,
-        timeout: Option<Duration>,
-    ) -> Result<ListResourcesResult> {
+    pub async fn list_resources(&self, timeout: Option<Duration>) -> Result<ListResourcesResult> {
         self.refresh_oauth_if_needed().await;
-        let result = self
-            .run_service_operation("resources/list", timeout, move |service| {
-                let params = params.clone();
-                async move { service.list_resources(params).await }.boxed()
-            })
+        let resources = self
+            .run_paginated_operation(
+                "resources/list",
+                timeout,
+                |acc, page| acc.extend(page),
+                |service, params| {
+                    async move {
+                        let res = service.list_resources(params).await?;
+                        Ok((res.resources, res.next_cursor))
+                    }
+                    .boxed()
+                },
+            )
             .await?;
-        self.persist_oauth_tokens().await;
-        Ok(result)
+        Ok(ListResourcesResult {
+            resources,
+            next_cursor: None,
+            meta: None,
+        })
     }
 
     pub async fn list_resource_templates(
         &self,
-        params: Option<PaginatedRequestParams>,
         timeout: Option<Duration>,
     ) -> Result<ListResourceTemplatesResult> {
         self.refresh_oauth_if_needed().await;
-        let result = self
-            .run_service_operation("resources/templates/list", timeout, move |service| {
-                let params = params.clone();
-                async move { service.list_resource_templates(params).await }.boxed()
-            })
+        let resource_templates = self
+            .run_paginated_operation(
+                "resources/templates/list",
+                timeout,
+                |acc, page| acc.extend(page),
+                |service, params| {
+                    async move {
+                        let res = service.list_resource_templates(params).await?;
+                        Ok((res.resource_templates, res.next_cursor))
+                    }
+                    .boxed()
+                },
+            )
             .await?;
-        self.persist_oauth_tokens().await;
-        Ok(result)
+        Ok(ListResourceTemplatesResult {
+            resource_templates,
+            next_cursor: None,
+            meta: None,
+        })
     }
 
     pub async fn read_resource(

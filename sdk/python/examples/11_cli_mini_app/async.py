@@ -11,9 +11,7 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from openai_codex import (
-    AsyncCodex,
-)
+from openai_codex import AsyncOntocode
 from openai_codex.types import (
     ThreadTokenUsageUpdatedNotification,
     TurnCompletedNotification,
@@ -25,17 +23,22 @@ def _format_usage(usage: object) -> str:
     total = usage.total
     return (
         "usage>\n"
-        f"  last: input={last.input_tokens} output={last.output_tokens} reasoning={last.reasoning_output_tokens} total={last.total_tokens} cached={last.cached_input_tokens}\n"
-        f"  total: input={total.input_tokens} output={total.output_tokens} reasoning={total.reasoning_output_tokens} total={total.total_tokens} cached={total.cached_input_tokens}"
+        f"  last: input={last.input_tokens} output={last.output_tokens} "
+        f"reasoning={last.reasoning_output_tokens} total={last.total_tokens} "
+        f"cached={last.cached_input_tokens}\n"
+        f"  total: input={total.input_tokens} output={total.output_tokens} "
+        f"reasoning={total.reasoning_output_tokens} total={total.total_tokens} "
+        f"cached={total.cached_input_tokens}"
     )
 
 
 async def main() -> None:
-    print("Codex async mini CLI. Type /exit to quit.")
+    print("Ontocode async mini CLI. Type /exit to quit.")
 
-    async with AsyncCodex(config=runtime_config()) as codex:
+    async with AsyncOntocode(config=runtime_config()) as codex:
         thread = await codex.thread_start(
-            model="gpt-5.4", config={"model_reasoning_effort": "high"}
+            model="gpt-5.4",
+            config={"model_reasoning_effort": "high"},
         )
         print("Thread:", thread.id)
 

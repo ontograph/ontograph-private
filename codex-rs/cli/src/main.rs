@@ -1,5 +1,6 @@
 use clap::Args;
 use clap::CommandFactory;
+use clap::FromArgMatches;
 use clap::Parser;
 use clap_complete::Shell;
 use clap_complete::generate;
@@ -38,7 +39,10 @@ use codex_utils_cli::ProfileV2Name;
 use codex_utils_cli::SharedCliOptions;
 use codex_utils_cli::resume_hint;
 use owo_colors::OwoColorize;
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::io::IsTerminal;
+use std::path::Path;
 use std::path::PathBuf;
 use supports_color::Stream;
 
@@ -92,12 +96,7 @@ use codex_terminal_detection::TerminalName;
     author,
     version,
     // If a sub‑command is given, ignore requirements of the default args.
-    subcommand_negates_reqs = true,
-    // The executable is sometimes invoked via a platform‑specific name like
-    // `codex-x86_64-unknown-linux-musl`, but the help output should always use
-    // the generic `codex` command name that users run.
-    bin_name = "codex",
-    override_usage = "codex [OPTIONS] [PROMPT]\n       codex [OPTIONS] <COMMAND> [ARGS]"
+    subcommand_negates_reqs = true
 )]
 struct MultitoolCli {
     #[clap(flatten)]
@@ -899,14 +898,116 @@ fn main() -> anyhow::Result<()> {
     })
 }
 
+const PRIMARY_COMMAND_NAME: &str = "codex";
+const ALIAS_COMMAND_NAME: &str = "ontocode";
+const COMMAND_NAME_OVERRIDE_ENV_VAR: &str = "ONTOCODE_CLI_COMMAND_NAME";
+
+fn command_name_override_from_env() -> Option<&'static str> {
+    match std::env::var(COMMAND_NAME_OVERRIDE_ENV_VAR).ok().as_deref() {
+        Some(ALIAS_COMMAND_NAME) => Some(ALIAS_COMMAND_NAME),
+        Some(PRIMARY_COMMAND_NAME) => Some(PRIMARY_COMMAND_NAME),
+        _ => None,
+    }
+}
+
+fn command_name_from_arg0(arg0: Option<&OsStr>) -> &'static str {
+    if let Some(command_name) = command_name_override_from_env() {
+        return command_name;
+    }
+    let Some(file_name) = arg0.and_then(|value| Path::new(value).file_name()) else {
+        return PRIMARY_COMMAND_NAME;
+    };
+    let Some(file_name) = file_name.to_str() else {
+        return PRIMARY_COMMAND_NAME;
+    };
+    if file_name.starts_with(ALIAS_COMMAND_NAME) {
+        ALIAS_COMMAND_NAME
+    } else {
+        PRIMARY_COMMAND_NAME
+    }
+}
+
+fn current_command_name() -> &'static str {
+    command_name_from_arg0(std::env::args_os().next().as_deref())
+}
+
+fn apply_alias_bin_names(command: &mut clap::Command, command_name: &str) {
+    for subcommand in command.get_subcommands_mut() {
+        if subcommand.get_name() == "plugin" {
+            subcommand.set_bin_name(format!("{command_name} plugin"));
+            for plugin_subcommand in subcommand.get_subcommands_mut() {
+                match plugin_subcommand.get_name() {
+                    "add" => {
+                        plugin_subcommand.set_bin_name(format!("{command_name} plugin add"));
+                    }
+                    "list" => {
+                        plugin_subcommand.set_bin_name(format!("{command_name} plugin list"));
+                    }
+                    "remove" => {
+                        plugin_subcommand.set_bin_name(format!("{command_name} plugin remove"));
+                    }
+                    "marketplace" => {
+                        plugin_subcommand
+                            .set_bin_name(format!("{command_name} plugin marketplace"));
+                        for marketplace_subcommand in plugin_subcommand.get_subcommands_mut() {
+                            match marketplace_subcommand.get_name() {
+                                "add" => {
+                                    marketplace_subcommand.set_bin_name(format!(
+                                        "{command_name} plugin marketplace add"
+                                    ));
+                                }
+                                "upgrade" => {
+                                    marketplace_subcommand.set_bin_name(format!(
+                                        "{command_name} plugin marketplace upgrade"
+                                    ));
+                                }
+                                "remove" => {
+                                    marketplace_subcommand.set_bin_name(format!(
+                                        "{command_name} plugin marketplace remove"
+                                    ));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+fn multitool_command(command_name: &str) -> clap::Command {
+    let mut command = MultitoolCli::command()
+        .bin_name(command_name)
+        .override_usage(format!(
+            "{command_name} [OPTIONS] [PROMPT]\n       {command_name} [OPTIONS] <COMMAND> [ARGS]"
+        ));
+    apply_alias_bin_names(&mut command, command_name);
+    command
+}
+
+fn try_parse_multitool_cli_from<I, T>(args: I) -> clap::error::Result<MultitoolCli>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString>,
+{
+    let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
+    let command_name = command_name_from_arg0(args.first().map(OsString::as_os_str));
+    let mut command = multitool_command(command_name);
+    let mut matches = command.try_get_matches_from_mut(args)?;
+    MultitoolCli::from_arg_matches_mut(&mut matches)
+}
+
 async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
+    let command_name = current_command_name();
     let MultitoolCli {
         config_overrides: mut root_config_overrides,
         feature_toggles,
         remote,
         mut interactive,
         subcommand,
-    } = MultitoolCli::parse();
+    } = try_parse_multitool_cli_from(std::env::args_os()).unwrap_or_else(|err| err.exit());
 
     // Fold --enable/--disable into config overrides so they flow to all subcommands.
     let toggle_overrides = feature_toggles.to_overrides()?;
@@ -959,7 +1060,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 root_remote_auth_token_env.as_deref(),
                 "review",
             )?;
-            let mut exec_cli = ExecCli::try_parse_from(["codex", "exec"])?;
+            let mut exec_cli = ExecCli::try_parse_from([command_name, "exec"])?;
             exec_cli
                 .shared
                 .inherit_exec_root_options(&interactive.shared);
@@ -2357,9 +2458,9 @@ fn merge_interactive_cli_flags(interactive: &mut TuiCli, subcommand_cli: TuiCli)
 }
 
 fn print_completion(cmd: CompletionCommand) {
-    let mut app = MultitoolCli::command();
-    let name = "codex";
-    generate(cmd.shell, &mut app, name, &mut std::io::stdout());
+    let command_name = current_command_name();
+    let mut app = multitool_command(command_name);
+    generate(cmd.shell, &mut app, command_name, &mut std::io::stdout());
 }
 
 #[cfg(test)]
@@ -2428,7 +2529,7 @@ mod tests {
     }
 
     fn finalize_resume_from_args(args: &[&str]) -> TuiCli {
-        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let cli = try_parse_multitool_cli_from(args).expect("parse");
         let MultitoolCli {
             interactive,
             config_overrides: root_overrides,
@@ -2461,7 +2562,7 @@ mod tests {
     }
 
     fn finalize_fork_from_args(args: &[&str]) -> TuiCli {
-        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let cli = try_parse_multitool_cli_from(args).expect("parse");
         let MultitoolCli {
             interactive,
             config_overrides: root_overrides,
@@ -2485,7 +2586,7 @@ mod tests {
     }
 
     fn finalize_archive_from_args(args: &[&str]) -> (String, TuiCli, InteractiveRemoteOptions) {
-        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let cli = try_parse_multitool_cli_from(args).expect("parse");
         let MultitoolCli {
             interactive,
             config_overrides: root_overrides,
@@ -2511,7 +2612,7 @@ mod tests {
     }
 
     fn profile_v2_for_args(args: &[&str]) -> anyhow::Result<Option<String>> {
-        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let cli = try_parse_multitool_cli_from(args).expect("parse");
         let Some(subcommand) = cli.subcommand.as_ref() else {
             return Ok(cli
                 .interactive
@@ -2684,7 +2785,7 @@ mod tests {
 
     #[test]
     fn responses_subcommand_is_not_registered() {
-        let command = MultitoolCli::command();
+        let command = multitool_command(PRIMARY_COMMAND_NAME);
         assert!(
             command
                 .get_subcommands()
@@ -2693,7 +2794,7 @@ mod tests {
     }
 
     fn help_from_args(args: &[&str]) -> String {
-        let err = MultitoolCli::try_parse_from(args).expect_err("help should short-circuit");
+        let err = try_parse_multitool_cli_from(args).expect_err("help should short-circuit");
         assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
         err.to_string()
     }
@@ -2715,6 +2816,15 @@ mod tests {
             let help = help_from_args(&["codex", "plugin", "marketplace", subcommand, "--help"]);
             assert!(help.contains(usage), "{help}");
         }
+    }
+
+    #[test]
+    fn plugin_marketplace_help_uses_ontocode_namespace_for_alias() {
+        let help = help_from_args(&["ontocode", "plugin", "marketplace", "--help"]);
+        assert!(
+            help.contains("Usage: ontocode plugin marketplace [OPTIONS] <COMMAND>"),
+            "{help}"
+        );
     }
 
     #[test]

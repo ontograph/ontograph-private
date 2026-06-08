@@ -74,6 +74,7 @@ pub use registry::command_from_argv;
 pub use registry::list_hooks;
 pub use schema::write_schema_fixtures;
 pub use types::Hook;
+pub use types::HookAction;
 pub use types::HookEvent;
 pub use types::HookEventAfterAgent;
 pub use types::HookPayload;

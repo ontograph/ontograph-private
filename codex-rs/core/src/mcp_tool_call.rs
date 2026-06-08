@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -2059,8 +2060,10 @@ fn user_mcp_server_is_configured(config: &Config, server: &str) -> anyhow::Resul
     else {
         return Ok(false);
     };
-    let servers =
-        HashMap::<String, codex_config::types::McpServerConfig>::deserialize(mcp_servers_toml)?;
+    let servers = HashMap::<String, codex_config::types::McpServerConfig>::deserialize(
+        mcp_servers_toml,
+    )
+    .context("failed to parse `mcp_servers` configuration in config.toml; please check for invalid server names or malformed transport settings")?;
     Ok(servers.contains_key(server))
 }
 

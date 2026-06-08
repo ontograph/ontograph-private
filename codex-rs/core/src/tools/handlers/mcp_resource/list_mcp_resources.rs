@@ -12,8 +12,6 @@ use codex_protocol::protocol::McpInvocation;
 use codex_tools::ToolName;
 use codex_tools::ToolSpec;
 
-use rmcp::model::PaginatedRequestParams;
-
 use super::ListResourcesArgs;
 use super::ListResourcesPayload;
 use super::call_tool_result_from_content;
@@ -82,15 +80,9 @@ impl ToolExecutor<ToolInvocation> for ListMcpResourcesHandler {
 
         let payload_result: Result<ListResourcesPayload, FunctionCallError> = async {
             if let Some(server_name) = server.clone() {
-                let params = cursor
-                    .clone()
-                    .map(|value| PaginatedRequestParams::default().with_cursor(Some(value)));
-                let result = session
-                    .list_resources(&server_name, params)
-                    .await
-                    .map_err(|err| {
-                        FunctionCallError::RespondToModel(format!("resources/list failed: {err:#}"))
-                    })?;
+                let result = session.list_resources(&server_name).await.map_err(|err| {
+                    FunctionCallError::RespondToModel(format!("resources/list failed: {err:#}"))
+                })?;
                 Ok(ListResourcesPayload::from_single_server(
                     server_name,
                     result,
