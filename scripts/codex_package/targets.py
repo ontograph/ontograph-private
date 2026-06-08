@@ -2,7 +2,7 @@
 
 import platform
 import stat
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -31,9 +31,13 @@ class PackageVariant:
     name: str
     cargo_bin: str
     executable_stem: str
+    aliases: list[str] = field(default_factory=list)
 
     def entrypoint_name(self, spec: TargetSpec) -> str:
         return f"{self.executable_stem}{spec.exe_suffix}"
+
+    def alias_names(self, spec: TargetSpec) -> list[str]:
+        return [f"{alias}{spec.exe_suffix}" for alias in self.aliases]
 
 
 @dataclass(frozen=True)
@@ -51,6 +55,7 @@ PACKAGE_VARIANTS: dict[str, PackageVariant] = {
         name="codex",
         cargo_bin="codex",
         executable_stem="codex",
+        aliases=["ontocode"],
     ),
     "codex-app-server": PackageVariant(
         name="codex-app-server",

@@ -7,6 +7,7 @@ fn codex_binary_keeps_codex_help_name() -> Result<()> {
     cmd.arg("--help");
     cmd.assert()
         .success()
+        .stdout(contains("Codex CLI"))
         .stdout(contains("Usage: codex [OPTIONS] [PROMPT]"));
     Ok(())
 }
@@ -17,6 +18,7 @@ fn ontocode_binary_uses_ontocode_help_name() -> Result<()> {
     cmd.arg("--help");
     cmd.assert()
         .success()
+        .stdout(contains("Ontocode CLI"))
         .stdout(contains("Usage: ontocode [OPTIONS] [PROMPT]"));
     Ok(())
 }

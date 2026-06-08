@@ -4,7 +4,8 @@
   "description": "Ontocode CLI is a coding agent from OpenAI that runs locally on your computer.",
   "license": "Apache-2.0",
   "bin": {
-    "codex": "bin/codex.js"
+    "codex": "bin/codex.js",
+    "ontocode": "bin/codex.js"
   },
   "type": "module",
   "engines": {

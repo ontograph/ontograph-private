@@ -33,6 +33,16 @@ def bundled_path_dir() -> Path | None:
 __all__ = [
     "PACKAGE_NAME",
     "bundled_codex_path",
+    "bundled_ontocode_path",
     "bundled_package_dir",
     "bundled_path_dir",
 ]
+
+def bundled_ontocode_path() -> Path:
+    exe = "ontocode.exe" if os.name == "nt" else "ontocode"
+    path = bundled_package_dir() / "bin" / exe
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{PACKAGE_NAME} is installed but missing its packaged ontocode binary at {path}"
+        )
+    return path

@@ -88,9 +88,6 @@ use codex_protocol::protocol::AskForApproval;
 use codex_protocol::user_input::UserInput;
 use codex_terminal_detection::TerminalName;
 
-/// Codex CLI
-///
-/// If no subcommand is specified, options will be forwarded to the interactive CLI.
 #[derive(Debug, Parser)]
 #[clap(
     author,
@@ -978,7 +975,15 @@ fn apply_alias_bin_names(command: &mut clap::Command, command_name: &str) {
 }
 
 fn multitool_command(command_name: &str) -> clap::Command {
+    let app_title = if command_name == ALIAS_COMMAND_NAME {
+        "Ontocode CLI"
+    } else {
+        "Codex CLI"
+    };
+
     let mut command = MultitoolCli::command()
+        .name(app_title)
+        .about(format!("{app_title}\n\nIf no subcommand is specified, options will be forwarded to the interactive CLI."))
         .bin_name(command_name)
         .override_usage(format!(
             "{command_name} [OPTIONS] [PROMPT]\n       {command_name} [OPTIONS] <COMMAND> [ARGS]"

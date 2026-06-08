@@ -25,6 +25,8 @@ Source plan: `ONTOCODE_RENAME_PROJECT_PLAN.md`
 | T9 | Python SDK public-surface Ontocode sweep | `sdk/python` docs, examples, tests, non-generated source | done | Public docs/examples/tests now prefer `Ontocode*`; repair loop cleared, runtime behavior test passes, and the signature test remains blocked only by local Python 3.10 lacking `tomllib` |
 | T10 | TypeScript SDK public-surface Ontocode sweep | `sdk/typescript` docs, samples, tests, non-generated source | done | Docs, samples, tests, and public-facing SDK text now prefer `Ontocode*`; local `npm exec -- tsup` and targeted Jest suites passed |
 | T11 | Remaining codex-named surfaces disposition pass | generated SDK models, wire identifiers, internal Rust types/crates | done | Added `ONTOCODE_REMAINING_SURFACES_DISPOSITION.md`; remaining non-SDK `codex` surfaces are now explicitly preserved or deferred by policy |
+| T12 | Tighten Ontocode CLI canonicalization | CLI help/display, docs, examples, cli tests | done | CLI help/display now prefers Ontocode when invoked via alias; docs and tests updated |
+| T13 | Packaging alias implementation | npm, python, native runtime packaging | in_progress | Inventorying packaging surfaces for Stage 2 |
 
 ## Dispatch Log
 
@@ -55,3 +57,5 @@ Source plan: `ONTOCODE_RENAME_PROJECT_PLAN.md`
 | 22 | Reopened T9 after formatter failure | `just fmt` found Python syntax errors in edited example/test files; manager is repairing and will rerun formatting/verification |
 | 23 | Re-closed T9 after repair | `just fmt` now passes, Python runtime behavior test still passes, and the only remaining Python verification blocker is the expected Python 3.10 `tomllib` gap |
 | 24 | Recorded Option 1 closeout | Rename program closed at the public-surface boundary; all remaining `codex` identifiers are now explicitly preserved or deferred by policy |
+| 25 | Marked T12 done | Tightened CLI canonicalization and updated docs/tests |
+| 26 | Marked T13 in progress | Starting Stage 2: Packaging Alias inventory |

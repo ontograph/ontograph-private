@@ -51,6 +51,13 @@ def build_package_dir(
         bin_dir / entrypoint_name,
         is_windows=spec.is_windows,
     )
+    for alias in variant.alias_names(spec):
+        copy_executable(
+            inputs.entrypoint_bin.parent / alias,
+            bin_dir / alias,
+            is_windows=spec.is_windows,
+        )
+
     copy_executable(inputs.rg_bin, path_dir / spec.rg_name, is_windows=spec.is_windows)
 
     if inputs.zsh_bin is not None:
@@ -132,6 +139,9 @@ def validate_package_dir(
         Path("bin") / variant.entrypoint_name(spec),
         Path("codex-path") / spec.rg_name,
     ]
+    for alias in variant.alias_names(spec):
+        required_files.append(Path("bin") / alias)
+
     executable_files = list(required_files)
 
     if include_zsh:

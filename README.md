@@ -4,7 +4,7 @@
 </p>
 </br>
 If you want Ontocode in your code editor (VS Code, Cursor, Windsurf), <a href="https://developers.openai.com/codex/ide">install in your IDE.</a>
-</br>If you want the desktop app experience, run <code>codex app</code> or visit <a href="https://chatgpt.com/codex?app-landing-page=true">the Ontocode app page</a>. The command remains <code>codex</code> in this stage for compatibility.
+</br>If you want the desktop app experience, run <code>ontocode app</code> or visit <a href="https://chatgpt.com/codex?app-landing-page=true">the Ontocode app page</a>. The command remains available as <code>codex</code> for compatibility for compatibility.
 </br>If you are looking for the <em>cloud-based agent</em> from OpenAI, <strong>Ontocode Web</strong>, go to <a href="https://chatgpt.com/codex">chatgpt.com/codex</a>.</p>
 
 ---

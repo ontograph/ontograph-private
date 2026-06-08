@@ -34,24 +34,24 @@ Ontocode CLI functions as an MCP client that allows the `codex` CLI and IDE exte
 
 #### MCP server (experimental)
 
-Ontocode can be launched as an MCP _server_ by running `codex mcp-server`. This allows _other_ MCP clients to use Ontocode as a tool for another agent.
+Ontocode can be launched as an MCP _server_ by running `ontocode mcp-server`. This allows _other_ MCP clients to use Ontocode as a tool for another agent.
 
 Use the [`@modelcontextprotocol/inspector`](https://github.com/modelcontextprotocol/inspector) to try it out:
 
 ```shell
-npx @modelcontextprotocol/inspector codex mcp-server
+npx @modelcontextprotocol/inspector ontocode mcp-server
 ```
 
-Use `codex mcp` to add/list/get/remove MCP server launchers defined in `config.toml`, and `codex mcp-server` to run the MCP server directly.
+Use `ontocode mcp` to add/list/get/remove MCP server launchers defined in `config.toml`, and `ontocode mcp-server` to run the MCP server directly.
 
 ### Notifications
 
 You can enable notifications by configuring a script that is run whenever the agent finishes a turn. The [notify documentation](../docs/config.md#notify) includes a detailed example that explains how to get desktop notifications via [terminal-notifier](https://github.com/julienXX/terminal-notifier) on macOS. When Ontocode detects that it is running under WSL 2 inside Windows Terminal (`WT_SESSION` is set), the TUI automatically falls back to native Windows toast notifications so approval prompts and completed turns surface even though Windows Terminal does not implement OSC 9.
 
-### `codex exec` to run Ontocode programmatically/non-interactively
+### `ontocode exec` to run Ontocode programmatically/non-interactively
 
-To run Ontocode non-interactively, run `codex exec PROMPT` (you can also pass the prompt via `stdin`) and Ontocode will work on your task until it decides that it is done and exits. If you provide both a prompt argument and piped stdin, Ontocode appends stdin as a `<stdin>` block after the prompt so patterns like `echo "my output" | codex exec "Summarize this concisely"` work naturally. Output is printed to the terminal directly. You can set the `RUST_LOG` environment variable to see more about what's going on.
-Use `codex exec --ephemeral ...` to run without persisting session rollout files to disk.
+To run Ontocode non-interactively, run `ontocode exec PROMPT` (you can also pass the prompt via `stdin`) and Ontocode will work on your task until it decides that it is done and exits. If you provide both a prompt argument and piped stdin, Ontocode appends stdin as a `<stdin>` block after the prompt so patterns like `echo "my output" | ontocode exec "Summarize this concisely"` work naturally. Output is printed to the terminal directly. You can set the `RUST_LOG` environment variable to see more about what's going on.
+Use `ontocode exec --ephemeral ...` to run without persisting session rollout files to disk.
 
 ### Experimenting with the Ontocode Sandbox
 
@@ -60,13 +60,13 @@ To test to see what happens when a command is run under the sandbox provided by 
 ```
 # Uses the sandbox implementation for the current host OS:
 # Seatbelt on macOS, the Linux sandbox on Linux, and Windows restricted token on Windows.
-codex sandbox [COMMAND]...
+ontocode sandbox [COMMAND]...
 
 # macOS-only diagnostic option
-codex sandbox --log-denials [COMMAND]...
+ontocode sandbox --log-denials [COMMAND]...
 ```
 
-`codex sandbox` also accepts `--profile NAME` (`-p NAME`) to layer
+`ontocode sandbox` also accepts `--profile NAME` (`-p NAME`) to layer
 `$CODEX_HOME/NAME.config.toml` onto the base user config for the sandboxed
 command.
 
@@ -76,13 +76,13 @@ The Rust CLI exposes a dedicated `--sandbox` (`-s`) flag that lets you pick the 
 
 ```shell
 # Run Ontocode with the default, read-only sandbox
-codex --sandbox read-only
+ontocode --sandbox read-only
 
 # Allow the agent to write within the current workspace while still blocking network access
-codex --sandbox workspace-write
+ontocode --sandbox workspace-write
 
 # Danger! Disable sandboxing entirely (only do this if you are already running in a container or other isolated env)
-codex --sandbox danger-full-access
+ontocode --sandbox danger-full-access
 ```
 
 In `workspace-write`, Ontocode also includes `~/.codex/memories` in its writable roots so memory maintenance does not require an extra approval.

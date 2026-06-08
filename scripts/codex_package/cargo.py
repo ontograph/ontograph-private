@@ -109,6 +109,7 @@ def source_binaries_for_target(
     binaries = []
     if build_entrypoint:
         binaries.append(variant.cargo_bin)
+        binaries.extend(variant.aliases)
     if build_bwrap:
         binaries.append("bwrap")
     if build_codex_command_runner:

@@ -33,6 +33,7 @@ Keep this file short. Each entry should be one line in the form:
 - [OpenClaw Tool Extensions](ADR_OPENCLAW_TOOL_EXTENSIONS.md) — Challenged OpenClaw review retaining only the redacted Stage 0 interop detector
 - [GitNexus Code-Graph Adoption](ADR_GITNEXUS_CODE_GRAPH_ADOPTION.md) — Canonical consolidation ADR for GitNexus/lean-ctx third-party boundaries and operational evidence backbone
 - [Ontocode Rename Tracking](ONTOCODE_RENAME_TRACKING.md) — Project identity migration tracker
+- [Ontocode Binary Rename Proposal](ONTOCODE_BINARY_RENAME_PROPOSAL.md) — GitNexus-backed staged proposal for making `ontocode` canonical while preserving `codex`
 
 ## Audits
 
