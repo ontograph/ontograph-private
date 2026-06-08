@@ -114,8 +114,10 @@ def source_binaries_for_target(
         binaries.append("bwrap")
     if build_codex_command_runner:
         binaries.append("codex-command-runner")
+        binaries.append("ontocode-command-runner")
     if build_codex_windows_sandbox_setup:
         binaries.append("codex-windows-sandbox-setup")
+        binaries.append("ontocode-windows-sandbox-setup")
     return binaries
 
 

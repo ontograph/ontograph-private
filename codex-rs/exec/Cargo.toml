@@ -9,6 +9,10 @@ autotests = false
 name = "codex-exec"
 path = "src/main.rs"
 
+[[bin]]
+name = "ontocode-exec"
+path = "src/main.rs"
+
 [lib]
 name = "codex_exec"
 path = "src/lib.rs"

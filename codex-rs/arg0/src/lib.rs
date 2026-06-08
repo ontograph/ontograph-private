@@ -8,6 +8,7 @@ use codex_apply_patch::CODEX_CORE_APPLY_PATCH_ARG1;
 use codex_exec_server::CODEX_FS_HELPER_ARG1;
 use codex_install_context::InstallContext;
 use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
+use codex_sandboxing::landlock::ONTOCODE_LINUX_SANDBOX_ARG0;
 use codex_utils_home_dir::find_codex_home;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
@@ -17,6 +18,8 @@ const APPLY_PATCH_ARG0: &str = "apply_patch";
 const MISSPELLED_APPLY_PATCH_ARG0: &str = "applypatch";
 #[cfg(unix)]
 const EXECVE_WRAPPER_ARG0: &str = "codex-execve-wrapper";
+#[cfg(unix)]
+const ONTOCODE_EXECVE_WRAPPER_ARG0: &str = "ontocode-execve-wrapper";
 const LOCK_FILENAME: &str = ".lock";
 const TOKIO_WORKER_STACK_SIZE_BYTES: usize = 16 * 1024 * 1024;
 
@@ -63,7 +66,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
         .unwrap_or("");
 
     #[cfg(unix)]
-    if exe_name == EXECVE_WRAPPER_ARG0 {
+    if exe_name == EXECVE_WRAPPER_ARG0 || exe_name == ONTOCODE_EXECVE_WRAPPER_ARG0 {
         let mut args = std::env::args();
         let _ = args.next();
         let file = match args.next() {
@@ -88,7 +91,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
         }
     }
 
-    if exe_name == CODEX_LINUX_SANDBOX_ARG0 {
+    if exe_name == CODEX_LINUX_SANDBOX_ARG0 || exe_name == ONTOCODE_LINUX_SANDBOX_ARG0 {
         // Safety: [`run_main`] never returns.
         codex_linux_sandbox::run_main();
     } else if exe_name == APPLY_PATCH_ARG0 || exe_name == MISSPELLED_APPLY_PATCH_ARG0 {
@@ -371,8 +374,12 @@ fn prepare_path_entry_for_codex_aliases(
         MISSPELLED_APPLY_PATCH_ARG0,
         #[cfg(target_os = "linux")]
         CODEX_LINUX_SANDBOX_ARG0,
+        #[cfg(target_os = "linux")]
+        ONTOCODE_LINUX_SANDBOX_ARG0,
         #[cfg(unix)]
         EXECVE_WRAPPER_ARG0,
+        #[cfg(unix)]
+        ONTOCODE_EXECVE_WRAPPER_ARG0,
     ] {
         let exe = std::env::current_exe()?;
 
@@ -580,6 +587,28 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let lock_file = create_lock(temp_dir.path())?;
         let alias_path = temp_dir.path().join("codex-linux-sandbox");
+        let path_entry = Arg0PathEntryGuard::new(
+            temp_dir,
+            lock_file,
+            Arg0DispatchPaths {
+                codex_self_exe: Some(PathBuf::from("/usr/bin/codex")),
+                codex_linux_sandbox_exe: Some(alias_path.clone()),
+                main_execve_wrapper_exe: None,
+            },
+        );
+
+        assert_eq!(
+            linux_sandbox_exe_path(Some(&path_entry), Some(PathBuf::from("/usr/bin/codex"))),
+            Some(alias_path),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn linux_sandbox_exe_path_prefers_ontocode_linux_sandbox_alias() -> std::io::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let lock_file = create_lock(temp_dir.path())?;
+        let alias_path = temp_dir.path().join("ontocode-linux-sandbox");
         let path_entry = Arg0PathEntryGuard::new(
             temp_dir,
             lock_file,

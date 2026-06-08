@@ -1,9 +1,17 @@
 [package]
-build = "build.rs"
-edition.workspace = true
-license.workspace = true
 name = "codex-windows-sandbox"
 version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "codex-windows-sandbox"
+path = "src/main.rs"
+
+[[bin]]
+name = "ontocode-windows-sandbox"
+path = "src/main.rs"
 
 [lib]
 name = "codex_windows_sandbox"
@@ -12,6 +20,10 @@ doctest = false
 
 [[bin]]
 name = "codex-windows-sandbox-setup"
+path = "src/bin/setup_main/main.rs"
+
+[[bin]]
+name = "ontocode-windows-sandbox-setup"
 path = "src/bin/setup_main/main.rs"
 
 [[bin]]

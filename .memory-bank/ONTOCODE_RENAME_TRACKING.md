@@ -26,7 +26,9 @@ Source plan: `ONTOCODE_RENAME_PROJECT_PLAN.md`
 | T10 | TypeScript SDK public-surface Ontocode sweep | `sdk/typescript` docs, samples, tests, non-generated source | done | Docs, samples, tests, and public-facing SDK text now prefer `Ontocode*`; local `npm exec -- tsup` and targeted Jest suites passed |
 | T11 | Remaining codex-named surfaces disposition pass | generated SDK models, wire identifiers, internal Rust types/crates | done | Added `ONTOCODE_REMAINING_SURFACES_DISPOSITION.md`; remaining non-SDK `codex` surfaces are now explicitly preserved or deferred by policy |
 | T12 | Tighten Ontocode CLI canonicalization | CLI help/display, docs, examples, cli tests | done | CLI help/display now prefers Ontocode when invoked via alias; docs and tests updated |
-| T13 | Packaging alias implementation | npm, python, native runtime packaging | in_progress | Inventorying packaging surfaces for Stage 2 |
+| T13 | Packaging alias implementation | npm, python, native runtime packaging | done | npm, Python, and native runtime packaging now install both `codex` and `ontocode` binaries |
+| T14 | Internal helper rename (Stage 4) | codex-exec, codex-exec-server, sandbox helpers, etc. | in_progress | Adding aliases for internal helpers to support `ontocode-*` names |
+| T15 | Optional package rename (Stage 3) | @openai/ontocode, etc. | deferred | Only start after release tooling supports dual publish |
 
 ## Dispatch Log
 
@@ -58,4 +60,5 @@ Source plan: `ONTOCODE_RENAME_PROJECT_PLAN.md`
 | 23 | Re-closed T9 after repair | `just fmt` now passes, Python runtime behavior test still passes, and the only remaining Python verification blocker is the expected Python 3.10 `tomllib` gap |
 | 24 | Recorded Option 1 closeout | Rename program closed at the public-surface boundary; all remaining `codex` identifiers are now explicitly preserved or deferred by policy |
 | 25 | Marked T12 done | Tightened CLI canonicalization and updated docs/tests |
-| 26 | Marked T13 in progress | Starting Stage 2: Packaging Alias inventory |
+| 26 | Marked T13 done | npm, Python, and native runtime packaging now install both `codex` and `ontocode` binaries |
+| 27 | Marked T14 in progress | Dispatching internal helper alias implementation (Stage 4) |

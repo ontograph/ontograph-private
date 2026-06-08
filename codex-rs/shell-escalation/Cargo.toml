@@ -8,6 +8,10 @@ version.workspace = true
 name = "codex-execve-wrapper"
 path = "src/bin/main_execve_wrapper.rs"
 
+[[bin]]
+name = "ontocode-execve-wrapper"
+path = "src/bin/main_execve_wrapper.rs"
+
 [lints]
 workspace = true
 

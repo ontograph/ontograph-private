@@ -4,6 +4,7 @@ use crate::spawn::spawn_child_async;
 use codex_network_proxy::NetworkProxy;
 use codex_protocol::models::PermissionProfile;
 use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
+use codex_sandboxing::landlock::ONTOCODE_LINUX_SANDBOX_ARG0;
 use codex_sandboxing::landlock::allow_network_for_proxy;
 use codex_sandboxing::landlock::create_linux_sandbox_command_args_for_permission_profile;
 use codex_utils_absolute_path::AbsolutePathBuf;
@@ -45,10 +46,10 @@ where
     let codex_linux_sandbox_exe = codex_linux_sandbox_exe.as_ref();
     // Preserve the helper alias when we already have it; otherwise force argv0
     // so arg0 dispatch still reaches the Linux sandbox path.
-    let arg0 = if codex_linux_sandbox_exe
+    let arg0 = if let Some(file_name) = codex_linux_sandbox_exe
         .file_name()
         .and_then(|name| name.to_str())
-        == Some(CODEX_LINUX_SANDBOX_ARG0)
+        && (file_name == CODEX_LINUX_SANDBOX_ARG0 || file_name == ONTOCODE_LINUX_SANDBOX_ARG0)
     {
         // Old bubblewrap builds without `--argv0` need a real helper path whose
         // basename still dispatches to the Linux sandbox entrypoint.
