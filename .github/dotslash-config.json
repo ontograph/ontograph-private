@@ -28,59 +28,59 @@
         }
       }
     },
-    "codex-app-server": {
+    "ontocode-app-server": {
       "platforms": {
         "macos-aarch64": {
-          "regex": "^codex-app-server-package-aarch64-apple-darwin\\.tar\\.zst$",
-          "path": "bin/codex-app-server"
+          "regex": "^ontocode-app-server-package-aarch64-apple-darwin\\.tar\\.zst$",
+          "path": "bin/ontocode-app-server"
         },
         "macos-x86_64": {
-          "regex": "^codex-app-server-package-x86_64-apple-darwin\\.tar\\.zst$",
-          "path": "bin/codex-app-server"
+          "regex": "^ontocode-app-server-package-x86_64-apple-darwin\\.tar\\.zst$",
+          "path": "bin/ontocode-app-server"
         },
         "linux-x86_64": {
-          "regex": "^codex-app-server-package-x86_64-unknown-linux-musl\\.tar\\.zst$",
-          "path": "bin/codex-app-server"
+          "regex": "^ontocode-app-server-package-x86_64-unknown-linux-musl\\.tar\\.zst$",
+          "path": "bin/ontocode-app-server"
         },
         "linux-aarch64": {
-          "regex": "^codex-app-server-package-aarch64-unknown-linux-musl\\.tar\\.zst$",
-          "path": "bin/codex-app-server"
+          "regex": "^ontocode-app-server-package-aarch64-unknown-linux-musl\\.tar\\.zst$",
+          "path": "bin/ontocode-app-server"
         },
         "windows-x86_64": {
-          "regex": "^codex-app-server-package-x86_64-pc-windows-msvc\\.tar\\.zst$",
-          "path": "bin/codex-app-server.exe"
+          "regex": "^ontocode-app-server-package-x86_64-pc-windows-msvc\\.tar\\.zst$",
+          "path": "bin/ontocode-app-server.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-app-server-package-aarch64-pc-windows-msvc\\.tar\\.zst$",
-          "path": "bin/codex-app-server.exe"
+          "regex": "^ontocode-app-server-package-aarch64-pc-windows-msvc\\.tar\\.zst$",
+          "path": "bin/ontocode-app-server.exe"
         }
       }
     },
-    "codex-responses-api-proxy": {
+    "ontocode-responses-api-proxy": {
       "platforms": {
         "macos-aarch64": {
-          "regex": "^codex-responses-api-proxy-aarch64-apple-darwin\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^ontocode-responses-api-proxy-aarch64-apple-darwin\\.zst$",
+          "path": "ontocode-responses-api-proxy"
         },
         "macos-x86_64": {
-          "regex": "^codex-responses-api-proxy-x86_64-apple-darwin\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^ontocode-responses-api-proxy-x86_64-apple-darwin\\.zst$",
+          "path": "ontocode-responses-api-proxy"
         },
         "linux-x86_64": {
-          "regex": "^codex-responses-api-proxy-x86_64-unknown-linux-musl\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^ontocode-responses-api-proxy-x86_64-unknown-linux-musl\\.zst$",
+          "path": "ontocode-responses-api-proxy"
         },
         "linux-aarch64": {
-          "regex": "^codex-responses-api-proxy-aarch64-unknown-linux-musl\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^ontocode-responses-api-proxy-aarch64-unknown-linux-musl\\.zst$",
+          "path": "ontocode-responses-api-proxy"
         },
         "windows-x86_64": {
-          "regex": "^codex-responses-api-proxy-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-responses-api-proxy.exe"
+          "regex": "^ontocode-responses-api-proxy-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "ontocode-responses-api-proxy.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-responses-api-proxy-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-responses-api-proxy.exe"
+          "regex": "^ontocode-responses-api-proxy-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "ontocode-responses-api-proxy.exe"
         }
       }
     },
@@ -96,27 +96,27 @@
         }
       }
     },
-    "codex-command-runner": {
+    "ontocode-command-runner": {
       "platforms": {
         "windows-x86_64": {
-          "regex": "^codex-command-runner-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-command-runner.exe"
+          "regex": "^ontocode-command-runner-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "ontocode-command-runner.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-command-runner-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-command-runner.exe"
+          "regex": "^ontocode-command-runner-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "ontocode-command-runner.exe"
         }
       }
     },
-    "codex-windows-sandbox-setup": {
+    "ontocode-windows-sandbox-setup": {
       "platforms": {
         "windows-x86_64": {
-          "regex": "^codex-windows-sandbox-setup-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-windows-sandbox-setup.exe"
+          "regex": "^ontocode-windows-sandbox-setup-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "ontocode-windows-sandbox-setup.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-windows-sandbox-setup-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-windows-sandbox-setup.exe"
+          "regex": "^ontocode-windows-sandbox-setup-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "ontocode-windows-sandbox-setup.exe"
         }
       }
     }

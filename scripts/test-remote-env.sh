@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# Remote-env setup script for codex-rs integration tests.
+# Remote-env setup script for ontocode-rs integration tests.
 #
 # Usage (source-only):
 #   source scripts/test-remote-env.sh
-#   cd codex-rs
+#   cd ontocode-rs
 #   just test -p codex-core --test all remote_test_env_can_connect_and_use_filesystem
 #   codex_remote_env_cleanup
 
@@ -25,7 +25,7 @@ setup_remote_env() {
   local remote_exec_server_stdout_path
 
   container_name="${CODEX_TEST_REMOTE_ENV_CONTAINER_NAME:-codex-remote-test-env-local-$(date +%s)-${RANDOM}}"
-  codex_binary_path="${REPO_ROOT}/codex-rs/target/debug/codex"
+  codex_binary_path="${REPO_ROOT}/ontocode-rs/target/debug/ontocode"
 
   if ! command -v docker >/dev/null 2>&1; then
     echo "docker is required (Colima or Docker Desktop)" >&2
@@ -43,8 +43,8 @@ setup_remote_env() {
   fi
 
   (
-    cd "${REPO_ROOT}/codex-rs"
-    cargo build -p codex-cli --bin codex
+    cd "${REPO_ROOT}/ontocode-rs"
+  cargo build -p ontocode-cli --bin ontocode
   )
 
   if [[ ! -f "${codex_binary_path}" ]]; then

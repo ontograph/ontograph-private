@@ -37,9 +37,9 @@ Architecture decision:
 
 Related source links:
 
-- [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:108)
-- [spec_plan.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/spec_plan.rs:190)
-- [plugin_namespace.rs](/opt/demodb/_workfolder/ontocode/codex-rs/utils/plugins/src/plugin_namespace.rs:81)
+- [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:108)
+- [spec_plan.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/spec_plan.rs:190)
+- [plugin_namespace.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/utils/plugins/src/plugin_namespace.rs:81)
 
 ## GBrain Review Addendum
 

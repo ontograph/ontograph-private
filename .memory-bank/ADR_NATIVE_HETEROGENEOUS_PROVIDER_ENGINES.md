@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed
+Superseded for new non-OpenAI native model engines by the 2026-06-19
+OpenAI-only native auth policy.
 
 ## Date
 
@@ -10,12 +11,26 @@ Proposed
 
 ## Context
 
+Current authority, 2026-06-19:
+
+- Do not add new native non-OpenAI model engines for Gemini, Claude, Kimi,
+  Antigravity, or similar providers.
+- Keep OpenAI/Codex as the native first-class provider.
+- Plug non-OpenAI providers through external OpenAI-compatible API endpoints or
+  user-owned sidecars.
+- Existing native/provider descriptor work remains historical compatibility
+  context, but it is not authority to expand native OAuth/runtime support.
+
+This ADR's donor review remains useful for evaluating sidecar/adaptor behavior,
+provider metadata, and diagnostics, but not for implementing new native model
+runtime engines.
+
 The current provider extensibility work introduced an internal descriptor seam for selecting provider runtime behavior.
 
 Current code evidence:
 
-- `ProviderEngine` currently has only `OpenAiResponses` and `AmazonBedrockResponses`: [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:7)
-- `ProviderKind` maps those engines to the only current runtime implementations: [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:153)
+- `ProviderEngine` currently has only `OpenAiResponses` and `AmazonBedrockResponses`: [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:7)
+- `ProviderKind` maps those engines to the only current runtime implementations: [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:153)
 - The remaining extensibility ADR explicitly defers public descriptors and external adapters until there is a real provider need: [ADR_PROVIDER_EXTENSIBILITY_REMAINING_IMPLEMENTATION.md](/opt/demodb/_workfolder/ontocode/ADR_PROVIDER_EXTENSIBILITY_REMAINING_IMPLEMENTATION.md:1)
 
 This is enough for OpenAI-compatible providers and Bedrock, but it is not enough for native Claude, Gemini, and GitHub Copilot support. These providers are heterogeneous:
@@ -46,10 +61,10 @@ Architecture decision:
 
 Related source links:
 
-- [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:7)
-- [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:108)
-- [client.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/client.rs:1584)
-- [oauth.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:58)
+- [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:7)
+- [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:108)
+- [client.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/client.rs:1584)
+- [oauth.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:58)
 
 ## Crush Review Addendum
 
@@ -69,9 +84,9 @@ Architecture decision:
 
 Related source links:
 
-- [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:66)
-- [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:201)
-- [spec_plan.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/spec_plan.rs:190)
+- [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:66)
+- [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:201)
+- [spec_plan.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/spec_plan.rs:190)
 
 ## OpenClaw Review Addendum
 
@@ -91,9 +106,9 @@ Architecture decision:
 
 Related source links:
 
-- [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:7)
-- [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:108)
-- [client.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/client.rs:1584)
+- [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:7)
+- [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:108)
+- [client.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/client.rs:1584)
 
 ## Hermes Agent Review Addendum
 
@@ -115,9 +130,9 @@ Architecture decision:
 
 Related source links:
 
-- [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:7)
-- [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:108)
-- [card.rs](/opt/demodb/_workfolder/ontocode/codex-rs/tui/src/status/card.rs:161)
+- [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:7)
+- [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:108)
+- [card.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/tui/src/status/card.rs:161)
 
 ## GBrain Review Addendum
 
@@ -458,9 +473,9 @@ The hard boundary is not provider selection; it is request execution.
 
 Current code evidence shows:
 
-- `ModelProvider` mostly exposes provider metadata, auth, account state, capabilities, and model-manager creation: [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:88)
-- `ProviderKind` currently selects between configured OpenAI-compatible and Bedrock providers: [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:153)
-- the core request path is still Responses-oriented through `ModelClientSession::stream_responses_api`: [client.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/client.rs:1243)
+- `ModelProvider` mostly exposes provider metadata, auth, account state, capabilities, and model-manager creation: [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:88)
+- `ProviderKind` currently selects between configured OpenAI-compatible and Bedrock providers: [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:153)
+- the core request path is still Responses-oriented through `ModelClientSession::stream_responses_api`: [client.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/client.rs:1243)
 
 Therefore native engines cannot be only metadata descriptors. The implementation must introduce a protocol-neutral runtime boundary that converts a normalized Codex turn into a normalized Codex event stream.
 
@@ -602,11 +617,11 @@ Credential records must include enough provenance to avoid applying a token to t
 
 The first implementation must not silently change these surfaces:
 
-- `ModelProviderInfo` public config shape, including the single current `WireApi::Responses` value: [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider-info/src/lib.rs:50)
+- `ModelProviderInfo` public config shape, including the single current `WireApi::Responses` value: [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider-info/src/lib.rs:50)
 - config schema generated from provider config types
-- remote thread config serialization and deserialization: [remote.rs](/opt/demodb/_workfolder/ontocode/codex-rs/config/src/thread_config/remote.rs:145)
+- remote thread config serialization and deserialization: [remote.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/config/src/thread_config/remote.rs:145)
 - app-server account-state behavior
-- auth environment telemetry redaction and bucketing: [auth_env_telemetry.rs](/opt/demodb/_workfolder/ontocode/codex-rs/login/src/auth_env_telemetry.rs:31)
+- auth environment telemetry redaction and bucketing: [auth_env_telemetry.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/login/src/auth_env_telemetry.rs:31)
 - model catalog merge behavior
 - session resume behavior
 - guardian and multi-agent turn execution

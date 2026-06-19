@@ -10,7 +10,15 @@ Challenged - consolidate GitNexus and lean-ctx into one operational evidence bac
 
 ## Context
 
-The local `../GitNexus` workspace contains graph-oriented functionality that is useful for Ontocode:
+The local `../GitNexus` workspace currently checked in this environment is the TypeScript GitNexus analyzer/runtime package, not a Rust `ontocode-rs` donor tree. Its useful functionality for Ontocode is the bounded analyzer/report surface:
+
+- `context` reports for symbol identity, incoming/outgoing relationships, process participation, and concepts
+- `impact` reports for risk, affected processes, affected modules, direct counts, and bounded graph traversal summaries
+- `detect_changes` reports for changed symbols, affected processes, risk level, and warnings
+- audit lifecycle records with schema versioning, target-head freshness, graph index identity, verification evidence, dispatch, scope guards, tombstones, and projections
+- analyzer storage behind `@ladybugdb/core`, tree-sitter grammars, graphology, ONNX/transformers, Express, and MCP SDK dependencies
+
+Ontocode already contains runtime graph functionality that is useful for the same operational evidence backbone:
 
 - a persisted runtime graph for spawned agent threads
 - deterministic graph traversal through state-backed edges
@@ -19,7 +27,7 @@ The local `../GitNexus` workspace contains graph-oriented functionality that is 
 - analytics facts for subagent/thread relationships
 - agent identity primitives
 
-Important finding: the core graph implementation files checked below are already byte-identical between local `../GitNexus` and current Ontocode. The immediate task is therefore not to copy code. The safe decision is to formalize the existing persisted `thread_spawn_edges` runtime graph as one input into a broader code-graph-memory backbone.
+Important finding after the 2026-06-16 source check: the ADR's earlier `../GitNexus/ontocode-rs/...` donor links are stale in this workspace. The immediate task is therefore not to copy GitNexus Rust code. The safe decision is to formalize Ontocode's existing persisted `thread_spawn_edges` runtime graph as one input into a broader code-graph-memory backbone, and to import GitNexus analyzer output only through bounded artifacts.
 
 Code-graph-memory means durable, compact, provenance-rich graph facts that Ontocode can use across manager/subagent work: symbol owner evidence, impact risk, affected process labels, source links, runtime thread topology, and verification results. It does not mean storing raw source, importing a full GitNexus graph database, or running a second static symbol indexer inside Ontocode.
 
@@ -42,13 +50,13 @@ Additional GitNexus challenge evidence:
 
 Third-party dependency challenge:
 
-- Current npm metadata checked on 2026-06-08 shows `gitnexus@1.6.5` depends on `@ladybugdb/core` through the semver range `^0.16.1`, plus native/platform optional packages such as `@ladybugdb/core-linux-x64`, `@ladybugdb/core-darwin-arm64`, and `@ladybugdb/core-win32-x64`.
+- Current checked source on 2026-06-16 shows `../GitNexus/gitnexus/package.json` at `gitnexus@1.6.2`, depending on `@ladybugdb/core` through the semver range `^0.16.1`, plus native/platform optional packages such as `@ladybugdb/core-linux-x64`, `@ladybugdb/core-darwin-arm64`, and `@ladybugdb/core-win32-x64`.
 - The unscoped `ladybugdb` package name is not present in npm; the relevant package is `@ladybugdb/core`.
-- `@ladybugdb/core` is a native in-process property graph database dependency with its own transitive dependencies and platform binaries. It is acceptable inside a hermetic local evidence binary, but not acceptable as a hidden Ontocode runtime, memory, state, app-server, or context dependency.
-- Other GitNexus analyzer dependencies are acceptable only behind the same binary boundary: tree-sitter grammars, graphology packages, `onnxruntime-node`, `@huggingface/transformers`, Express, and the MCP SDK. Code-graph-memory must not make Ontocode crates, app-server, SDKs, or memory/context paths transitively depend on these packages.
-- The earlier challenge rejected third-party dependency adoption too broadly. Corrected position: bundle all analyzer third-party dependencies into a local per-platform evidence binary, then let Ontocode consume only the bounded evidence artifact emitted by that binary.
+- `@ladybugdb/core` is a native in-process property graph database dependency with its own transitive dependencies and platform binaries. It is useful source evidence for the GitNexus analyzer design, but it is not acceptable inside Ontocode runtime, memory, state, app-server, context, SDK, or packaging.
+- Other GitNexus analyzer dependencies are also rejected for Ontocode integration: tree-sitter grammars, graphology packages, `onnxruntime-node`, `@huggingface/transformers`, Express, and the MCP SDK. Code-graph-memory must translate GitNexus concepts into Rust-native Ontocode state/query/audit code instead of bundling those dependencies.
+- The corrected Rust-only position: do not bundle analyzer third-party dependencies into an Ontocode-owned local binary. GitNexus may remain an external developer tool, but Ontocode adopts only the bounded evidence shapes and reimplements the durable backbone, gates, and summaries in Rust.
 - Lean-ctx is a development/workflow tool only. Ontocode must not vendor lean-ctx, depend on its CLI/runtime, copy its shell/read/search/session cache, or expose lean-ctx tools as model-visible product tools.
-- Third-party tooling is consolidated into three allowed classes: binary-owned analyzer dependencies, repository-only scripts with no runtime dependency, and external developer tools used by agents outside Ontocode runtime.
+- Third-party tooling is consolidated into two allowed classes: repository-only scripts with no runtime dependency, and external developer tools used by agents outside Ontocode runtime.
 
 Corrected challenge result:
 
@@ -68,8 +76,8 @@ This ADR is the canonical dependency consolidation record for GitNexus and lean-
 
 | Dependency source | Allowed role | Boundary | Rejected coupling |
 |---|---|---|---|
-| GitNexus analyzer and `@ladybugdb/core` | Produce static graph evidence. | Hermetic local evidence binary emitting versioned bounded artifacts. | Direct Rust/app-server/SDK dependency, direct `.gitnexus/lbug` parsing, in-process LadybugDB store. |
-| GitNexus MCP/CLI | Development-time evidence collection and manager workflow support. | External tool invocation or evidence artifact import. | Production request-path dependency or persisted raw graph output. |
+| GitNexus analyzer and `@ladybugdb/core` | Source evidence and external developer analysis. | External tool only; Ontocode imports bounded JSON artifact shapes through Rust code when explicitly provided. | Direct Rust/app-server/SDK dependency, direct `.gitnexus/lbug` parsing, in-process LadybugDB store, bundled Node/LadybugDB evidence binary. |
+| GitNexus MCP/CLI | Development-time evidence collection and manager workflow support. | External tool invocation by humans/agents, with explicit artifact handoff to Rust importers. | Production request-path dependency, automatic shell-out from core, or persisted raw graph output. |
 | Lean-ctx MCP/CLI | Agent development workflow for compressed reads, shell output, search, and session handling. | External agent workflow only. | Vendored runtime, product CLI dependency, copied cache/session/search/shell subsystem. |
 | Repository-only scripts | Bootstrap reports, link checks, status counts, and task-card generation. | `scripts/` or memory-bank tooling with standard-library-first implementation. | Runtime crate dependency, app-server API, model-visible tool registration, automatic silent status mutation. |
 | Operational evidence backbone | Durable local facts, gates, and readiness summaries derived from approved inputs. | Existing `StateRuntime`/state ownership, bounded records, redaction, retention, provenance. | Separate database root, raw logs/source/secrets, second memory store, third-party graph/search/runtime library. |
@@ -81,101 +89,103 @@ Consolidation rules:
 - GitNexus evidence is a `code_graph` evidence domain, not a separate storage engine.
 - Lean-ctx-inspired task/gate/readiness records are `workflow`, `test`, `doc`, `redaction`, or `architecture` evidence domains, not a copied lean-ctx runtime.
 - Every imported artifact must carry source tool name, tool version when known, schema version, provenance hash, created timestamp, redaction status, and max-size validation result.
-- Normal Ontocode runtime must still work when GitNexus, lean-ctx, or the local evidence binary is absent.
+- Normal Ontocode runtime must still work when GitNexus, lean-ctx, or any external evidence artifact is absent.
 
 ## Source Evidence
 
-Local GitNexus implementation:
+OntoIndex implementation evidence reviewed:
 
-- [agent-graph-store trait](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-graph-store/src/store.rs:1)
-- [agent-graph-store SQLite adapter](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-graph-store/src/local.rs:1)
-- [agent graph edge status](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-graph-store/src/types.rs:1)
-- [state graph model](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/model/graph.rs:1)
-- [thread spawn edge migration](/opt/demodb/_workfolder/GitNexus/codex-rs/state/migrations/0021_thread_spawn_edges.sql:1)
-- [state thread graph methods](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/runtime/threads.rs:78)
-- [runtime subtree merge in thread manager](/opt/demodb/_workfolder/GitNexus/codex-rs/core/src/thread_manager.rs:508)
-- [agent resume/close graph use](/opt/demodb/_workfolder/GitNexus/codex-rs/core/src/agent/control.rs:523)
-- [rollout-trace design](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/README.md:1)
-- [ThreadTraceContext](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/thread.rs:76)
-- [RolloutTrace model](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/model/mod.rs:54)
-- [InteractionEdge model](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/model/runtime.rs:305)
-- [agent interaction reducer](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/reducer/tool/agents.rs:16)
-- [subagent analytics fact](/opt/demodb/_workfolder/GitNexus/codex-rs/analytics/src/facts.rs:347)
-- [agent identity primitives](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-identity/src/lib.rs:40)
+- [OntoIndex README](/opt/demodb/_workfolder/OntoIndex/README.md:1) describes the local code graph, impact analysis, MCP, CLI, HTTP, and web surfaces that now correspond to this ADR's external analyzer boundary.
+- [OntoIndex dependency manifest](/opt/demodb/_workfolder/OntoIndex/ontoindex/package.json:59), [IndexStore port](/opt/demodb/_workfolder/OntoIndex/ontoindex-shared/src/ports/index-store.ts:4), and [LadybugDB adapter](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/core/lbug/lbug-adapter.ts:7) show the analyzer-side dependency and storage boundary this ADR keeps out of Ontocode runtime.
+- [analysis orchestrator](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/core/run-analyze.ts:720) and [runFullAnalysis](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/core/run-analyze.ts:744) are the source-side pipeline that builds graph artifacts and loads LadybugDB evidence.
+- [MCP server](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/server.ts:1), [facade dispatch](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/facade/dispatch.ts:27), [super-tool definitions](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/super/tool-definitions.ts:46), and [super dispatch](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/super/dispatch.ts:95) implement the external tool/report surface that Ontocode may consume as bounded evidence.
+- [context backend](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/local/backend-context.ts:178), [impact backend](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/local/backend-impact.ts:174), and [detect-changes backend](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/local/backend-detect-changes.ts:131) are the concrete report producers for the `context`, `impact`, and `detect_changes` evidence inputs accepted by this ADR.
+- [audit event store](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/core/audit-lifecycle/audit-event-store.ts:132), [fresh-evidence verifier](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/core/audit-lifecycle/finding-verify.ts:77), [audit verify tool](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/super/audit-verify.ts:39), and [audit session tools](/opt/demodb/_workfolder/OntoIndex/ontoindex/src/mcp/super/audit-session-tools.ts:320) map to the ADR's bounded verification, dispatch, and tombstone lifecycle evidence.
 
-Current Ontocode equivalents:
+Current checked GitNexus implementation:
 
-- [agent-graph-store trait](/opt/demodb/_workfolder/ontocode/codex-rs/agent-graph-store/src/store.rs:1)
-- [agent-graph-store SQLite adapter](/opt/demodb/_workfolder/ontocode/codex-rs/agent-graph-store/src/local.rs:1)
-- [agent graph edge status](/opt/demodb/_workfolder/ontocode/codex-rs/agent-graph-store/src/types.rs:1)
-- [state graph model](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/model/graph.rs:1)
-- [thread spawn edge migration](/opt/demodb/_workfolder/ontocode/codex-rs/state/migrations/0021_thread_spawn_edges.sql:1)
-- [state thread graph methods](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/threads.rs:78)
-- [runtime subtree merge in thread manager](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/thread_manager.rs:508)
-- [agent resume/close graph use](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/agent/control.rs:523)
-- [rollout-trace design](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/README.md:1)
-- [ThreadTraceContext](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/thread.rs:76)
-- [RolloutTrace model](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/model/mod.rs:54)
-- [InteractionEdge model](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/model/runtime.rs:305)
-- [agent interaction reducer](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/reducer/tool/agents.rs:16)
-- [subagent analytics fact](/opt/demodb/_workfolder/ontocode/codex-rs/analytics/src/facts.rs:347)
-- [agent identity primitives](/opt/demodb/_workfolder/ontocode/codex-rs/agent-identity/src/lib.rs:40)
+- [GitNexus package manifest](/opt/demodb/_workfolder/GitNexus/gitnexus/package.json:3) shows the checked source version `1.6.2`, the CLI binary entrypoint, and analyzer dependencies including `@ladybugdb/core`, tree-sitter grammars, graphology, ONNX/transformers, Express, and MCP SDK.
+- [GitNexus context backend](/opt/demodb/_workfolder/GitNexus/gitnexus/src/mcp/local/backend-context.ts:178) produces bounded symbol context with symbol identity, incoming/outgoing relationship groups, process participation, and concepts.
+- [GitNexus impact backend](/opt/demodb/_workfolder/GitNexus/gitnexus/src/mcp/local/backend-impact.ts:156) produces target identity, direction, impact counts, risk, affected processes, affected modules, by-depth nodes, warnings, and partial-result markers.
+- [GitNexus detect-changes backend](/opt/demodb/_workfolder/GitNexus/gitnexus/src/mcp/local/backend-detect-changes.ts:131) shells out to `git diff` with bounded timeout/buffer/file/hunk/symbol caps, then returns changed symbols, affected processes, risk level, and warnings.
+- [GitNexus audit event store](/opt/demodb/_workfolder/GitNexus/gitnexus/src/core/audit-lifecycle/audit-event-store.ts:23) shows schema-versioned audit events and projections under `.gitnexus/audit`; Ontocode must not copy that storage layout.
+- [GitNexus audit session schema](/opt/demodb/_workfolder/GitNexus/gitnexus/src/core/audit-lifecycle/audit-session.ts:38) shows useful fields to normalize: target repo/head, source hash, graph index id, verifier version, sidecar hash, changed files/symbols, stale warnings, finding status, verification evidence, tombstones, and bundles.
+
+Current Ontocode runtime graph owners:
+
+- [agent-graph-store trait](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-graph-store/src/store.rs:1)
+- [agent-graph-store SQLite adapter](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-graph-store/src/local.rs:1)
+- [agent graph edge status](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-graph-store/src/types.rs:1)
+- [state graph model](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/model/graph.rs:1)
+- [thread spawn edge migration](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/migrations/0021_thread_spawn_edges.sql:1)
+- [state thread graph methods](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/threads.rs:78)
+- [runtime subtree merge in thread manager](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/thread_manager.rs:508)
+- [agent resume/close graph use](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/agent/control.rs:523)
+- [rollout-trace design](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/README.md:1)
+- [ThreadTraceContext](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/thread.rs:76)
+- [RolloutTrace model](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/model/mod.rs:54)
+- [InteractionEdge model](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/model/runtime.rs:305)
+- [agent interaction reducer](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/reducer/tool/agents.rs:16)
+- [subagent analytics fact](/opt/demodb/_workfolder/ontocode/ontocode-rs/analytics/src/facts.rs:347)
+- [agent identity primitives](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-identity/src/lib.rs:40)
 
 Current Ontocode memory/context backbone evidence:
 
 - [lean-ctx project tool ADR](/opt/demodb/_workfolder/ontocode/.memory-bank/ADR_LEAN_CTX_PROJECT_TOOL_EXTENSIONS.md:1)
-- [memory pipeline owner docs](/opt/demodb/_workfolder/ontocode/codex-rs/memories/README.md:1)
-- [memory state migration](/opt/demodb/_workfolder/ontocode/codex-rs/state/memory_migrations/0001_memories.sql:1)
-- [MemoryStore owner](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/memories.rs:27)
-- [Stage1Output model](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/model/memories.rs:1)
-- [memory exclusion for contextual fragments](/opt/demodb/_workfolder/ontocode/codex-rs/memories/write/src/phase1.rs:457)
-- [ContextualUserFragment trait](/opt/demodb/_workfolder/ontocode/codex-rs/context-fragments/src/fragment.rs:45)
-- [contextual-user fragment classifier](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/context/contextual_user_message.rs:1)
-- [rollout memory pollution bridge](/opt/demodb/_workfolder/ontocode/codex-rs/rollout/src/state_db.rs:457)
+- [memory pipeline owner docs](/opt/demodb/_workfolder/ontocode/ontocode-rs/memories/README.md:1)
+- [memory state migration](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/memory_migrations/0001_memories.sql:1)
+- [MemoryStore owner](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/memories.rs:27)
+- [Stage1Output model](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/model/memories.rs:1)
+- [memory exclusion for contextual fragments](/opt/demodb/_workfolder/ontocode/ontocode-rs/memories/write/src/phase1.rs:457)
+- [ContextualUserFragment trait](/opt/demodb/_workfolder/ontocode/ontocode-rs/context-fragments/src/fragment.rs:45)
+- [contextual-user fragment classifier](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/context/contextual_user_message.rs:1)
+- [rollout memory pollution bridge](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout/src/state_db.rs:457)
 
 GitNexus challenge evidence captured for this ADR:
 
 - `ContextualUserFragment` impact: `CRITICAL`, 29 direct implementers, 38 total impacted symbols.
 - `mark_thread_memory_mode_polluted` impact: `HIGH`, direct callers in MCP tool-call and stream-event external-context paths.
 - `MemoryStore` struct impact: `LOW`, but existing state memory schema is rollout-memory specific.
-- `gitnexus@1.6.5` npm metadata: depends on `@ladybugdb/core` `^0.16.1` and many analyzer/runtime packages; those packages are accepted only inside the local evidence binary, not as Ontocode runtime/core dependencies.
+- Checked `../GitNexus/gitnexus` source reports `gitnexus@1.6.2`; its manifest depends on `@ladybugdb/core` `^0.16.1` and many analyzer/runtime packages. Those packages are rejected for Ontocode runtime/core/app-server/SDK dependencies and for Ontocode-owned binaries in this ADR.
 - `@ladybugdb/core` npm metadata: latest checked version `0.17.1`, MIT license, native optional platform packages, repository `github.com/LadybugDB/ladybug`.
-- Local evidence binary decision: third-party analyzer dependencies may be bundled into a signed/checksummed local executable package. They must not appear as direct dependencies of Ontocode Rust crates, app-server packages, SDKs, or persisted state APIs.
+- Rust-only translation decision: third-party analyzer dependencies must not appear as direct dependencies of Ontocode Rust crates, app-server packages, SDKs, persisted state APIs, or Ontocode-owned helper binaries.
 
 ## Functionality Comparison
 
+This table preserves the earlier Rust runtime comparison for Ontocode's existing graph behavior. The `../GitNexus/ontocode-rs/...` paths in the left column are historical evidence from an earlier workspace shape and are not valid implementation inputs in the current checked source. Current GitNexus implementation evidence is the TypeScript analyzer/report source listed above. For implementation, use the current Ontocode paths in the middle column and the GitNexus artifact contracts from `backend-context.ts`, `backend-impact.ts`, `backend-detect-changes.ts`, and audit lifecycle schemas.
+
 | Functionality | Local `../GitNexus` implementation | Current Ontocode status | Core decision |
 |---|---|---|---|
-| Storage-neutral spawned-thread graph trait | `AgentGraphStore` defines upsert, close-status update, direct child listing, and descendant listing in [store.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-graph-store/src/store.rs:12). | Same file exists in Ontocode at [store.rs](/opt/demodb/_workfolder/ontocode/codex-rs/agent-graph-store/src/store.rs:12), but GitNexus shows no execution-flow consumers beyond its local implementation. | Do not promote this as canonical yet. Keep as internal candidate; refactor away `#[async_trait]` only if a real consumer or cleanup task is accepted. |
-| SQLite-backed graph adapter | `LocalAgentGraphStore` wraps `StateRuntime` in [local.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-graph-store/src/local.rs:13). | Same adapter exists in Ontocode at [local.rs](/opt/demodb/_workfolder/ontocode/codex-rs/agent-graph-store/src/local.rs:13). | Keep adapter thin and inert. Do not add graph storage outside `codex-state`, and do not route production behavior through this trait without impact review. |
-| Edge lifecycle status | `ThreadSpawnEdgeStatus` supports `open` and `closed` in [types.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-graph-store/src/types.rs:5). | Same type exists in Ontocode at [types.rs](/opt/demodb/_workfolder/ontocode/codex-rs/agent-graph-store/src/types.rs:5). | Keep lifecycle enum narrow until concrete behavior needs more states. Do not infer runtime status from process liveness alone. |
-| Persisted edge table | `thread_spawn_edges(parent_thread_id, child_thread_id primary key, status)` in [0021_thread_spawn_edges.sql](/opt/demodb/_workfolder/GitNexus/codex-rs/state/migrations/0021_thread_spawn_edges.sql:1). | Same migration exists in Ontocode at [0021_thread_spawn_edges.sql](/opt/demodb/_workfolder/ontocode/codex-rs/state/migrations/0021_thread_spawn_edges.sql:1). | This table is the canonical durable parent-child topology, not transcript metadata. |
-| State enum backing DB status | `DirectionalThreadSpawnEdgeStatus` uses snake-case string serialization through `strum` in [graph.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/model/graph.rs:8). | Same model exists in Ontocode at [graph.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/model/graph.rs:8). | Keep DB status and public graph-store status separate so storage can evolve without leaking DB details. |
-| Upsert edge behavior | State runtime inserts or replaces child incoming edge in [threads.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/runtime/threads.rs:78). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/threads.rs:78). | Child thread has one persisted parent. Re-parenting is allowed only through explicit upsert behavior. |
-| Close edge behavior | `set_thread_spawn_edge_status` updates missing child as successful no-op in [threads.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/runtime/threads.rs:105). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/threads.rs:105). | Close is graph lifecycle state, not deletion. Preserve closed edges for resume/history. |
-| Direct child listing | `list_thread_spawn_children(_with_status)` returns direct children with stable ordering in [threads.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/runtime/threads.rs:118). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/threads.rs:118). | Use direct listing for list-agents and targeted child operations. |
-| Descendant traversal | Recursive SQL lists descendants breadth-first by depth and thread id in [threads.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/runtime/threads.rs:137). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/threads.rs:137). | Use persisted descendant traversal for resume/close/history. Avoid ad hoc in-memory tree reconstruction when DB is available. |
-| Path-based child lookup | Direct and descendant path lookup joins `threads.agent_path` in [threads.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/runtime/threads.rs:161). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/threads.rs:161). | Use canonical agent path lookups for v2 task-name targeting. Do not add a second name index. |
-| Backfill from session source | State runtime extracts parent thread from `SessionSource` in [threads.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/state/src/runtime/threads.rs:315). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/threads.rs:315). | Keep backfill best-effort. Do not trust stale metadata over persisted edges when both exist. |
-| Thread manager subtree merge | `list_agent_subtree_thread_ids` merges persisted descendants and live in-memory children in [thread_manager.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/core/src/thread_manager.rs:508). | Same behavior exists in Ontocode at [thread_manager.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/thread_manager.rs:508). | This is the correct bridge: persisted graph first, live graph second, deduped deterministically. |
-| Resume open descendants | `resume_agent_from_rollout` walks open persisted children breadth-first in [control.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/core/src/agent/control.rs:523). | Same behavior exists in Ontocode at [control.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/agent/control.rs:523). | Resume should use edge data as source of truth for open descendants. |
-| Close persisted edge | `close_agent` marks the edge closed before shutdown in [control.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/core/src/agent/control.rs:798). | Same behavior exists in Ontocode at [control.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/agent/control.rs:798). | Preserve close idempotency and stale-agent handling. |
-| Trace bundle strategy | GitNexus rollout trace observes raw events first and reduces later, documented in [README.md](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/README.md:11). | Same diagnostic architecture exists in Ontocode at [README.md](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/README.md:11). | Adopt offline reduction as the only approved runtime graph diagnostics path. Do not build reduced graphs on hot path. |
-| Thread trace context | `ThreadTraceContext` is no-op capable and root/child aware in [thread.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/thread.rs:76). | Same context exists in Ontocode at [thread.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/thread.rs:76). | Keep tracing opt-in and best-effort. Trace failures must never fail sessions. |
-| Reduced rollout graph | `RolloutTrace` separates threads, turns, conversation, inference, code cells, tools, terminals, compactions, edges, and raw payload refs in [model/mod.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/model/mod.rs:54). | Same model exists in Ontocode at [model/mod.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/model/mod.rs:54). | Keep diagnostic graph separate from product state and model-visible context. |
-| Information-flow edges | `InteractionEdge` models runtime information flow in [runtime.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/model/runtime.rs:305). | Same model exists in Ontocode at [runtime.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/model/runtime.rs:305). | Use edges only in trace/debug surfaces unless a separate app-server ADR approves a redacted view. |
-| Multi-agent trace reducer | Agent reducer resolves spawn/send/close/result edges and fallbacks in [agents.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/rollout-trace/src/reducer/tool/agents.rs:16). | Same reducer exists in Ontocode at [agents.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rollout-trace/src/reducer/tool/agents.rs:16). | Reuse reducer for diagnostics. Do not duplicate graph inference in app-server or TUI. |
-| Subagent analytics | `SubAgentThreadStartedInput` captures subagent thread start facts in [facts.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/analytics/src/facts.rs:347). | Same fact exists in Ontocode at [facts.rs](/opt/demodb/_workfolder/ontocode/codex-rs/analytics/src/facts.rs:347). | Analytics may aggregate graph facts, but must not become graph state. |
-| Agent identity | `AgentIdentityKey` and `AgentIdentityJwtClaims` exist in [lib.rs](/opt/demodb/_workfolder/GitNexus/codex-rs/agent-identity/src/lib.rs:40). | Same identity crate exists in Ontocode at [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/agent-identity/src/lib.rs:40). | Keep identity separate from topology. Do not use JWT identity as a graph primary key. |
+| Storage-neutral spawned-thread graph trait | `AgentGraphStore` defines upsert, close-status update, direct child listing, and descendant listing in [store.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/agent-graph-store/src/store.rs:12). | Same file exists in Ontocode at [store.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-graph-store/src/store.rs:12), but GitNexus shows no execution-flow consumers beyond its local implementation. | Do not promote this as canonical yet. Keep as internal candidate; refactor away `#[async_trait]` only if a real consumer or cleanup task is accepted. |
+| SQLite-backed graph adapter | `LocalAgentGraphStore` wraps `StateRuntime` in [local.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/agent-graph-store/src/local.rs:13). | Same adapter exists in Ontocode at [local.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-graph-store/src/local.rs:13). | Keep adapter thin and inert. Do not add graph storage outside `codex-state`, and do not route production behavior through this trait without impact review. |
+| Edge lifecycle status | `ThreadSpawnEdgeStatus` supports `open` and `closed` in [types.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/agent-graph-store/src/types.rs:5). | Same type exists in Ontocode at [types.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-graph-store/src/types.rs:5). | Keep lifecycle enum narrow until concrete behavior needs more states. Do not infer runtime status from process liveness alone. |
+| Persisted edge table | `thread_spawn_edges(parent_thread_id, child_thread_id primary key, status)` in [0021_thread_spawn_edges.sql](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/migrations/0021_thread_spawn_edges.sql:1). | Same migration exists in Ontocode at [0021_thread_spawn_edges.sql](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/migrations/0021_thread_spawn_edges.sql:1). | This table is the canonical durable parent-child topology, not transcript metadata. |
+| State enum backing DB status | `DirectionalThreadSpawnEdgeStatus` uses snake-case string serialization through `strum` in [graph.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/src/model/graph.rs:8). | Same model exists in Ontocode at [graph.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/model/graph.rs:8). | Keep DB status and public graph-store status separate so storage can evolve without leaking DB details. |
+| Upsert edge behavior | State runtime inserts or replaces child incoming edge in [threads.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/src/runtime/threads.rs:78). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/threads.rs:78). | Child thread has one persisted parent. Re-parenting is allowed only through explicit upsert behavior. |
+| Close edge behavior | `set_thread_spawn_edge_status` updates missing child as successful no-op in [threads.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/src/runtime/threads.rs:105). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/threads.rs:105). | Close is graph lifecycle state, not deletion. Preserve closed edges for resume/history. |
+| Direct child listing | `list_thread_spawn_children(_with_status)` returns direct children with stable ordering in [threads.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/src/runtime/threads.rs:118). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/threads.rs:118). | Use direct listing for list-agents and targeted child operations. |
+| Descendant traversal | Recursive SQL lists descendants breadth-first by depth and thread id in [threads.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/src/runtime/threads.rs:137). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/threads.rs:137). | Use persisted descendant traversal for resume/close/history. Avoid ad hoc in-memory tree reconstruction when DB is available. |
+| Path-based child lookup | Direct and descendant path lookup joins `threads.agent_path` in [threads.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/src/runtime/threads.rs:161). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/threads.rs:161). | Use canonical agent path lookups for v2 task-name targeting. Do not add a second name index. |
+| Backfill from session source | State runtime extracts parent thread from `SessionSource` in [threads.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/state/src/runtime/threads.rs:315). | Same behavior exists in Ontocode at [threads.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/threads.rs:315). | Keep backfill best-effort. Do not trust stale metadata over persisted edges when both exist. |
+| Thread manager subtree merge | `list_agent_subtree_thread_ids` merges persisted descendants and live in-memory children in [thread_manager.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/core/src/thread_manager.rs:508). | Same behavior exists in Ontocode at [thread_manager.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/thread_manager.rs:508). | This is the correct bridge: persisted graph first, live graph second, deduped deterministically. |
+| Resume open descendants | `resume_agent_from_rollout` walks open persisted children breadth-first in [control.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/core/src/agent/control.rs:523). | Same behavior exists in Ontocode at [control.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/agent/control.rs:523). | Resume should use edge data as source of truth for open descendants. |
+| Close persisted edge | `close_agent` marks the edge closed before shutdown in [control.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/core/src/agent/control.rs:798). | Same behavior exists in Ontocode at [control.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/agent/control.rs:798). | Preserve close idempotency and stale-agent handling. |
+| Trace bundle strategy | GitNexus rollout trace observes raw events first and reduces later, documented in [README.md](/opt/demodb/_workfolder/GitNexus/ontocode-rs/rollout-trace/README.md:11). | Same diagnostic architecture exists in Ontocode at [README.md](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/README.md:11). | Adopt offline reduction as the only approved runtime graph diagnostics path. Do not build reduced graphs on hot path. |
+| Thread trace context | `ThreadTraceContext` is no-op capable and root/child aware in [thread.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/rollout-trace/src/thread.rs:76). | Same context exists in Ontocode at [thread.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/thread.rs:76). | Keep tracing opt-in and best-effort. Trace failures must never fail sessions. |
+| Reduced rollout graph | `RolloutTrace` separates threads, turns, conversation, inference, code cells, tools, terminals, compactions, edges, and raw payload refs in [model/mod.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/rollout-trace/src/model/mod.rs:54). | Same model exists in Ontocode at [model/mod.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/model/mod.rs:54). | Keep diagnostic graph separate from product state and model-visible context. |
+| Information-flow edges | `InteractionEdge` models runtime information flow in [runtime.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/rollout-trace/src/model/runtime.rs:305). | Same model exists in Ontocode at [runtime.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/model/runtime.rs:305). | Use edges only in trace/debug surfaces unless a separate app-server ADR approves a redacted view. |
+| Multi-agent trace reducer | Agent reducer resolves spawn/send/close/result edges and fallbacks in [agents.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/rollout-trace/src/reducer/tool/agents.rs:16). | Same reducer exists in Ontocode at [agents.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout-trace/src/reducer/tool/agents.rs:16). | Reuse reducer for diagnostics. Do not duplicate graph inference in app-server or TUI. |
+| Subagent analytics | `SubAgentThreadStartedInput` captures subagent thread start facts in [facts.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/analytics/src/facts.rs:347). | Same fact exists in Ontocode at [facts.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/analytics/src/facts.rs:347). | Analytics may aggregate graph facts, but must not become graph state. |
+| Agent identity | `AgentIdentityKey` and `AgentIdentityJwtClaims` exist in [lib.rs](/opt/demodb/_workfolder/GitNexus/ontocode-rs/agent-identity/src/lib.rs:40). | Same identity crate exists in Ontocode at [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-identity/src/lib.rs:40). | Keep identity separate from topology. Do not use JWT identity as a graph primary key. |
 | Static code graph | GitNexus tool/runtime supplies symbol context, impact, rename, and detect-changes externally. | Ontocode project rules already require GitNexus use, but no core static index exists. | Do not embed static code graph indexing into core. Add bounded report/import surfaces only if needed. |
-| GitNexus third-party graph store | GitNexus currently uses `@ladybugdb/core` for its analyzer/index storage through the npm package. | Ontocode has no LadybugDB dependency and stores runtime/memory data through existing Rust/SQLite state ownership. | LadybugDB may live inside the local evidence binary only. Code-graph-memory stores normalized evidence records, not GitNexus/LadybugDB data files or query APIs. |
-| GitNexus analyzer dependencies | GitNexus depends on tree-sitter grammars, graphology, ONNX/transformers, Express, and MCP SDK packages. | Ontocode must not inherit those Node/native dependencies for runtime, app-server, memory, or context paths. | Bundle analyzer dependencies into one local evidence binary. Ontocode consumes the binary's stable bounded JSON/text evidence contract and remains optional if the binary is absent. |
-| Memory pipeline owner | No separate GitNexus copy is needed for Ontocode memory ownership. | Ontocode memory pipeline is documented in [README.md](/opt/demodb/_workfolder/ontocode/codex-rs/memories/README.md:1), with state-backed Stage 1 outputs and Phase 2 consolidation. | Code-graph-memory belongs beside state/memory ownership, not in `codex-core` orchestration or analytics. |
-| Existing memory schema | Not a code graph fact store. | `stage1_outputs` stores rollout-derived `raw_memory`, `rollout_summary`, and selection metadata in [0001_memories.sql](/opt/demodb/_workfolder/ontocode/codex-rs/state/memory_migrations/0001_memories.sql:1). | Do not overload rollout memory rows. Add a separate `code_graph_memory_records` schema if implementation starts. |
-| Memory runtime owner | Not a static graph owner. | `MemoryStore` owns state-backed memory job and output operations in [memories.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/memories.rs:27). | Add code-graph-memory persistence through state/runtime ownership, keeping leases, pruning, and retention explicit. |
-| Context fragment boundary | GitNexus evidence can be summarized for context, but not dumped. | `ContextualUserFragment` is the shared bounded injection trait in [fragment.rs](/opt/demodb/_workfolder/ontocode/codex-rs/context-fragments/src/fragment.rs:45). | If model-visible, code-graph-memory must be a new narrow fragment with hard caps; do not change the trait shape. |
-| Memory exclusion for injected context | GitNexus evidence can be imported without being learned as rollout memory. | Phase 1 excludes AGENTS and skill contextual fragments in [phase1.rs](/opt/demodb/_workfolder/ontocode/codex-rs/memories/write/src/phase1.rs:457). | Code-graph-memory fragments need explicit classification so internal evidence is not accidentally converted into user memory. |
-| External-context pollution bridge | GitNexus evidence import is not the same as model-visible external context. | `mark_thread_memory_mode_polluted` routes external-context pollution to memory state in [state_db.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rollout/src/state_db.rs:457). | Only mark polluted when code-graph-memory is injected into the model turn, not when evidence is stored offline. |
+| GitNexus third-party graph store | GitNexus currently uses `@ladybugdb/core` for its analyzer/index storage through the npm package. | Ontocode has no LadybugDB dependency and stores runtime/memory data through existing Rust/SQLite state ownership. | Do not use LadybugDB in Ontocode. Code-graph-memory stores normalized Rust records, not GitNexus/LadybugDB data files or query APIs. |
+| GitNexus analyzer dependencies | GitNexus depends on tree-sitter grammars, graphology, ONNX/transformers, Express, and MCP SDK packages. | Ontocode must not inherit those Node/native dependencies for runtime, app-server, memory, context paths, or helper binaries. | Translate useful report concepts into Rust structs, validators, state rows, and query helpers. |
+| Memory pipeline owner | No separate GitNexus copy is needed for Ontocode memory ownership. | Ontocode memory pipeline is documented in [README.md](/opt/demodb/_workfolder/ontocode/ontocode-rs/memories/README.md:1), with state-backed Stage 1 outputs and Phase 2 consolidation. | Code-graph-memory belongs beside state/memory ownership, not in `codex-core` orchestration or analytics. |
+| Existing memory schema | Not a code graph fact store. | `stage1_outputs` stores rollout-derived `raw_memory`, `rollout_summary`, and selection metadata in [0001_memories.sql](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/memory_migrations/0001_memories.sql:1). | Do not overload rollout memory rows. Add a separate `code_graph_memory_records` schema if implementation starts. |
+| Memory runtime owner | Not a static graph owner. | `MemoryStore` owns state-backed memory job and output operations in [memories.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/memories.rs:27). | Add code-graph-memory persistence through state/runtime ownership, keeping leases, pruning, and retention explicit. |
+| Context fragment boundary | GitNexus evidence can be summarized for context, but not dumped. | `ContextualUserFragment` is the shared bounded injection trait in [fragment.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/context-fragments/src/fragment.rs:45). | If model-visible, code-graph-memory must be a new narrow fragment with hard caps; do not change the trait shape. |
+| Memory exclusion for injected context | GitNexus evidence can be imported without being learned as rollout memory. | Phase 1 excludes AGENTS and skill contextual fragments in [phase1.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/memories/write/src/phase1.rs:457). | Code-graph-memory fragments need explicit classification so internal evidence is not accidentally converted into user memory. |
+| External-context pollution bridge | GitNexus evidence import is not the same as model-visible external context. | `mark_thread_memory_mode_polluted` routes external-context pollution to memory state in [state_db.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rollout/src/state_db.rs:457). | Only mark polluted when code-graph-memory is injected into the model turn, not when evidence is stored offline. |
 | Code-graph-memory record | Proposed from GitNexus `context`, `impact`, `detect_changes`, and runtime graph summaries. | No current Ontocode schema exists. | Add compact records with source kind, symbol/file/process refs, risk, bounded summary, provenance hash, timestamps, and retention. |
 | Code-graph-memory query | Proposed internal backbone read path. | No current Ontocode query API exists. | Return bounded summaries by task/thread/symbol. No public app-server API until a separate ADR approves wire shape and compatibility tests. |
 
@@ -187,7 +197,8 @@ GitNexus challenge evidence captured for this ADR:
 | Code-graph-memory backbone | Accepted as a domain | Required to make graph evidence durable and reusable across manager/subagent workflows without re-querying or re-indexing every turn. |
 | Operational evidence state schema | Accepted for implementation planning | Existing rollout memory schema is not a generic evidence store; use a separate state-backed table with retention and provenance. |
 | GitNexus evidence ingestion | Accepted as bounded internal/project tooling | Stores compact `context`, `impact`, and `detect_changes` facts, not raw graph DB rows or raw source bodies. |
-| Hermetic local evidence binary | Accepted | Bundles GitNexus/LadybugDB/parser/ML third-party dependencies behind one process boundary and breaks hard dependency links from Ontocode core. |
+| Rust-native GitNexus concept translation | Accepted | Ontocode adopts the useful GitNexus evidence shapes as Rust structs, state records, queries, gates, and audit summaries. |
+| Hermetic local evidence binary | Rejected | User direction is Rust-only; do not bundle GitNexus/LadybugDB/parser/ML/Node dependencies into an Ontocode-owned binary. |
 | GitNexus/LadybugDB direct dependency adoption | Rejected | Ontocode must not link to GitNexus analyzer internals, LadybugDB native packages, or `.gitnexus/lbug` storage layout. |
 | Stable evidence contract | Required | Importers must consume bounded, versioned evidence summaries so GitNexus can change analyzer/storage dependencies without breaking Ontocode. |
 | Bounded code-graph context fragment | Accepted only behind hard gates | Uses existing `ContextualUserFragment` architecture with explicit opt-in, caps, redaction, and memory-exclusion handling. |
@@ -203,7 +214,30 @@ GitNexus challenge evidence captured for this ADR:
 | Unified runtime/static/analytics/identity graph | Rejected | Mixes incompatible domains and ownership boundaries. |
 | Lean-ctx runtime adoption | Rejected | Development-time compression/search/session behavior must remain outside Ontocode runtime and must not become a second context/memory/search substrate. |
 
-## Options
+## Consolidated Robust Solution
+
+There is one implementation path for this ADR:
+
+1. Add `operational_evidence_records` in the main Rust state DB.
+2. Ingest runtime topology from existing `StateRuntime` and `thread_spawn_edges`.
+3. Add bounded internal queries over those records.
+4. Add explicit Rust artifact importers for external GitNexus/OntoIndex-style evidence.
+5. Add planned-versus-done gates over the same records.
+6. Add model-visible context only later, only as a bounded opt-in fragment.
+
+Everything else is rejected, deferred, or source evidence. Do not build a second graph engine, do not promote `AgentGraphStore`, do not add app-server/TUI APIs, do not bundle GitNexus/LadybugDB/Node tooling, and do not clone lean-ctx runtime behavior.
+
+The robust shape is a small state-backed ledger, not a platform:
+
+- Writer: validates and stores compact records with provenance, redaction status, target head, risk, status, source links, and expiry.
+- Readers: return capped summaries by task, thread, symbol, file, evidence domain, gate, status, risk, and freshness.
+- Importers: normalize external artifacts into the same record shape and fail closed on raw source, raw diffs, logs, prompts, terminal output, secrets, unsupported schema versions, or oversized payloads.
+- Gates: answer whether a task has required plan, dispatch, impact, implementation, test, and detect-changes evidence before closure.
+- Context bridge: remains absent until a real prompt needs it and G1/G3/G4 are already useful.
+
+## Superseded Proposal Archive
+
+The following options are retained as challenge history only. They are not parallel implementation choices; the accepted path is the consolidated solution above.
 
 ### Option 1 - Formalize Existing Runtime Agent Graph
 
@@ -360,34 +394,234 @@ Reasons:
 - Recreates a static code graph runtime inside Ontocode, violating the owner boundary.
 - Makes supply-chain review harder because GitNexus analyzer dependencies would become transitive product dependencies.
 
-### Option 9 - Hermetic Local Code-Graph Evidence Binary
+### Option 9 - Rust-Native GitNexus Concept Translation
 
-Package GitNexus analyzer dependencies into a local executable that emits bounded evidence artifacts for Ontocode to import.
+Translate the useful GitNexus functionality into current Ontocode Rust solutions instead of bundling or invoking GitNexus runtime code.
 
 Implementation:
 
-- Build a local per-platform binary/package, for example `ontocode-codegraph-evidence`, that includes GitNexus analyzer code and all third-party analyzer dependencies.
-- Pin and bundle `@ladybugdb/core`, platform LadybugDB packages, tree-sitter grammars, graphology packages, ONNX/transformers dependencies, Express/MCP SDK only inside that binary package.
-- Expose a narrow CLI contract: input repo path and requested evidence type; output versioned bounded JSON evidence.
-- Treat `.gitnexus/lbug` and all analyzer cache files as private binary-owned cache, never as Ontocode state.
-- Require checksums, SBOM, license manifest, platform smoke tests, no-network default mode, and deterministic failure semantics.
+- Define Rust structs for normalized `context`, `impact`, `detect_changes`, audit lifecycle, dispatch, scope-guard, and tombstone evidence.
+- Store normalized facts in `operational_evidence_records` through `StateRuntime`.
+- Add Rust validators for schema version, provenance, redaction, max-size limits, risk/status/domain enums, and stale target-head checks.
+- Add Rust query helpers for task, thread, symbol, file, risk, gate, status, and evidence domain.
+- Add Rust planned-versus-done and pre/post-edit gate helpers over the same records.
+- Treat GitNexus TypeScript source as design evidence only. If a human/agent runs GitNexus externally, Ontocode may import the bounded JSON artifact through the Rust importer.
+- Do not vendor, bundle, shell out to, or package GitNexus, LadybugDB, tree-sitter grammars, graphology, ONNX/transformers, Express, or MCP SDK in Ontocode.
 
 Pros:
 
-- Breaks hard dependency links from Ontocode crates, app-server, SDKs, and state APIs to analyzer libraries.
-- Preserves access to rich GitNexus/LadybugDB analysis without importing its storage engine into core.
-- Gives operations one artifact to install, update, checksum, sandbox, and roll back.
-- Lets Ontocode continue functioning without graph evidence when the binary is absent or fails.
+- Keeps the implementation in Rust and aligned with current Ontocode owners.
+- Reuses existing SQLite state, `StateRuntime`, thread topology, memory-exclusion, and context-fragment boundaries.
+- Avoids Node/native supply-chain and platform packaging risk.
+- Lets Ontocode work without GitNexus installed.
 
 Cons:
 
-- Requires platform packaging and update discipline.
-- Binary supply-chain review still matters because third-party code is bundled.
-- Evidence schema compatibility must be tested across binary versions.
+- Does not make Ontocode a static code graph analyzer.
+- Requires explicit artifact handoff when external GitNexus evidence is desired.
+- Some GitNexus report richness must be normalized or dropped to preserve bounds.
+
+## Core Engine Integration Direction
+
+"Integrate as core engine" means operational evidence becomes a core Ontocode capability. It does not mean GitNexus, LadybugDB, lean-ctx, or a second graph engine move into `ontocode-core`.
+
+The supported integration shapes are:
+
+- Minimal core backbone: add `operational_evidence_records` in state, with compact insert/query/prune helpers. This is the first implementation slice.
+- Runtime graph evidence first: derive bounded topology evidence from existing `thread_spawn_edges` and `StateRuntime` graph methods.
+- GitNexus artifact importer: ingest versioned `context`, `impact`, and `detect_changes` summaries from an external artifact, not from GitNexus storage internals.
+- Internal query API: expose bounded internal helpers for manager/subagent workflows by task, thread, symbol, file, evidence domain, risk, and status.
+- Gated context fragment: add a narrow `CodeGraphMemoryFragment` only after storage and query paths exist, with hard caps, redaction, opt-in, and memory-exclusion rules.
+- Rust-native GitNexus concept translation: implement storage, validation, import, query, audit, and gates in Rust; external GitNexus output is optional design/evidence input only.
+
+Rejected core-engine interpretations:
+
+- Do not embed GitNexus or LadybugDB into Ontocode runtime crates.
+- Do not parse `.gitnexus/lbug` from Ontocode.
+- Do not add a static code graph indexer to core.
+- Do not expose app-server, SDK, or TUI graph APIs from this ADR.
+- Do not inject graph memory into prompts by default.
+- Do not clone lean-ctx read/search/shell/cache/session behavior.
+
+Forgotten / out of scope for this ADR:
+
+- GitNexus runtime adoption: do not import GitNexus code, LadybugDB, Node tooling, MCP server code, tree-sitter graph pipeline, or analyzer storage.
+- Hermetic evidence binary: do not build `ontocode-codegraph-evidence` or any bundled analyzer binary.
+- Static code graph indexing in Ontocode: do not rebuild GitNexus in Rust, add a symbol graph DB, parse `.gitnexus/lbug`, or create a static analyzer pipeline.
+- App-server/TUI graph APIs: keep public graph and audit APIs out of this ADR.
+- Default prompt/context injection: no automatic `CodeGraphMemoryFragment`; keep model-visible evidence gated and future-only.
+- `AgentGraphStore` promotion: do not make it central; current owner remains `StateRuntime` plus `thread_spawn_edges`.
+- GitNexus audit-event-store clone: do not copy `.gitnexus/audit`; store compact Rust evidence records only.
+- Raw evidence storage: do not store raw diffs, logs, source, prompts, graph rows, transcripts, terminal output, or full tool outputs.
+- Lean-ctx behavior: do not clone shell/read/search/cache/session mechanics.
+- Version-specific GitNexus coupling: do not depend on `gitnexus@1.6.2` behavior as a compatibility contract; the Rust artifact schema is the contract.
+
+What remains in scope:
+
+- Rust `operational_evidence_records`.
+- Runtime topology ingestion from `StateRuntime`.
+- Internal bounded query helpers.
+- Rust artifact validators/importers.
+- Planned-versus-done gates.
+- Optional context fragment only after G1/G3/G4 prove useful.
+
+Recommended implementation order:
+
+1. Implement `G1` operational evidence state.
+2. Implement `G3` runtime thread-topology ingestion.
+3. Implement `G4` internal bounded query helpers.
+4. Implement the `G2` GitNexus artifact importer.
+5. Implement `G2b` workflow evidence import only as bounded records.
+6. Implement `G5` only if a concrete manager/subagent prompt needs model-visible evidence.
+7. Keep GitNexus runtime/binary packaging out of scope unless a future ADR reverses the Rust-only decision.
+
+## Technical Implementation Contract
+
+State ownership:
+
+- Store operational evidence in the main state DB (`state_5.sqlite`), not in `memories_1.sqlite`.
+- Add the first migration as `ontocode-rs/state/migrations/0036_operational_evidence_records.sql`.
+- Do not add this table to `ontocode-rs/state/memory_migrations/`; `stage1_outputs` and memory jobs are rollout-memory specific, and the main state migration `0035_drop_memory_tables.sql` already removed old memory tables from the state DB.
+- Add models in `ontocode-rs/state/src/model/operational_evidence.rs`.
+- Add runtime methods in `ontocode-rs/state/src/runtime/operational_evidence.rs`.
+- Export narrowly through `ontocode-rs/state/src/model/mod.rs`, `ontocode-rs/state/src/runtime.rs`, and `ontocode-rs/state/src/lib.rs`.
+- Add methods on `StateRuntime`; do not introduce a new public trait for one implementation.
+
+Initial SQLite shape:
+
+```sql
+CREATE TABLE operational_evidence_records (
+    id TEXT PRIMARY KEY,
+    evidence_domain TEXT NOT NULL,
+    source_tool TEXT NOT NULL,
+    source_version TEXT,
+    schema_version INTEGER NOT NULL,
+    source_ref TEXT,
+    repo TEXT,
+    task_key TEXT,
+    thread_id TEXT,
+    parent_thread_id TEXT,
+    child_thread_id TEXT,
+    symbol_uid TEXT,
+    symbol_name TEXT,
+    file_path TEXT,
+    process_label TEXT,
+    gate_name TEXT,
+    risk TEXT,
+    status TEXT NOT NULL,
+    summary TEXT NOT NULL CHECK (length(summary) <= 8192),
+    source_links_json TEXT NOT NULL DEFAULT '[]' CHECK (length(source_links_json) <= 16384),
+    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (length(metadata_json) <= 16384),
+    provenance_hash TEXT NOT NULL UNIQUE,
+    redaction_status TEXT NOT NULL,
+    target_head TEXT,
+    graph_index_id TEXT,
+    plan_hash TEXT,
+    tracking_hash TEXT,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER
+);
+```
+
+Required indexes:
+
+- `idx_operational_evidence_task_status` on `(task_key, status, created_at DESC)`
+- `idx_operational_evidence_thread` on `(thread_id, created_at DESC)`
+- `idx_operational_evidence_symbol` on `(symbol_uid, created_at DESC)`
+- `idx_operational_evidence_file` on `(file_path, created_at DESC)`
+- `idx_operational_evidence_domain_risk` on `(evidence_domain, risk, created_at DESC)`
+- `idx_operational_evidence_target_head` on `(target_head, created_at DESC)`
+- `idx_operational_evidence_expires_at` on `(expires_at)`
+
+Rust model enums:
+
+- `EvidenceDomain`: `CodeGraph`, `Workflow`, `Test`, `Doc`, `Redaction`, `Architecture`, `RuntimeTopology`
+- `EvidenceStatus`: `Planned`, `Dispatched`, `Implemented`, `Verified`, `Stale`, `Blocked`, `Done`, `Rejected`
+- `EvidenceRisk`: `None`, `Low`, `Medium`, `High`, `Critical`, `Unknown`
+- `RedactionStatus`: `Clean`, `Redacted`, `Rejected`
+
+Initial `StateRuntime` methods:
+
+- `insert_operational_evidence(record)`
+- `upsert_operational_evidence_by_provenance(record)`
+- `query_operational_evidence(query)`
+- `prune_operational_evidence(now)`
+
+Query options must include optional filters for task key, thread id, symbol uid, file path, evidence domain, gate name, status, risk, target head, and freshness. Query responses must enforce both max-record and max-byte caps.
+
+GitNexus artifact shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "sourceTool": "gitnexus",
+  "sourceVersion": "1.6.2",
+  "repo": "/path/to/repo",
+  "targetHead": "git-sha",
+  "graphIndexId": "opaque-index-id",
+  "createdAt": 1234567890,
+  "records": []
+}
+```
+
+GitNexus normalization rules:
+
+- `context` artifacts may store symbol uid/name/kind/file path, incoming/outgoing relationship counts, process labels, and concept names. Reject `include_content: true` outputs and any raw source body.
+- `impact` artifacts may store target, direction, impacted count, risk, direct count, process count, module count, affected process labels, affected module names, partial marker, and warnings.
+- `detect_changes` artifacts may store changed file count, changed symbols, affected process labels, risk level, scope, base ref, and warnings. Reject raw diffs.
+- GitNexus audit lifecycle artifacts may store session id, target repo/head, graph index id, source hash, verifier version, status, finding ids, bundle ids, reason codes, and compact evidence metadata. Do not copy `.gitnexus/audit` event-store files into Ontocode state.
+- Compute `provenance_hash` from source tool, source version, evidence kind, target head, task/symbol/file identity, and normalized payload.
+- Reject artifacts with unsupported schema version, missing provenance, oversized summaries, oversized metadata, unredacted secrets, raw graph rows, raw logs, raw prompts, raw terminal output, or raw source.
+
+## Code Development Integration
+
+For day-to-day code development, this ADR should surface as developer evidence and manager gates, not as a new graph runtime.
+
+Supported development integrations:
+
+- Task evidence ledger: store impact reports, affected files, required tests, verification results, and closure status under a task key.
+- Pre-edit impact gate: require bounded `context` or `impact` evidence before editing a symbol, then persist risk, callers, affected processes, and source links.
+- Post-edit scope gate: persist `detect_changes` or diff-impact evidence after edits, including unexpected files, unexpected symbols, changed flows, and missing tests.
+- Task-aware query helpers: allow internal manager/subagent code to query evidence by task, thread, symbol, file, risk, status, and evidence domain.
+- Runtime agent topology evidence: derive compact parent/child ownership and open/closed status from `thread_spawn_edges` so dispatch recovery can answer who worked on what.
+- Optional prompt fragment: inject only bounded task risk, affected files, required tests, and prior verification results after `G1`/`G4` exist and `G5` gates pass.
+
+Rejected development shortcuts:
+
+- Do not let subagents scrape raw GitNexus, OntoIndex, or lean-ctx output into prompts.
+- Do not close a task from chat-only claims when required impact or verification evidence is missing.
+- Do not add app-server/TUI graph APIs just to support manager workflows.
+- Do not use operational evidence as a raw log store, transcript store, terminal-output archive, or source-code cache.
+
+Development rollout follows the consolidated G-plan: land `G1`, then `G3`, `G4`, `G2`, `G2b`, and only then consider `G5`.
+
+## Planned-Versus-Done Audit Integration
+
+For auditing what was planned and what was actually done, operational evidence should act as a compact audit ledger. It must compare stated plan items, dispatch records, implementation evidence, test evidence, and closure decisions without becoming a raw transcript or build-log archive.
+
+Supported audit integrations:
+
+- Plan-item ledger: import each approved ADR/project-plan task as a bounded evidence record with task key, owner, expected files/symbols, required tests, status, and source plan link.
+- Dispatch evidence: record manager/subagent assignment, parent thread, child thread, model request when known, start time, claimed scope, and expected verification gates.
+- Completion evidence: store the worker-reported changed files, changed symbols, tests run, verification status, residual risks, and source links.
+- Plan drift audit: compare planned scope against actual diff evidence and flag unexpected files, missing expected files, missing tests, unclosed blockers, and duplicate or stale task claims.
+- Evidence freshness audit: mark evidence stale when the target HEAD, plan file, tracking file, or affected symbol changes after verification.
+- Closure gate: allow `done` only when required impact, implementation, test, and detect-changes evidence exists for the task key, or when the plan explicitly records a no-code/documentation-only closure.
+- Rollup summaries: generate bounded counts for planned, in-progress, blocked, verified, stale, and done tasks by ADR/project plan.
+
+Rejected audit shortcuts:
+
+- Do not infer completion from chat text alone.
+- Do not store raw build logs, full diffs, transcripts, prompts, credentials, or terminal output as audit evidence.
+- Do not mutate tracking files silently from imported evidence; manager-facing updates must be explicit.
+- Do not create a second audit database when `operational_evidence_records` can hold compact records.
+- Do not expose public app-server/TUI audit APIs from this ADR.
+
+Audit rollout uses the same G-plan. Plan, dispatch, completion, freshness, closure, and rollup records are all `operational_evidence_records`, not a separate audit store.
 
 ## Decision
 
-Use Option 6 plus Option 9 and the accepted part of Option 1: make operational evidence a bounded backbone layer, treat code-graph-memory as one evidence domain, bundle third-party analyzer dependencies into a local evidence binary, and use existing `StateRuntime`/`thread_spawn_edges` behavior as the canonical persisted spawned-agent topology input.
+Adopt the consolidated robust solution: make operational evidence a bounded Rust state-backed ledger, treat code-graph-memory as one evidence domain, translate external GitNexus/OntoIndex-style report concepts into Rust records/importers/queries/gates, and use existing `StateRuntime`/`thread_spawn_edges` behavior as the canonical persisted spawned-agent topology input.
 
 Option 2 is no longer an automatic next step. Refactor `AgentGraphStore` only if a separate cleanup task proves it is worth touching a currently low-use trait.
 
@@ -395,7 +629,7 @@ Option 5 is accepted only as an ingestion convention into operational evidence r
 
 Consider Option 3 and Option 4 only after concrete UI/debugging requirements and a separate app-server/diagnostics ADR.
 
-Do not implement Option 7 or Option 8.
+Do not implement Option 7, Option 8, or any bundled GitNexus/LadybugDB/Node evidence binary.
 
 ## Implementation Plan
 
@@ -426,11 +660,11 @@ Status: accepted for implementation planning.
 
 Tasks:
 
-- Add a state-owned `operational_evidence_records` table in a new memory/state migration.
-- Define a model with `id`, `evidence_domain`, `source_tool`, `source_version`, `schema_version`, `source_ref`, `repo`, `task_key`, `thread_id`, `symbol_uid`, `symbol_name`, `file_path`, `process_label`, `gate_name`, `risk`, `status`, `summary`, `source_links`, `provenance_hash`, `redaction_status`, `created_at`, and optional `expires_at`.
-- Supported initial domains are `code_graph`, `workflow`, `test`, `doc`, `redaction`, and `architecture`.
+- Add a state-owned `operational_evidence_records` table in the main state DB migration stream as `ontocode-rs/state/migrations/0036_operational_evidence_records.sql`; do not add it to `memory_migrations`.
+- Define the model and indexes exactly as specified in the Technical Implementation Contract.
+- Supported initial domains are `code_graph`, `workflow`, `test`, `doc`, `redaction`, `architecture`, and `runtime_topology`.
 - Store compact summaries only; never store raw source bodies, raw prompts, credentials, terminal output, GitNexus graph rows, lean-ctx cache/session data, or full tool output.
-- Add indexes for task/thread/symbol/file/domain/risk/status lookup.
+- Add the task/thread/symbol/file/domain/risk/status indexes from the Technical Implementation Contract.
 
 Acceptance:
 
@@ -439,23 +673,23 @@ Acceptance:
 - Redaction tests fail if token, cookie, authorization header, keychain path, or raw credential value appears in a record.
 - Dependency tests fail if GitNexus analyzer packages, LadybugDB packages, or lean-ctx runtime packages are added to Ontocode runtime/core/app-server/SDK manifests.
 
-### G2 - Hermetic Evidence Binary And Importer
+### G2 - Rust Evidence Artifact Importer
 
-Status: accepted for implementation planning.
+Status: accepted for implementation planning after G1, G3, and G4.
 
 Tasks:
 
-- Define a local evidence binary contract before importing anything into state.
-- Add a binary-owned package that bundles GitNexus analyzer code and all third-party analyzer dependencies.
-- Add an internal/project-tooling writer that invokes the local binary or reads its artifact, then imports bounded GitNexus `context`, `impact`, and `detect_changes` summaries through a versioned evidence artifact.
+- Define the versioned bounded JSON artifact contract before importing anything into state.
+- Implement a Rust importer that reads explicit artifact files matching the Technical Implementation Contract.
+- Add Rust normalization code for bounded GitNexus `context`, `impact`, `detect_changes`, and audit lifecycle summaries.
 - Normalize evidence into the state model without importing GitNexus graph storage.
 - Preserve source links and risk summaries so later agents can reason from provenance.
 - Reject oversized or unredacted payloads before persistence.
 - Do not link to, load, or parse LadybugDB directly from Ontocode runtime code.
-- Do not shell out to raw GitNexus internals from the core request path; if execution is needed, shell out only to the local evidence binary through a bounded timeout/sandbox wrapper.
+- Do not shell out to raw GitNexus internals or any GitNexus-owned binary from the core request path.
 - Do not parse `.gitnexus/lbug` from Ontocode.
 - Treat GitNexus analyzer version, `@ladybugdb/core` version, and evidence schema version as provenance fields only.
-- Keep binary installation/update/checksum/SBOM/license data outside the operational evidence record model, except for compact provenance fields.
+- Keep external-tool installation/update/checksum/SBOM/license data outside the operational evidence record model, except for compact provenance fields when an artifact supplies them.
 
 Acceptance:
 
@@ -463,9 +697,9 @@ Acceptance:
 - Importer rejects raw code blocks and graph dumps.
 - Importer is usable by manager/subagent workflows without changing production request paths.
 - Importer fails closed on unsupported evidence schema versions or missing provenance.
-- Missing or failing local evidence binary degrades to "no graph evidence" without breaking normal Ontocode runtime behavior.
-- Dependency tests assert no `@ladybugdb/core`, `gitnexus`, tree-sitter, graphology, ONNX, transformers, Express, or MCP SDK packages are introduced into Ontocode runtime/core/app-server/SDK package manifests by this work; only the binary-owned packaging manifest may contain them.
-- Binary packaging tests verify checksum, SBOM/license generation, no-network default mode, and platform smoke execution.
+- Missing external GitNexus artifacts degrade to "no graph evidence" without breaking normal Ontocode runtime behavior.
+- Dependency tests assert no `@ladybugdb/core`, `gitnexus`, tree-sitter, graphology, ONNX, transformers, Express, or MCP SDK packages are introduced into Ontocode runtime/core/app-server/SDK package manifests by this work.
+- Tests assert the importer does not execute external commands.
 
 ### G2b - Lean-ctx-Inspired Workflow Evidence Import
 
@@ -557,13 +791,12 @@ Acceptance:
 - Static GitNexus code graph data must stay external; Ontocode stores only compact evidence records.
 - Operational evidence state must not become an analytics store, credential store, raw source store, raw tool-output store, or default model/context injection path.
 - Operational evidence context injection has critical blast radius because it touches the shared contextual-fragment path.
-- GitNexus analyzer dependencies include native/platform packages and ML/parser packages; they are allowed only inside the local evidence binary, not Ontocode runtime crates or app-server processes.
+- GitNexus analyzer dependencies include native/platform packages and ML/parser packages; they are not allowed in Ontocode runtime crates, app-server processes, SDKs, or Ontocode-owned binaries for this ADR.
 - Lean-ctx dependencies and runtime behavior are allowed only as external development workflow tooling, not as Ontocode runtime, app-server, SDK, or persistence dependencies.
 - LadybugDB storage files such as `.gitnexus/lbug` are implementation details and must never become an Ontocode persistence or compatibility contract.
 - Semver ranges in the external analyzer package mean GitNexus storage behavior can change independently of Ontocode; the evidence artifact schema must be versioned and validated.
-- The local evidence binary becomes a supply-chain artifact and requires checksum, SBOM, license, platform smoke, update, and rollback discipline.
-- The binary and external workflow tools must fail closed and be optional for normal runtime behavior; operational evidence cannot make sessions depend on analyzer or lean-ctx availability.
+- External workflow tools must fail closed and be optional for normal runtime behavior; operational evidence cannot make sessions depend on GitNexus, analyzer, or lean-ctx availability.
 
 ## Final Recommendation
 
-Adopt operational evidence as the Ontocode backbone layer, with code-graph-memory and lean-ctx-inspired workflow evidence as domains inside one bounded durable record model. The local evidence binary is the only approved place to include GitNexus/LadybugDB/tree-sitter/graphology/ONNX/transformers/MCP SDK third-party analyzer dependencies; lean-ctx remains external development workflow tooling and is not vendored or required by Ontocode runtime. Ontocode core consumes only versioned bounded evidence artifacts or repository-script summaries. The next engineering step is `G1`: add the unified state model and tests for compact GitNexus/runtime/workflow facts. After that, `G2` must define the local binary contract, package GitNexus third-party dependencies behind that boundary, import only versioned evidence artifacts, and fail closed on binary/schema/provenance drift. `G2b` may import lean-ctx-inspired workflow evidence only as bounded records, not as lean-ctx runtime behavior. Do not parse `.gitnexus/lbug`, do not add analyzer or lean-ctx packages to Ontocode runtime/core/app-server/SDK manifests, do not promote `AgentGraphStore`, and do not expose app-server/TUI graph APIs until separate ADRs approve those surfaces.
+Adopt operational evidence as the Ontocode backbone layer, with code-graph-memory and lean-ctx-inspired workflow evidence as domains inside one bounded durable record model. GitNexus is source evidence and an optional external developer tool, not an Ontocode runtime, binary, dependency, or storage engine. Ontocode implements the adopted functionality in Rust: state records, validators, importers, query helpers, runtime topology summaries, planned-versus-done audits, and optional bounded context fragments. The next engineering step is `G1`: add the unified state model in the main state DB and tests for compact GitNexus/runtime/workflow facts. Then implement `G3` runtime topology ingestion and `G4` bounded internal queries. After the state/query layer exists, `G2` must define the Rust artifact importer, import only versioned evidence artifacts, and fail closed on schema/provenance/redaction drift. `G2b` may import lean-ctx-inspired workflow evidence only as bounded records, not as lean-ctx runtime behavior. Do not parse `.gitnexus/lbug`, do not add analyzer or lean-ctx packages to Ontocode runtime/core/app-server/SDK manifests, do not bundle GitNexus/LadybugDB/Node tooling into an Ontocode-owned binary, do not promote `AgentGraphStore`, and do not expose app-server/TUI graph APIs until separate ADRs approve those surfaces.

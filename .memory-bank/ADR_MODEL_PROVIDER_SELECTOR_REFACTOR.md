@@ -10,7 +10,7 @@ Proposed
 
 ## Context
 
-Model-provider runtime selection is currently hard-coded in `create_model_provider` in `codex-rs/model-provider/src/provider.rs`.
+Model-provider runtime selection is currently hard-coded in `create_model_provider` in `ontocode-rs/model-provider/src/provider.rs`.
 
 The current shape already has more than one provider class:
 
@@ -19,7 +19,7 @@ The current shape already has more than one provider class:
 
 This means the system is not selecting between simple provider configs. It is already selecting between distinct runtime provider implementations.
 
-At the same time, provider predicates and auth assumptions are visible outside `codex-rs/model-provider`, including in `core`, `cli`, and `app-server`.
+At the same time, provider predicates and auth assumptions are visible outside `ontocode-rs/model-provider`, including in `core`, `cli`, and `app-server`.
 
 This architecture concern is separate from Claude MCP OAuth credential import. Mixing them into one decision record would conflate:
 
@@ -41,7 +41,7 @@ Provider selection is still expressed as direct branching on provider metadata r
 
 Treat model-provider runtime selection as a separate architecture concern from Claude OAuth import.
 
-The first stage of this refactor should introduce an internal selector for provider-class resolution inside `codex-rs/model-provider`, while preserving current runtime behavior.
+The first stage of this refactor should introduce an internal selector for provider-class resolution inside `ontocode-rs/model-provider`, while preserving current runtime behavior.
 
 The selector refactor is non-blocking for Claude MCP OAuth import and should not be made a prerequisite for that work.
 
@@ -57,7 +57,7 @@ The selector refactor is non-blocking for Claude MCP OAuth import and should not
 - no credential-broker design work
 - no Claude OAuth import design
 - no rewrite of app-server or TUI authentication UX
-- no requirement to immediately remove every provider predicate outside `codex-rs/model-provider`
+- no requirement to immediately remove every provider predicate outside `ontocode-rs/model-provider`
 
 ## Rationale
 
@@ -74,7 +74,7 @@ This ADR should move from design-only to implementation when one or more of thes
 
 - a second non-default hosted provider requires a custom runtime implementation
 - another provider needs custom `models_manager`, `api_auth`, or `account_state`
-- more provider predicates appear outside `codex-rs/model-provider`
+- more provider predicates appear outside `ontocode-rs/model-provider`
 - provider auth resolution needs more than the current configured-provider path plus Bedrock special casing
 
 ## Minimum Implementation Slices
@@ -93,7 +93,7 @@ This ADR should move from design-only to implementation when one or more of thes
 - `create_model_provider` is the primary selection seam and has broad upstream impact.
 - `AuthManager::external_bearer_only(...)` is a secondary auth-coupling point for provider command auth.
 - `requires_openai_auth` currently influences account UX and auth gating in multiple layers.
-- provider metadata predicates remain visible outside `codex-rs/model-provider`, so selector introduction alone does not complete provider encapsulation.
+- provider metadata predicates remain visible outside `ontocode-rs/model-provider`, so selector introduction alone does not complete provider encapsulation.
 - Amazon Bedrock already proves the codebase has more than one runtime provider class.
 
 ## Consequences

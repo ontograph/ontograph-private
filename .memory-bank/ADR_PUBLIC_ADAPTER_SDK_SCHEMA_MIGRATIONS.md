@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
@@ -14,7 +14,7 @@ Proposed
 
 The current codebase now has:
 
-- `codex-rs/adapter-protocol` with protocol structs, transcript fixtures, and a conformance runner.
+- `ontocode-rs/adapter-protocol` with protocol structs, transcript fixtures, and a conformance runner.
 - Native provider engines for first-party heterogeneous providers.
 - Config and app-server schema generation paths that must remain stable for public surfaces.
 - SDKs in Python and TypeScript that expose generated or mirrored app-server/runtime contracts.
@@ -33,7 +33,7 @@ Without a schema and migration ADR, adapter support risks:
 
 ## Decision Drivers
 
-- Keep provider ownership in `codex-rs/model-provider` and avoid duplicate provider registries.
+- Keep provider ownership in `ontocode-rs/model-provider` and avoid duplicate provider registries.
 - Keep adapter execution opt-in and never auto-discovered from untrusted workspace files.
 - Expose public config only with schema generation, compatibility tests, and migration rules.
 - Keep app-server APIs in v2 and use existing schema/TypeScript generation workflows.
@@ -55,6 +55,31 @@ The next implementation stage must first define and verify a public compatibilit
 - diagnostics and support-bundle redaction requirements
 
 Any runtime implementation must plug into the existing provider/model-provider owner rather than creating a second provider factory or registry.
+
+## Implementation Readiness Decision
+
+Stage 0 is accepted as the compatibility contract for planning and guarded implementation sequencing.
+
+This ADR authorizes:
+
+- adding implementation tracking derived from the accepted Stage 0 schema proposal
+- preparing config-schema, app-server-schema, SDK, and conformance work items
+- implementing only after each public surface preserves the accepted owner map and compatibility tests
+
+This ADR does not authorize:
+
+- shipping public adapter runtime execution by default
+- exposing adapter config keys without schema generation and compatibility coverage
+- exposing non-experimental app-server or SDK adapter management APIs before schema parity is verified
+- bypassing `ontocode-rs/model-provider` ownership with a second adapter/provider registry
+
+Readiness outcome:
+
+- Stage 0 planning: accepted
+- public config implementation: gated by schema/tests
+- app-server exposure: gated and experimental-first
+- SDK exposure: gated by accepted schema parity
+- runtime rollout: deferred until the gated implementation tracks are complete
 
 ## Stage 0 Schema Proposal
 
@@ -113,9 +138,9 @@ Proposed validation rules:
 
 Proposed Rust ownership if accepted:
 
-- `codex-rs/config/src/config_toml.rs`: schema-backed config structs only.
-- `codex-rs/model-provider`: adapter registration/selection owner.
-- `codex-rs/adapter-protocol`: protocol and conformance fixture owner.
+- `ontocode-rs/config/src/config_toml.rs`: schema-backed config structs only.
+- `ontocode-rs/model-provider`: adapter registration/selection owner.
+- `ontocode-rs/adapter-protocol`: protocol and conformance fixture owner.
 - app-server v2: status/diagnostic APIs only if a UI or SDK needs management visibility.
 - SDKs: generated or mirrored types only after app-server/config schema is accepted.
 
@@ -124,8 +149,8 @@ Proposed Rust ownership if accepted:
 | Surface | Owner | Proposed Change | Required Verification |
 | --- | --- | --- | --- |
 | Config TOML | `ConfigToml` | Add `provider_adapters` only after proposal acceptance | `just write-config-schema`, config loader compatibility tests |
-| Runtime selection | `codex-rs/model-provider` | Consume validated adapter descriptors through existing provider ownership | GitNexus impact on provider creation and model catalog flows |
-| Adapter protocol | `codex-rs/adapter-protocol` | Expand public conformance fixtures, not runtime execution | adapter-protocol tests and fixture review |
+| Runtime selection | `ontocode-rs/model-provider` | Consume validated adapter descriptors through existing provider ownership | GitNexus impact on provider creation and model catalog flows |
+| Adapter protocol | `ontocode-rs/adapter-protocol` | Expand public conformance fixtures, not runtime execution | adapter-protocol tests and fixture review |
 | App-server v2 | app-server protocol v2 | Expose adapter status only if needed; experimental first | `just write-app-server-schema`, app-server protocol tests |
 | Python SDK | `sdk/python/scripts/update_sdk_artifacts.py` | Regenerate types from schema/runtime artifacts | SDK artifact workflow tests |
 | TypeScript SDK | `sdk/typescript` | Mirror accepted public contract only after schema acceptance | TypeScript SDK tests |
@@ -150,6 +175,25 @@ Required before app-server or SDK exposure:
 - experimental schema includes adapter status APIs only with `experimentalApi`
 - Python and TypeScript generated/mirrored types match the accepted wire shape
 - SDK examples use inert transcript adapters only
+
+Execution grouping for lowest-complexity implementation:
+
+1. Config schema track
+   - add `provider_adapters` structs behind the accepted TOML shape
+   - regenerate `config.schema.json`
+   - add compatibility tests for omitted, disabled, unknown, invalid, and over-limit adapter entries
+2. Adapter conformance track
+   - expand inert transcript fixtures only
+   - cover cancellation, provider error, oversize frame, and version mismatch
+   - keep fixtures secret-free and runnable without the full workspace
+3. App-server visibility track
+   - add experimental-only status/diagnostic surfaces if needed
+   - regenerate app-server schema fixtures
+   - prove stable schema excludes adapter-management APIs
+4. SDK parity track
+   - regenerate or mirror accepted types from the generated schema
+   - verify Python and TypeScript parity against the accepted wire shape
+   - keep examples inert and non-executing by default
 
 ## Public Config Requirements
 
@@ -196,7 +240,7 @@ When accepted:
 
 ## Conformance Requirements
 
-The existing `codex-rs/adapter-protocol` fixtures are the seed, not the final public SDK contract.
+The existing `ontocode-rs/adapter-protocol` fixtures are the seed, not the final public SDK contract.
 
 Before public release:
 
@@ -209,8 +253,8 @@ Before public release:
 
 Initial GitNexus query for adapter SDK/schema migration found these relevant owners:
 
-- `codex-rs/adapter-protocol`
-- `codex-rs/config/src/config_toml.rs::ConfigToml`
+- `ontocode-rs/adapter-protocol`
+- `ontocode-rs/config/src/config_toml.rs::ConfigToml`
 - app-server v2 schema generation paths
 - SDK artifact generation in `sdk/python/scripts/update_sdk_artifacts.py`
 - external-agent config import paths that must not become provider-adapter owners
@@ -221,6 +265,15 @@ Initial GitNexus query for adapter SDK/schema migration found these relevant own
 2. Convert the Stage 0 compatibility test plan into implementation tasks.
 3. Add config schema structs and tests only after the schema proposal is accepted.
 4. Extend `adapter-protocol` conformance fixtures only after the public schema shape is accepted.
+
+## Accepted Follow-On Work Items
+
+- P1: Config schema implementation track
+- P2: Adapter conformance fixture expansion track
+- P3: Experimental app-server status visibility track
+- P4: SDK parity and artifact generation track
+
+Each track must preserve existing owner boundaries and land with its own compatibility verification.
 
 ## Non-Goals
 

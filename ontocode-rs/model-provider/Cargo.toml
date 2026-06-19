@@ -1,0 +1,40 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-model-provider"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "ontocode_model_provider"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+ontocode-api = { workspace = true }
+ontocode-agent-identity = { workspace = true }
+ontocode-aws-auth = { workspace = true }
+ontocode-client = { workspace = true }
+ontocode-feedback = { workspace = true }
+ontocode-login = { workspace = true }
+ontocode-model-provider-info = { workspace = true }
+ontocode-models-manager = { workspace = true }
+ontocode-otel = { workspace = true }
+ontocode-provider-auth = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-response-debug-context = { workspace = true }
+http = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing = { workspace = true, features = ["log"] }
+url = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+wiremock = { workspace = true }

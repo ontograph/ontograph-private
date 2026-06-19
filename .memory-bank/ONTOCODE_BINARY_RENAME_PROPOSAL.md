@@ -15,10 +15,10 @@ This preserves the visible Ontocode rename while avoiding breakage for existing 
 
 ## Current State
 
-- `codex-rs/cli/Cargo.toml` already defines both binaries:
+- `ontocode-rs/cli/Cargo.toml` already defines both binaries:
   - `codex`
   - `ontocode`
-- `codex-rs/cli/src/main.rs` already supports command-name detection through arg0 and `ONTOCODE_CLI_COMMAND_NAME`.
+- `ontocode-rs/cli/src/main.rs` already supports command-name detection through arg0 and `ONTOCODE_CLI_COMMAND_NAME`.
 - Existing rename tracking marks the public CLI alias as complete.
 - Existing disposition docs defer internal crate/helper renames and preserve package/wire identities.
 
@@ -38,12 +38,12 @@ Any change to canonical command-name behavior should therefore be small, tested,
 
 GitNexus query for the alias and packaging surface also found related code outside the immediate CLI parser:
 
-- alias tests in `codex-rs/cli/tests/ontocode_alias.rs`
-- install-context package layout checks in `codex-rs/install-context/src/lib.rs`
+- alias tests in `ontocode-rs/cli/tests/ontocode_alias.rs`
+- install-context package layout checks in `ontocode-rs/install-context/src/lib.rs`
 - Python runtime binary resolution tests in `sdk/python/tests/test_artifact_workflow_and_binaries.py`
 - source binary packaging helpers in `scripts/codex_package/cargo.py`
-- doctor installation/update checks in `codex-rs/cli/src/doctor.rs`
-- arg0 helper alias logic in `codex-rs/arg0/src/lib.rs`
+- doctor installation/update checks in `ontocode-rs/cli/src/doctor.rs`
+- arg0 helper alias logic in `ontocode-rs/arg0/src/lib.rs`
 
 This confirms the binary name is not only a display concern. Packaging, install detection, SDK runtime lookup, helper discovery, and tests all participate in the migration.
 
@@ -78,7 +78,7 @@ Decision:
 
 ### Finding 4: Helper Binary Renames Should Stay Deferred
 
-Helper binaries such as `codex-exec`, `codex-exec-server`, sandbox helpers, and `codex-execve-wrapper` participate in dispatch, packaging, and platform-specific lookup.
+Helper binaries such as `ontocode-exec`, `ontocode-exec-server`, sandbox helpers, and `ontocode-execve-wrapper` participate in dispatch, packaging, and platform-specific lookup.
 
 Decision:
 
@@ -96,7 +96,7 @@ Decision:
 - Scope for a small implementation slice:
   - CLI help/display behavior
   - hand-written CLI docs and examples
-  - tests under `codex-rs/cli/tests`
+  - tests under `ontocode-rs/cli/tests`
 - Explicitly out of scope:
   - package manager identities
   - generated SDK/protocol artifacts
@@ -135,11 +135,11 @@ Defer helper and internal binary renames unless there is concrete product or ope
 
 Examples to defer:
 
-- `codex-exec`
-- `codex-exec-server`
+- `ontocode-exec`
+- `ontocode-exec-server`
 - `codex-linux-sandbox`
-- `codex-windows-sandbox`
-- `codex-execve-wrapper`
+- `ontocode-windows-sandbox`
+- `ontocode-execve-wrapper`
 - Rust crates and library names prefixed `codex-*`
 
 If revisited, rename subsystem-by-subsystem with aliases and GitNexus impact analysis before edits.
@@ -174,7 +174,7 @@ Allowed scope:
 Forbidden scope:
 - Do not remove the `codex` binary.
 - Do not rename Rust crates or Cargo packages.
-- Do not rename helper binaries such as `codex-exec`, `codex-exec-server`, sandbox helpers, or `codex-execve-wrapper`.
+- Do not rename helper binaries such as `ontocode-exec`, `ontocode-exec-server`, sandbox helpers, or `ontocode-execve-wrapper`.
 - Do not edit generated SDK/protocol artifacts.
 - Do not rename npm/Python/TypeScript package identities.
 - Do not rename protocol, telemetry, metrics, persisted-state, or wire identifiers.
@@ -182,11 +182,11 @@ Forbidden scope:
 Expected implementation:
 - Verify the current `ontocode` wrapper still resolves the sibling `codex` binary and preserves `ONTOCODE_CLI_COMMAND_NAME=ontocode`.
 - If CLI help/display still says `codex` when invoked via `ontocode`, fix only the minimal CLI command-name path.
-- Add or update focused tests under `codex-rs/cli/tests` for both binary names.
+- Add or update focused tests under `ontocode-rs/cli/tests` for both binary names.
 - Update only hand-written docs/examples where the command shown to users should be `ontocode`.
 
 Verification:
-- Run `CARGO_BUILD_JOBS=8 just fmt` from `codex-rs` after code changes.
+- Run `CARGO_BUILD_JOBS=8 just fmt` from `ontocode-rs` after code changes.
 - Run `CARGO_BUILD_JOBS=8 just test -p codex-cli`.
 - Run `gitnexus detect-changes --scope all --repo codex` before finalizing.
 

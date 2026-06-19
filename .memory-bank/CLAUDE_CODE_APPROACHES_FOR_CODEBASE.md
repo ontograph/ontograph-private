@@ -12,19 +12,19 @@ GitNexus query used:
 
 Retained work maps to indexed core surfaces:
 
-- `codex-rs/model-provider/src/descriptor.rs`: provider descriptors and native engine selection
-- `codex-rs/model-provider/src/provider.rs`: provider construction, runtime engine, capabilities, account state
-- `codex-rs/core/src/client.rs`: native runtime stream dispatch and normalized response events
-- `codex-rs/login/src/auth/manager.rs`: auth persistence and refresh behavior
-- `codex-rs/app-server/src/request_processors/external_agent_config_processor.rs`: external-agent config import boundary
-- `codex-rs/app-server/src/config/external_agent_config.rs`: external-agent import service and hooks/MCP migration
-- `codex-rs/core/src/mcp_tool_call.rs`: MCP tool execution and connector auth refresh
-- `codex-rs/codex-mcp/src/mcp/mod.rs`: MCP status/resource surfaces
-- `codex-rs/hooks/src/engine`: hook governance, validation, and managed-hook behavior
-- `codex-rs/core/src/session/turn_context.rs`: turn configuration, context, and runtime inheritance
-- `codex-rs/core/src/tools/runtimes/shell`: shell execution, permission, and sandbox behavior
-- `codex-rs/core/src/tools/handlers/multi_agents_tests.rs`: multi-agent sandbox/approval/service-tier inheritance
-- `codex-rs/tui/src/app/test_support.rs`: UI-facing diagnostics and regression support
+- `ontocode-rs/model-provider/src/descriptor.rs`: provider descriptors and native engine selection
+- `ontocode-rs/model-provider/src/provider.rs`: provider construction, runtime engine, capabilities, account state
+- `ontocode-rs/core/src/client.rs`: native runtime stream dispatch and normalized response events
+- `ontocode-rs/login/src/auth/manager.rs`: auth persistence and refresh behavior
+- `ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs`: external-agent config import boundary
+- `ontocode-rs/app-server/src/config/external_agent_config.rs`: external-agent import service and hooks/MCP migration
+- `ontocode-rs/core/src/mcp_tool_call.rs`: MCP tool execution and connector auth refresh
+- `ontocode-rs/codex-mcp/src/mcp/mod.rs`: MCP status/resource surfaces
+- `ontocode-rs/hooks/src/engine`: hook governance, validation, and managed-hook behavior
+- `ontocode-rs/core/src/session/turn_context.rs`: turn configuration, context, and runtime inheritance
+- `ontocode-rs/core/src/tools/runtimes/shell`: shell execution, permission, and sandbox behavior
+- `ontocode-rs/core/src/tools/handlers/multi_agents_tests.rs`: multi-agent sandbox/approval/service-tier inheritance
+- `ontocode-rs/tui/src/app/test_support.rs`: UI-facing diagnostics and regression support
 
 ## Challenge Verdict
 
@@ -99,13 +99,13 @@ Every dispatched task must prove reuse before implementation:
 
 ## Implementation Homes
 
-- Provider construction, runtime engine, and capability work belongs in `codex-rs/model-provider`; avoid adding provider mechanics to `codex-core`.
+- Provider construction, runtime engine, and capability work belongs in `ontocode-rs/model-provider`; avoid adding provider mechanics to `codex-core`.
 - OAuth persistence and token validation belongs in auth/login crates or the provider auth boundary; reuse existing auth-store parsing and do not duplicate token parsing across call sites.
-- MCP transport/auth/listing/status work belongs in `codex-rs/rmcp-client`, `codex-rs/codex-mcp`, and existing MCP app-server processors.
-- Hook validation and execution belongs in `codex-rs/hooks`; shell permission integration belongs beside the shell runtime tests and existing permission-request event path.
-- Shell runtime, sandbox, and command parsing work belongs under `codex-rs/core/src/tools/runtimes` and sandbox modules, with focused integration tests.
+- MCP transport/auth/listing/status work belongs in `ontocode-rs/rmcp-client`, `ontocode-rs/codex-mcp`, and existing MCP app-server processors.
+- Hook validation and execution belongs in `ontocode-rs/hooks`; shell permission integration belongs beside the shell runtime tests and existing permission-request event path.
+- Shell runtime, sandbox, and command parsing work belongs under `ontocode-rs/core/src/tools/runtimes` and sandbox modules, with focused integration tests.
 - Session/context diagnostics belong in session/context modules with bounded `ContextualUserFragment` structs when content enters model context.
-- External-agent import work belongs in `codex-rs/external-agent-migration` and existing external-agent config processors; public app-server API additions require a separate API ADR.
+- External-agent import work belongs in `ontocode-rs/external-agent-migration` and existing external-agent config processors; public app-server API additions require a separate API ADR.
 
 ## Non-Negotiable Gates
 

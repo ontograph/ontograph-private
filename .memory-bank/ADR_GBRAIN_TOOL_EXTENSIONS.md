@@ -44,13 +44,13 @@ Reviewed upstream at commit `613da94093c248e6126f5d1eacc396a5833265c1`.
 
 GitNexus found existing Ontocode owners for the major GBrain surfaces:
 
-- Memory/search/context behavior already has owners in the memories extension, memory writer, and bounded contextual fragment path: [tests.rs](/opt/demodb/_workfolder/ontocode/codex-rs/ext/memories/src/tests.rs:394), [phase1.rs](/opt/demodb/_workfolder/ontocode/codex-rs/memories/write/src/phase1.rs:148), [contextual_user_message_tests.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/context/contextual_user_message_tests.rs:33)
-- Model-visible tool planning and extension tools already have owners: [spec_plan.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/spec_plan.rs:160)
-- MCP status, resource, and tool-call behavior already has owners: [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/codex-rs/codex-mcp/src/mcp/mod.rs:317), [mcp_tool_call.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/mcp_tool_call.rs:107)
-- External-agent detection/import already has owners: [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:260), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:391)
-- Shell execution, policy, and sandbox behavior already have owners: [shell.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/handlers/shell.rs:59), [exec_policy_tests.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/exec_policy_tests.rs:1800)
-- Provider metadata, capabilities, and status diagnostics already have owners: [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:33), [card.rs](/opt/demodb/_workfolder/ontocode/codex-rs/tui/src/status/card.rs:161)
-- Diagnostics and redaction testing already have owners: [output.rs](/opt/demodb/_workfolder/ontocode/codex-rs/cli/src/doctor/output.rs:1298), [context_snapshot.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/tests/common/context_snapshot.rs:503)
+- Memory/search/context behavior already has owners in the memories extension, memory writer, and bounded contextual fragment path: [tests.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/ext/memories/src/tests.rs:394), [phase1.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/memories/write/src/phase1.rs:148), [contextual_user_message_tests.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/context/contextual_user_message_tests.rs:33)
+- Model-visible tool planning and extension tools already have owners: [spec_plan.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/spec_plan.rs:160)
+- MCP status, resource, and tool-call behavior already has owners: [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/codex-mcp/src/mcp/mod.rs:317), [mcp_tool_call.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/mcp_tool_call.rs:107)
+- External-agent detection/import already has owners: [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:260), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:391)
+- Shell execution, policy, and sandbox behavior already have owners: [shell.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/handlers/shell.rs:59), [exec_policy_tests.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/exec_policy_tests.rs:1800)
+- Provider metadata, capabilities, and status diagnostics already have owners: [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:33), [card.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/tui/src/status/card.rs:161)
+- Diagnostics and redaction testing already have owners: [output.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/cli/src/doctor/output.rs:1298), [context_snapshot.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/tests/common/context_snapshot.rs:503)
 
 ## Decision
 

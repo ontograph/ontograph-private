@@ -39,15 +39,15 @@ Reviewed upstream at commit `2030d97ec0deae1adc94d625fe46f0a14511a568`.
 
 GitNexus source-owner review found existing Ontocode owners for the major Crush-inspired surfaces:
 
-- Provider descriptors and runtime selection already exist in [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:66), [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:201).
-- Model-visible tool planning already flows through [spec_plan.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/spec_plan.rs:190) and must not be duplicated by a Crush-style registry.
-- MCP status/resources already have owners in [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/codex-rs/codex-mcp/src/mcp/mod.rs:317) and [session/mcp.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/session/mcp.rs:238).
-- Pre-tool hooks already exist in [hook_runtime.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/hook_runtime.rs:159), with tests in [hooks.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/tests/suite/hooks.rs:2372).
-- App-server permissions already have v2 coverage in [request_permissions.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/tests/suite/v2/request_permissions.rs:23).
-- Context injection must use bounded fragments in [fragment.rs](/opt/demodb/_workfolder/ontocode/codex-rs/context-fragments/src/fragment.rs:46) and [contextual_user_message.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/context/contextual_user_message.rs:46).
-- Shell/policy work must extend [shell.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/handlers/shell.rs:59) and [exec_policy.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/exec_policy.rs:631).
-- External-agent import work must extend [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:166), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:78), and external-agent migration helpers.
-- External-agent detection already has a concrete owner in [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:260); Stage 0 must not compete with it as a runtime path.
+- Provider descriptors and runtime selection already exist in [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:66), [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:201).
+- Model-visible tool planning already flows through [spec_plan.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/spec_plan.rs:190) and must not be duplicated by a Crush-style registry.
+- MCP status/resources already have owners in [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/codex-mcp/src/mcp/mod.rs:317) and [session/mcp.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/session/mcp.rs:238).
+- Pre-tool hooks already exist in [hook_runtime.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/hook_runtime.rs:159), with tests in [hooks.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/tests/suite/hooks.rs:2372).
+- App-server permissions already have v2 coverage in [request_permissions.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/tests/suite/v2/request_permissions.rs:23).
+- Context injection must use bounded fragments in [fragment.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/context-fragments/src/fragment.rs:46) and [contextual_user_message.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/context/contextual_user_message.rs:46).
+- Shell/policy work must extend [shell.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/handlers/shell.rs:59) and [exec_policy.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/exec_policy.rs:631).
+- External-agent import work must extend [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:166), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:78), and external-agent migration helpers.
+- External-agent detection already has a concrete owner in [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:260); Stage 0 must not compete with it as a runtime path.
 
 Challenge result:
 

@@ -24,13 +24,13 @@ Manager rule: before starting any task, update this file with status, GitNexus c
 | 6 | Session/context bounded diagnostics | 1, 87, 89, 100, 104, 109-111, 117, 119-121, 124, 130, 132, 140, 181, 185 | done | manager + sub-agents | `Session::make_turn_context`, `new_turn_context_from_configuration`, context fragments, compaction/resume tests, TUI snapshots | context/session/TUI tests |
 | 7 | External-agent import internals | 213-215, 217, 218, 220 | done | manager + sub-agents | `ExternalAgentConfigService::import`, request processor import, `claude_oauth_import`, migration tests, startup prompt flow | import tests, no-secret snapshots |
 | 8 | Claude OAuth Import Wiring & Live Validation | Audit Gap | blocked | manager + sub-agents | `ExternalAgentConfigService::import`, `parse_claude_oauth_import_sample`, `save_oauth_tokens` | App-server tests, live sample validation |
-| 9 | Public adapter SDK and schema migrations ADR | Next Phase | in_progress | manager | `ADR_EXTERNAL_PROVIDER_ADAPTER_RUNTIME.md`, `adapter-protocol`, `ConfigToml`, app-server v2 schema, SDK artifact generation | ADR review, schema/test plan |
+| 9 | Public adapter SDK and schema migrations ADR | Next Phase | done | manager | `ADR_EXTERNAL_PROVIDER_ADAPTER_RUNTIME.md`, `adapter-protocol`, `ConfigToml`, app-server v2 schema, SDK artifact generation | ADR review, schema/test plan |
 
-## Active Task: Public adapter SDK and schema migrations ADR
+## Active Task: Remaining rename and validation work
 
 - Started: 2026-06-08
 - GitNexus context reviewed:
-  - `codex-rs/adapter-protocol`
+  - `ontocode-rs/adapter-protocol`
   - `ConfigToml`
   - app-server v2 schema generation paths
   - Python SDK artifact generation paths
@@ -39,7 +39,7 @@ Manager rule: before starting any task, update this file with status, GitNexus c
 - Follow-up output:
   - `ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS_TRACKING.md`
   - Stage 0 schema proposal, surface map, and compatibility test plan in the ADR.
-- Current next action: Review and accept or revise Stage 0 schema proposal before any public config/API implementation.
+- Current next action: Public adapter ADR accepted on 2026-06-13; remaining work is Claude OAuth live validation if evidence appears and the protocol-stage internal-crate rename slices.
 
 ## Blocked Task: Claude OAuth Import Wiring & Live Validation
 
@@ -61,3 +61,5 @@ Manager rule: before starting any task, update this file with status, GitNexus c
 - 2026-06-08: Committed core plan slice as `e32502e`.
 - 2026-06-08: Marked Claude OAuth live validation blocked pending real redacted sample and opened public adapter SDK/schema migration ADR.
 - 2026-06-08: Added public adapter Stage 0 schema proposal, owner-surface map, and compatibility test plan.
+- 2026-06-13: Started manager senior-unblock loop for all remaining tasks; next checks are local Claude sample availability, public adapter ADR closure, and protocol-stage rename execution.
+- 2026-06-13: Accepted the public adapter SDK/schema migration ADR Stage 0 and closed A1-A5; follow-on implementation planning is deferred behind protocol-stage rename stabilization.

@@ -43,11 +43,11 @@ Default policy:
 ### Runtime and support packages
 
 - Python runtime carrier: `openai-codex-cli-bin`
-- npm sidecar binary: `@openai/codex-responses-api-proxy`
+- npm sidecar binary: `@openai/ontocode-responses-api-proxy`
 
 ### Internal and native build/runtime packages
 
-- Rust workspace crates such as `codex-cli`, `codex-core`, `codex-app-server`, `codex-windows-sandbox`
+- Rust workspace crates such as `codex-cli`, `codex-core`, `ontocode-app-server`, `ontocode-windows-sandbox`
 - helper binaries and native runtime crates used internally by installers or packaged artifacts
 
 These internal/native package names are not a user-facing migration priority and should be preserved unless a later release demonstrates concrete value in changing them.
@@ -185,8 +185,8 @@ Recommendation:
 
 Current identity:
 
-- `@openai/codex-responses-api-proxy`
-- binary: `codex-responses-api-proxy`
+- `@openai/ontocode-responses-api-proxy`
+- binary: `ontocode-responses-api-proxy`
 
 Decision:
 

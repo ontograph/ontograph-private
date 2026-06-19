@@ -1,4 +1,4 @@
-# Release workflow for codex-rs.
+# Release workflow for ontocode-rs.
 # To release, follow a workflow like:
 # ```
 # git tag -a rust-v0.1.0 -m "Release 0.1.0"
@@ -125,7 +125,7 @@ jobs:
             || { echo "❌  Tag '${GITHUB_REF_NAME}' doesn't match expected format"; exit 1; }
 
           tag_ver="${GITHUB_REF_NAME#rust-v}"
-          cargo_ver="$(grep -m1 '^version' codex-rs/Cargo.toml \
+          cargo_ver="$(grep -m1 '^version' ontocode-rs/Cargo.toml \
                         | sed -E 's/version *= *"([^"]+)".*/\1/')"
 
           [[ "${tag_ver}" == "${cargo_ver}" ]] \
@@ -147,7 +147,7 @@ jobs:
       id-token: write
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: ontocode-rs
     env:
       # 2026-03-04: temporarily change releases to use thin LTO because
       # Ubuntu ARM is timing out at 60 minutes.
@@ -166,50 +166,50 @@ jobs:
             target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             build_dmg: "true"
           - runner: macos-15-xlarge
             target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
           - runner: macos-15-xlarge
             target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             build_dmg: "true"
           - runner: macos-15-xlarge
             target: x86_64-apple-darwin
             bundle: app-server
             artifact_name: x86_64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
           # Release artifacts intentionally ship MUSL-linked Linux binaries.
           - runner: codex-linux-x64-xl
             target: x86_64-unknown-linux-musl
             bundle: primary
             artifact_name: x86_64-unknown-linux-musl
-            binaries: "codex codex-responses-api-proxy bwrap"
+            binaries: "codex ontocode-responses-api-proxy bwrap"
             build_dmg: "false"
           - runner: codex-linux-x64-xl
             target: x86_64-unknown-linux-musl
             bundle: app-server
             artifact_name: x86_64-unknown-linux-musl-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
           - runner: codex-linux-arm64
             target: aarch64-unknown-linux-musl
             bundle: primary
             artifact_name: aarch64-unknown-linux-musl
-            binaries: "codex codex-responses-api-proxy bwrap"
+            binaries: "codex ontocode-responses-api-proxy bwrap"
             build_dmg: "false"
           - runner: codex-linux-arm64
             target: aarch64-unknown-linux-musl
             bundle: app-server
             artifact_name: aarch64-unknown-linux-musl-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
 
     steps:
@@ -332,7 +332,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: cargo-timings-rust-release-${{ matrix.target }}-${{ matrix.bundle }}
-          path: codex-rs/target/**/cargo-timings/cargo-timing.html
+          path: ontocode-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       - if: ${{ runner.os == 'macOS' }}
@@ -365,7 +365,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.artifact_name }}-unsigned
-          path: codex-rs/unsigned-dist/${{ matrix.target }}/*
+          path: ontocode-rs/unsigned-dist/${{ matrix.target }}/*
           if-no-files-found: error
 
       - if: ${{ contains(matrix.target, 'linux') }}
@@ -373,7 +373,7 @@ jobs:
         uses: ./.github/actions/linux-code-sign
         with:
           target: ${{ matrix.target }}
-          artifacts-dir: ${{ github.workspace }}/codex-rs/target/${{ matrix.target }}/release
+          artifacts-dir: ${{ github.workspace }}/ontocode-rs/target/${{ matrix.target }}/release
           binaries: ${{ matrix.binaries }}
 
       - name: Stage artifacts
@@ -515,7 +515,7 @@ jobs:
           # Upload the per-binary .zst files, .tar.gz equivalents, and any
           # prebuilt archives staged above.
           path: |
-            codex-rs/dist/${{ matrix.target }}/*
+            ontocode-rs/dist/${{ matrix.target }}/*
 
   sign-macos-binaries:
     if: ${{ github.event_name != 'workflow_dispatch' }}
@@ -537,19 +537,19 @@ jobs:
           - target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
           - target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
           - target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
           - target: x86_64-apple-darwin
             bundle: app-server
             artifact_name: x86_64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -647,7 +647,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: ontocode-rs
 
     strategy:
       fail-fast: false
@@ -656,22 +656,22 @@ jobs:
           - target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             build_dmg: "true"
           - target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
           - target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             build_dmg: "true"
           - target: x86_64-apple-darwin
             bundle: app-server
             artifact_name: x86_64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
 
     steps:
@@ -683,7 +683,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ matrix.artifact_name }}-signed-binaries
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: ontocode-rs/target/${{ matrix.target }}/release
 
       - name: Verify signed macOS binaries
         shell: bash
@@ -737,7 +737,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.artifact_name }}-unsigned-dmg
-          path: codex-rs/target/${{ matrix.target }}/release/codex-${{ matrix.target }}.dmg
+          path: ontocode-rs/target/${{ matrix.target }}/release/codex-${{ matrix.target }}.dmg
           if-no-files-found: error
 
       - name: Stage macOS artifacts
@@ -824,7 +824,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.artifact_name }}-packaged
-          path: codex-rs/dist/${{ matrix.target }}/*
+          path: ontocode-rs/dist/${{ matrix.target }}/*
           if-no-files-found: error
 
   sign-macos-dmg:
@@ -936,7 +936,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: ontocode-rs
 
     strategy:
       fail-fast: false
@@ -945,22 +945,22 @@ jobs:
           - target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             verify_dmg: "true"
           - target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             verify_dmg: "false"
           - target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             verify_dmg: "true"
           - target: x86_64-apple-darwin
             bundle: app-server
             artifact_name: x86_64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             verify_dmg: "false"
 
     steps:
@@ -972,7 +972,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ matrix.artifact_name }}-packaged
-          path: codex-rs/dist/${{ matrix.target }}
+          path: ontocode-rs/dist/${{ matrix.target }}
 
       - name: Download signed macOS binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1034,8 +1034,8 @@ jobs:
               package_entrypoint="codex"
               ;;
             app-server)
-              package_stem="codex-app-server-package"
-              package_entrypoint="codex-app-server"
+              package_stem="ontocode-app-server-package"
+              package_entrypoint="ontocode-app-server"
               ;;
             *)
               echo "Unexpected macOS bundle: ${{ matrix.bundle }}"
@@ -1084,7 +1084,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.artifact_name }}
-          path: codex-rs/dist/${{ matrix.target }}/*
+          path: ontocode-rs/dist/${{ matrix.target }}/*
           if-no-files-found: error
 
   stage-signed-macos:
@@ -1097,7 +1097,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: ontocode-rs
 
     strategy:
       fail-fast: false
@@ -1106,22 +1106,22 @@ jobs:
           - target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             build_dmg: "false"
           - target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
           - target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "codex ontocode-responses-api-proxy"
             build_dmg: "false"
           - target: x86_64-apple-darwin
             bundle: app-server
             artifact_name: x86_64-apple-darwin-app-server
-            binaries: "codex-app-server"
+            binaries: "ontocode-app-server"
             build_dmg: "false"
 
     steps:
@@ -1324,7 +1324,7 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: |
-            codex-rs/dist/${{ matrix.target }}/*
+            ontocode-rs/dist/${{ matrix.target }}/*
 
   build-windows:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.release_mode == 'build_unsigned' }}
@@ -1588,7 +1588,7 @@ jobs:
           manifest="dist/codex-package_SHA256SUMS"
           tmp_manifest="$(mktemp)"
           find dist -type f \
-            \( -name 'codex-package-*.tar.gz' -o -name 'codex-app-server-package-*.tar.gz' \) \
+            \( -name 'codex-package-*.tar.gz' -o -name 'ontocode-app-server-package-*.tar.gz' \) \
             -print |
             sort |
             while IFS= read -r archive; do
@@ -1606,7 +1606,7 @@ jobs:
 
       - name: Add config schema release asset
         run: |
-          cp codex-rs/core/config.schema.json dist/config-schema.json
+          cp ontocode-rs/core/config.schema.json dist/config-schema.json
 
       - name: Define release name
         id: release_name
@@ -1668,7 +1668,7 @@ jobs:
             --release-version "$RELEASE_VERSION" \
             --workflow-url "$workflow_url" \
             --package codex \
-            --package codex-responses-api-proxy \
+            --package ontocode-responses-api-proxy \
             --package codex-sdk
 
       - name: Stage installer scripts
@@ -1785,7 +1785,7 @@ jobs:
             "codex-npm-linux-*-${version}.tgz"
             "codex-npm-darwin-*-${version}.tgz"
             "codex-npm-win32-*-${version}.tgz"
-            "codex-responses-api-proxy-npm-${version}.tgz"
+            "ontocode-responses-api-proxy-npm-${version}.tgz"
             "codex-sdk-npm-${version}.tgz"
           )
           for pattern in "${patterns[@]}"; do
@@ -1872,7 +1872,7 @@ jobs:
                 platform="${platform%-${VERSION}.tgz}"
                 tag="${prefix}${platform}"
                 ;;
-              codex-npm-"${VERSION}".tgz|codex-responses-api-proxy-npm-"${VERSION}".tgz|codex-sdk-npm-"${VERSION}".tgz)
+              codex-npm-"${VERSION}".tgz|ontocode-responses-api-proxy-npm-"${VERSION}".tgz|codex-sdk-npm-"${VERSION}".tgz)
                 tag="${NPM_TAG}"
                 ;;
               *)

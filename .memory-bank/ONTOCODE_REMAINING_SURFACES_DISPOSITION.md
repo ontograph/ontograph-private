@@ -95,7 +95,7 @@ Exit rule:
 
 Examples:
 
-- `codex-rs/analytics/src/events.rs`
+- `ontocode-rs/analytics/src/events.rs`
 - `CodexTurnEventRequest`
 - `CodexCommandExecutionEventRequest`
 - `CodexRuntimeMetadata`

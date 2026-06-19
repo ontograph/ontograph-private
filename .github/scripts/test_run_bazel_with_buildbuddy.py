@@ -36,20 +36,20 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
     def test_keyless_invocation_drops_remote_ci_configuration(self) -> None:
         self.assertIsNone(
             run_bazel_with_buildbuddy.remote_config(
-                ["build", "--config=ci-linux", "//codex-rs/cli:codex"],
+                ["build", "--config=ci-linux", "//ontocode-rs/cli:codex"],
                 {},
             )
         )
         self.assertEqual(
             run_bazel_with_buildbuddy.bazel_args_with_remote_config(
-                ["build", "--config=ci-linux", "--", "//codex-rs/cli:codex"],
+                ["build", "--config=ci-linux", "--", "//ontocode-rs/cli:codex"],
                 {},
             ),
-            ["build", "--", "//codex-rs/cli:codex"],
+            ["build", "--", "//ontocode-rs/cli:codex"],
         )
 
     def test_program_arguments_after_separator_do_not_select_or_lose_rbe(self) -> None:
-        args = ["run", "//codex-rs/cli:codex", "--", "--config=remote"]
+        args = ["run", "//ontocode-rs/cli:codex", "--", "--config=remote"]
 
         self.assertEqual(
             run_bazel_with_buildbuddy.bazel_args_with_remote_config(args, {}),
@@ -68,7 +68,7 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
 
             self.assertEqual(
                 run_bazel_with_buildbuddy.bazel_args_with_remote_config(
-                    ["build", "--config=ci-linux", "--", "//codex-rs/cli:codex"],
+                    ["build", "--config=ci-linux", "--", "//ontocode-rs/cli:codex"],
                     env,
                 ),
                 [
@@ -77,7 +77,7 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
                     "--remote_header=x-buildbuddy-api-key=token",
                     "--config=ci-linux",
                     "--",
-                    "//codex-rs/cli:codex",
+                    "//ontocode-rs/cli:codex",
                 ],
             )
 
@@ -86,7 +86,7 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
 
         self.assertEqual(
             run_bazel_with_buildbuddy.bazel_args_with_remote_config(
-                ["build", "--config=ci-windows-cross", "//codex-rs/cli:codex"],
+                ["build", "--config=ci-windows-cross", "//ontocode-rs/cli:codex"],
                 env,
             ),
             [
@@ -94,12 +94,12 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
                 "--config=buildbuddy-generic-rbe",
                 "--remote_header=x-buildbuddy-api-key=fork-token",
                 "--config=ci-windows-cross",
-                "//codex-rs/cli:codex",
+                "//ontocode-rs/cli:codex",
             ],
         )
 
     def test_query_remote_configuration_is_inserted_before_expression(self) -> None:
-        expression = 'kind("rust_library rule", //codex-rs/...)'
+        expression = 'kind("rust_library rule", //ontocode-rs/...)'
         env = {"BUILDBUDDY_API_KEY": "fork-token"}
 
         for command in ("query", "cquery", "aquery"):

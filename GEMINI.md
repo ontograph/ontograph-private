@@ -1,4 +1,4 @@
-# Rust/codex-rs
+# Rust/ontocode-rs
 
 ## Memory Bank
 
@@ -14,9 +14,10 @@ Use `.memory-bank/` as the project memory layer for this repository.
 - Do not store secrets, tokens, credentials, cookies, authorization headers, keychain paths, or raw private user data in memory-bank files.
 - When memory-bank content conflicts with code, GitNexus, ADRs, or tracking files, verify from the authoritative source and update the stale memory entry.
 
-In the codex-rs folder where the rust code lives:
+In the ontocode-rs folder where the rust code lives:
 
-- Crate names are prefixed with `codex-`. For example, the `core` folder's crate is named `codex-core`
+- Current source names may still use the legacy `codex-*` prefix, but the active rename goal is to move them to `ontocode-*` as compatibility allows.
+- Treat `codex-core` -> `ontocode-core` as an active migration target. Do not introduce new `codex-core` references unless a compatibility boundary still requires the old name.
 - When using format! and you can inline variables into {}, always do that.
 - Install any commands the repo relies on (for example `just`, `rg`, or `cargo-insta`) if they aren't already available before running instructions here.
 - When running build or test commands that compile code, limit build parallelism to 8 CPUs. For Cargo/Just commands, set `CARGO_BUILD_JOBS=8`; for Bazel commands, pass `--jobs=8`.
@@ -43,8 +44,8 @@ In the codex-rs folder where the rust code lives:
 - When writing tests, prefer comparing the equality of entire objects over fields one by one.
 - Do not add general product or user-facing documentation to the `docs/` folder. The official Codex documentation lives elsewhere. The exception is app-server API documentation, which is covered by the app-server guidance below.
 - Prefer private modules and explicitly exported public crate API.
-- If you change `ConfigToml` or nested config types, run `just write-config-schema` to update `codex-rs/core/config.schema.json`.
-- When working with MCP tool calls, prefer using `codex-rs/codex-mcp/src/mcp_connection_manager.rs` to handle mutation of tools and tool calls. Aim to minimize the footprint of changes and leverage existing abstractions rather than plumbing code through multiple levels of function calls.
+- If you change `ConfigToml` or nested config types, run `just write-config-schema` to update `ontocode-rs/core/config.schema.json`.
+- When working with MCP tool calls, prefer using `ontocode-rs/codex-mcp/src/mcp_connection_manager.rs` to handle mutation of tools and tool calls. Aim to minimize the footprint of changes and leverage existing abstractions rather than plumbing code through multiple levels of function calls.
 - Do not call `reset_client_session` unnecessarily; let the incremental check logic decide whether to reuse the previous request.
 - If you change Rust dependencies (`Cargo.toml` or `Cargo.lock`), run `just bazel-lock-update` from the
   repo root to refresh `MODULE.bazel.lock`, and include that lockfile update in the same change.
@@ -61,26 +62,26 @@ In the codex-rs folder where the rust code lives:
   - If a file exceeds roughly 800 LoC, add new functionality in a new module instead of extending
     the existing file unless there is a strong documented reason not to.
   - This rule applies especially to high-touch files that already attract unrelated changes, such
-    as `codex-rs/tui/src/app.rs`, `codex-rs/tui/src/bottom_pane/chat_composer.rs`,
-    `codex-rs/tui/src/bottom_pane/footer.rs`, `codex-rs/tui/src/chatwidget.rs`,
-    `codex-rs/tui/src/bottom_pane/mod.rs`, and similarly central orchestration modules.
+    as `ontocode-rs/tui/src/app.rs`, `ontocode-rs/tui/src/bottom_pane/chat_composer.rs`,
+    `ontocode-rs/tui/src/bottom_pane/footer.rs`, `ontocode-rs/tui/src/chatwidget.rs`,
+    `ontocode-rs/tui/src/bottom_pane/mod.rs`, and similarly central orchestration modules.
   - When extracting code from a large module, move the related tests and module/type docs toward
     the new implementation so the invariants stay close to the code that owns them.
-  - Avoid adding new standalone methods to `codex-rs/tui/src/chatwidget.rs` unless the change is
+  - Avoid adding new standalone methods to `ontocode-rs/tui/src/chatwidget.rs` unless the change is
     trivial; prefer new modules/files and keep `chatwidget.rs` focused on orchestration.
 - When running Rust commands (e.g. `just fix` or `just test`) be patient with the command and never try to kill them using the PID. Rust lock can make the execution slow, this is expected.
 
-Run `just fmt` (in the `codex-rs` directory) automatically after you have finished making code changes anywhere in this repository; do not ask for approval to run it. Additionally, run the tests:
+Run `just fmt` (in the `ontocode-rs` directory) automatically after you have finished making code changes anywhere in this repository; do not ask for approval to run it. Additionally, run the tests:
 
 1. Do not run `cargo test` directly. Use `just test` so test execution follows the repo defaults.
-2. Run the test for the specific project that was changed. For example, if changes were made in `codex-rs/tui`, run `just test -p codex-tui`.
+2. Run the test for the specific project that was changed. For example, if changes were made in `ontocode-rs/tui`, run `just test -p ontocode-tui`.
 3. Once those pass, if any changes were made in common, core, or protocol, run the complete test suite with `just test`. Avoid `--all-features` for routine local runs because it expands the build matrix and can significantly increase `target/` disk usage; use it only when you specifically need full feature coverage. project-specific or individual tests can be run without asking the user, but do ask the user before running the complete test suite.
 
-Before finalizing a large change to `codex-rs`, run `just fix -p <project>` (in `codex-rs` directory) to fix any linter issues in the code. Prefer scoping with `-p` to avoid slow workspace‑wide Clippy builds; only run `just fix` without `-p` if you changed shared crates. Do not re-run tests after running `fix` or `fmt`.
+Before finalizing a large change to `ontocode-rs`, run `just fix -p <project>` (in `ontocode-rs` directory) to fix any linter issues in the code. Prefer scoping with `-p` to avoid slow workspace‑wide Clippy builds; only run `just fix` without `-p` if you changed shared crates. Do not re-run tests after running `fix` or `fmt`.
 
 ## The `codex-core` crate
 
-Over time, the `codex-core` crate (defined in `codex-rs/core/`) has become bloated because it is the largest crate, so it is often easier to add something new to `codex-core` rather than refactor out the library code you need so your new code neither takes a dependency on, nor contributes to the size of, `codex-core`.
+Over time, the current `codex-core` crate (rename target: `ontocode-core`, defined in `ontocode-rs/core/`) has become bloated because it is the largest crate, so it is often easier to add something new to `codex-core` rather than refactor out the library code you need so your new code neither takes a dependency on, nor contributes to the size of, `codex-core`.
 
 To that end: **resist adding code to codex-core**!
 
@@ -108,6 +109,7 @@ Before implementing provider, auth, MCP, hooks, shell, session/context, diagnost
 
 - Treat `Ontocode` / `ontocode` as the target project identity for rename and migration work.
 - When a task requires renaming code objects, prefer the new Ontocode name for crates, modules, types, functions, commands, package metadata, docs, and user-visible surfaces unless a compatibility boundary requires the old name.
+- The current rename goal explicitly includes `codex-core` -> `ontocode-core`. Prefer `ontocode-core` in new planning, docs, and migration work unless a compatibility boundary still requires the old crate name.
 - Never rename code objects with broad find-and-replace. Use GitNexus rename/impact analysis and preserve compatibility shims where external integrations, persisted state, config keys, CLI commands, app-server APIs, package names, or rollout/session data still depend on the old name.
 - Before removing any old-name alias, document the migration path and verify affected execution flows with GitNexus `detect_changes`.
 
@@ -156,7 +158,7 @@ Base the staging suggestion on the actual diff, dependencies, and affected call 
 
 ## TUI style conventions
 
-See `codex-rs/tui/styles.md`.
+See `ontocode-rs/tui/styles.md`.
 
 ## TUI code conventions
 
@@ -203,7 +205,7 @@ See `codex-rs/tui/styles.md`.
 
 ### Snapshot tests
 
-This repo uses snapshot tests (via `insta`), especially in `codex-rs/tui`, to validate rendered output.
+This repo uses snapshot tests (via `insta`), especially in `ontocode-rs/tui`, to validate rendered output.
 
 **Requirement:** any change that affects user-visible UI (including adding new UI) must include
 corresponding `insta` snapshot coverage (add a new snapshot test if one doesn't exist yet, or
@@ -213,13 +215,13 @@ is easy to review and future diffs stay visual.
 When UI or text output changes intentionally, update the snapshots as follows:
 
 - Run tests to generate any updated snapshots:
-  - `just test -p codex-tui`
+  - `just test -p ontocode-tui`
 - Check what’s pending:
-  - `cargo insta pending-snapshots -p codex-tui`
+  - `cargo insta pending-snapshots -p ontocode-tui`
 - Review changes by reading the generated `*.snap.new` files directly in the repo, or preview a specific file:
-  - `cargo insta show -p codex-tui path/to/file.snap.new`
+  - `cargo insta show -p ontocode-tui path/to/file.snap.new`
 - Only if you intend to accept all new snapshots in this crate, run:
-  - `cargo insta accept -p codex-tui`
+  - `cargo insta accept -p ontocode-tui`
 
 If you don’t have the tool:
 
@@ -266,7 +268,7 @@ If you don’t have the tool:
 
 ## App-server API Development Best Practices
 
-These guidelines apply to app-server protocol work in `codex-rs`, especially:
+These guidelines apply to app-server protocol work in `ontocode-rs`, especially:
 
 - `app-server-protocol/src/protocol/common.rs`
 - `app-server-protocol/src/protocol/v2.rs`
@@ -307,7 +309,7 @@ These guidelines apply to app-server protocol work in `codex-rs`, especially:
 - Regenerate schema fixtures when API shapes change:
   `just write-app-server-schema`
   (and `just write-app-server-schema --experimental` when experimental API fixtures are affected).
-- Validate with `just test -p codex-app-server-protocol`.
+- Validate with `just test -p ontocode-app-server-protocol`.
 - Avoid boilerplate tests that only assert experimental field markers for individual
   request fields in `common.rs`; rely on schema generation/tests and behavioral coverage instead.
 

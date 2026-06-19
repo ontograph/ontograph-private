@@ -1,0 +1,124 @@
+# Compact command/package reference summary for R0C
+
+Search:
+rg -n '(just\s+[^\n]*-p\s+codex-[A-Za-z0-9_-]+|cargo\s+[^\n]*-p\s+codex-[A-Za-z0-9_-]+|codex-[A-Za-z0-9_-]+)' justfile scripts sdk .github .memory-bank AGENTS.md ontocode-rs --glob '!ontocode-rs/target/**'
+
+Total matches: 4627
+
+Owner class counts:
+1929 Cargo/Bazel/fixtures
+1277 Rust source/tests
+880 memory-bank
+413 github/ci
+154 scripts
+113 sdk/package
+27 AGENTS
+15 justfile
+
+Top codex-* tokens:
+3853 ontocode-rs
+364 codex-protocol
+271 codex-plugin
+269 codex-core
+266 codex-utils-absolute-path
+171 codex-login
+165 ontocode-app-server-protocol
+137 codex-config
+125 codex-api
+123 codex-cli
+118 ontocode-tui
+116 codex-otel
+109 ontocode-exec-server
+108 codex-git-utils
+106 codex-model-provider
+102 codex-utils-cargo-bin
+93 codex-model-provider-info
+85 codex-mcp
+85 ontocode-app-server
+81 codex-features
+79 codex-linux-sandbox
+79 codex-curated
+78 codex-arg0
+77 codex-resources
+73 codex-extension-api
+73 codex-client
+70 ontocode-responses-api-proxy
+67 codex-state
+64 codex-home
+59 codex-cli-bin
+57 codex-models-manager
+56 codex-utils-string
+55 codex-turn-metadata
+54 codex-utils-output-truncation
+53 ontocode-command-runner
+52 codex-utils-home-dir
+51 codex-utils-cli
+51 codex-shell-command
+51 codex-sandboxing
+50 ontocode-windows-sandbox
+50 codex-max
+50 codex-install-context
+49 codex-tools
+46 codex-utils-pty
+46 codex-feedback
+45 codex-utils-template
+45 codex-path
+45 codex-package
+45 ontocode-execpolicy
+44 codex-utils-rustls-provider
+44 codex-utils-path
+43 codex-backend
+42 codex-network-proxy
+41 codex-rollout
+40 codex-utils-plugins
+40 codex-hooks
+40 ontocode-exec
+39 ontocode-windows-sandbox-setup
+39 codex-terminal-detection
+39 codex-rmcp-client
+39 codex-analytics
+35 codex-package-
+35 codex-core-plugins
+33 codex-uds
+33 codex-backend-client
+32 codex-runners
+32 ontocode-mcp-server
+32 codex-context-fragments
+32 ontocode-app-server-test-client
+31 codex-shell-escalation
+31 codex-core-skills
+30 ontocode-file-search
+28 ontocode-execve-wrapper
+28 codex-code-mode
+28 codex-async-utils
+28 codex-apply-patch
+27 codex-keyring-store
+27 codex-file-system
+27 codex-connectors
+27 codex-cloud-config
+
+Live command selector clusters:
+AGENTS.md: just test -p ontocode-tui; just test -p ontocode-app-server-protocol; cargo insta ... -p ontocode-tui
+justfile: cargo build/run -p codex-cli, ontocode-app-server-test-client, ontocode-mcp-server, codex-core, ontocode-app-server-protocol, codex-hooks, codex-state
+scripts: start-ontocode-exec.sh, run_tui_with_exec_server.sh, test-remote-env.sh invoke codex-cli/ontocode-tui package selectors
+ontocode-rs docs/tests: app-server-test-client, execpolicy, execpolicy-legacy, network-proxy, thread-manager-sample, rmcp-client bin docs, TUI/core tests/snapshots embed cargo -p codex-* examples
+.github: v8-canary uses codex-v8-poc; release/signing workflows package codex helper/runtime artifacts
+memory-bank: mostly historical verification logs and active rename planning text; do not rewrite historical audit facts
+
+Preserve/do-not-rename clusters:
+6840 hits for CODEX_*, .codex, package IDs, protocol/generated, package layout, telemetry.
+256 CODEX_HOME
+136 CODEX_APPS_MCP_SERVER_NAME
+35 CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR
+20 CODEX_LINUX_SANDBOX_ARG0
+19 CODEX_CA_CERT_ENV
+18 CODEX_CLI_VERSION
+17 CODEX_THREAD_ID_ENV_VAR
+16 CODEX_SANDBOX_ENV_VAR
+15 CODEX_EXEC_SERVER_URL_ENV_VAR
+15 CODEX_API_KEY_ENV_VAR
+14 CODEX_THREAD_ID
+14 CODEX_EXEC_SERVER_URL
+13 CODEX_TURN_METADATA_HEADER
+12 CODEX_API_KEY
+

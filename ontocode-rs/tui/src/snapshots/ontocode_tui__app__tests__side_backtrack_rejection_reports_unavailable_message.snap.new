@@ -1,0 +1,6 @@
+---
+source: tui/src/app/tests.rs
+assertion_line: 5664
+expression: rendered
+---
+■ Editing previous prompts is unavailable in side conversations.

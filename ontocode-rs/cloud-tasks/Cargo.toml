@@ -1,0 +1,46 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-cloud-tasks"
+version.workspace = true
+
+[lib]
+name = "ontocode_cloud_tasks"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+clap = { workspace = true, features = ["derive"] }
+ontocode-client = { workspace = true }
+ontocode-cloud-tasks-client = { workspace = true }
+# TODO: codex-cloud-tasks-mock-client should be in dev-dependencies.
+ontocode-cloud-tasks-mock-client = { workspace = true }
+ontocode-core = { workspace = true }
+ontocode-git-utils = { workspace = true }
+ontocode-login = { path = "../login" }
+ontocode-model-provider = { workspace = true }
+ontocode-tui = { workspace = true }
+ontocode-utils-cli = { workspace = true }
+crossterm = { workspace = true, features = ["event-stream"] }
+owo-colors = { workspace = true, features = ["supports-colors"] }
+ratatui = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+supports-color = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio-stream = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+unicode-width = { workspace = true }
+
+[dependencies.async-trait]
+workspace = true
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

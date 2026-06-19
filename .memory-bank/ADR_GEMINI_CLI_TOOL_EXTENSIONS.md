@@ -59,15 +59,15 @@ Documentation references:
 
 GitNexus source links for similar existing code:
 
-- Native provider descriptors and runtime engines: [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:7), [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:108), [client.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/client.rs:1584)
-- Model-provider diagnostics/API exposure: [config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/config_processor.rs:170)
-- Model-visible tool planning and extension tools: [spec_plan.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/spec_plan.rs:160), [extension_tools.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/handlers/extension_tools.rs:38), [registry_tests.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/registry_tests.rs:136)
-- Web-search extension example: [extension.rs](/opt/demodb/_workfolder/ontocode/codex-rs/ext/web-search/src/extension.rs:128)
-- MCP manager, status, OAuth, resources: [connection_manager.rs](/opt/demodb/_workfolder/ontocode/codex-rs/codex-mcp/src/connection_manager.rs:105), [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/codex-rs/codex-mcp/src/mcp/mod.rs:317), [oauth.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:58), [session/mcp.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/session/mcp.rs:238)
-- External-agent config import and detection: [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:166), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:78), [external_agent_config_tests.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config_tests.rs:38)
-- External-agent migration helpers: [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/external-agent-migration/src/lib.rs:102)
-- Context fragments: [fragment.rs](/opt/demodb/_workfolder/ontocode/codex-rs/context-fragments/src/fragment.rs:46), [contextual_user_message.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/context/contextual_user_message.rs:46)
-- Shell and policy: [shell.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/handlers/shell.rs:59), [exec_policy.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/exec_policy.rs:631)
+- Native provider descriptors and runtime engines: [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:7), [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:108), [client.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/client.rs:1584)
+- Model-provider diagnostics/API exposure: [config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/config_processor.rs:170)
+- Model-visible tool planning and extension tools: [spec_plan.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/spec_plan.rs:160), [extension_tools.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/handlers/extension_tools.rs:38), [registry_tests.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/registry_tests.rs:136)
+- Web-search extension example: [extension.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/ext/web-search/src/extension.rs:128)
+- MCP manager, status, OAuth, resources: [connection_manager.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/codex-mcp/src/connection_manager.rs:105), [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/codex-mcp/src/mcp/mod.rs:317), [oauth.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:58), [session/mcp.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/session/mcp.rs:238)
+- External-agent config import and detection: [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:166), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:78), [external_agent_config_tests.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config_tests.rs:38)
+- External-agent migration helpers: [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/external-agent-migration/src/lib.rs:102)
+- Context fragments: [fragment.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/context-fragments/src/fragment.rs:46), [contextual_user_message.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/context/contextual_user_message.rs:46)
+- Shell and policy: [shell.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/handlers/shell.rs:59), [exec_policy.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/exec_policy.rs:631)
 
 Prior ADR links:
 
@@ -80,18 +80,18 @@ Prior ADR links:
 
 GitNexus confirms the kept Gemini CLI work is closest to external-agent config detection/import, not model-provider runtime work:
 
-- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:260) owns detection of external-agent migrations.
-- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:391) owns app-server import request processing.
-- [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/external-agent-migration/src/lib.rs:1578) has existing migration tests for MCP config precedence.
-- [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:108) is a provider runtime seam, but Gemini CLI interop must not edit it.
+- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:260) owns detection of external-agent migrations.
+- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:391) owns app-server import request processing.
+- [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/external-agent-migration/src/lib.rs:1578) has existing migration tests for MCP config precedence.
+- [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:108) is a provider runtime seam, but Gemini CLI interop must not edit it.
 
 GitNexus impact results gathered before this challenge:
 
 | Symbol | File | Risk | Challenge result |
 |---|---|---|---|
-| `ExternalAgentConfigService::detect_migrations` | `codex-rs/app-server/src/config/external_agent_config.rs` | LOW | Candidate future owner, but Stage 0 must not edit it yet. |
-| `ExternalAgentConfigRequestProcessor::import_external_agent_config` | `codex-rs/app-server/src/request_processors/external_agent_config_processor.rs` | LOW | App-server import path exists; no new API without later ADR. |
-| `ProviderRuntimeEngine::from_provider_engine` | `codex-rs/model-provider/src/provider.rs` | LOW | Out of scope for Gemini CLI interop; provider work stays in native provider ADR. |
+| `ExternalAgentConfigService::detect_migrations` | `ontocode-rs/app-server/src/config/external_agent_config.rs` | LOW | Candidate future owner, but Stage 0 must not edit it yet. |
+| `ExternalAgentConfigRequestProcessor::import_external_agent_config` | `ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs` | LOW | App-server import path exists; no new API without later ADR. |
+| `ProviderRuntimeEngine::from_provider_engine` | `ontocode-rs/model-provider/src/provider.rs` | LOW | Out of scope for Gemini CLI interop; provider work stays in native provider ADR. |
 
 Challenge outcome:
 
@@ -264,7 +264,7 @@ Blocked count: 8.
 
 ## Architecture Decisions For Kept Items
 
-- Reuse external-agent config detection/import owners first: [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:166), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:78), [external_agent_config_tests.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config_tests.rs:38).
+- Reuse external-agent config detection/import owners first: [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:166), [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:78), [external_agent_config_tests.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config_tests.rs:38).
 - Stage 0 must not plug into external-agent import services yet; it is a standalone repository script only.
 - Later Gemini CLI detection may become a new import source plugged into existing external-agent import services, not a standalone migration framework.
 - First implementation must be dry-run only, redacted, and repository-script based.

@@ -67,15 +67,15 @@ class SourceBinariesForTargetTest(unittest.TestCase):
                 build_codex_command_runner=True,
                 build_codex_windows_sandbox_setup=True,
             ),
-            ["codex-command-runner", "codex-windows-sandbox-setup"],
+            ["ontocode-command-runner", "ontocode-windows-sandbox-setup"],
         )
 
     def test_build_uses_prebuilt_windows_helpers_without_running_cargo(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             entrypoint = touch_file(root / "codex.exe")
-            command_runner = touch_file(root / "codex-command-runner.exe")
-            sandbox_setup = touch_file(root / "codex-windows-sandbox-setup.exe")
+            command_runner = touch_file(root / "ontocode-command-runner.exe")
+            sandbox_setup = touch_file(root / "ontocode-windows-sandbox-setup.exe")
 
             outputs = build_source_binaries(
                 TARGET_SPECS["x86_64-pc-windows-msvc"],

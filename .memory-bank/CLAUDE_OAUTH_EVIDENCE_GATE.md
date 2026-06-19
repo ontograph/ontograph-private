@@ -60,9 +60,9 @@ The existing Codex MCP OAuth store is raw-token based and already persists:
 
 Relevant code:
 
-- [`StoredOAuthTokens`](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:56)
-- [`save_oauth_tokens`](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:155)
-- [`FallbackTokenEntry`](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:376)
+- [`StoredOAuthTokens`](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:56)
+- [`save_oauth_tokens`](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:155)
+- [`FallbackTokenEntry`](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:376)
 
 This means direct import is only plausible if Claude stores connector credentials in a similarly raw and attributable form.
 
@@ -88,3 +88,42 @@ Preferred evidence:
 
 - Linux or Windows: redacted `~/.claude/.credentials.json`
 - macOS: redacted keychain export metadata plus the lookup keys used by Claude, without secret values
+
+## Accepted Live Evidence Artifact
+
+The minimal artifact that can unblock later Claude OAuth runtime work is a
+single redacted live sample bundle with two parts:
+
+1. `redacted-claude-oauth-sample.json`
+   - source machine metadata: host OS, Claude build/version, capture time
+     in UTC, and the origin path or keychain label that was sampled
+   - at least one credential record
+   - one or more records shaped like Claude connector OAuth data
+2. validator output from `validates_redacted_live_sample_from_env`
+   - `status=Complete` or `status=Partial`
+   - `importable_credentials > 0`
+   - `refreshable_credentials > 0` when a refresh token is present
+
+The redacted sample must preserve the fields needed to prove importability:
+
+- connector name
+- connector URL or server URL
+- OAuth client ID
+- scopes
+- expiry field name and unit
+- issuer or auth-server metadata URL, if present
+- record nesting and collection shape
+- optional account, workspace, or organization metadata
+
+Secret values must be replaced before the artifact is shared:
+
+- access tokens -> `REDACTED_ACCESS_TOKEN`
+- refresh tokens -> `REDACTED_REFRESH_TOKEN`
+- ID tokens -> `REDACTED_ID_TOKEN`
+- account IDs -> stable fake IDs such as `acct_redacted_1`
+- workspace IDs -> stable fake IDs such as `workspace_redacted_1`
+- emails -> `user@example.invalid`
+
+If the validated live sample only proves an opaque global grant or cannot be
+mapped to `StoredOAuthTokens`, the artifact is still useful as a non-importable
+decision record, but runtime enablement remains blocked.

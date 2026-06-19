@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CODEX_RS_ROOT = REPO_ROOT / "codex-rs"
+CODEX_RS_ROOT = REPO_ROOT / "ontocode-rs"
 
 
 @dataclass(frozen=True)

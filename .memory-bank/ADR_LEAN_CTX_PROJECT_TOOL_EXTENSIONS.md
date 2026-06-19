@@ -23,6 +23,15 @@ Primary references reviewed:
 - Current project plan: `.memory-bank/project_plan-current.md`
 - Current agent rules: `.memory-bank/reference_agent-rules.md`
 
+Local donor source references reviewed:
+
+- [donor lean-ctx rules](/opt/demodb/_workfolder/_donors/lean-ctx/LEAN-CTX.md:1) and [donor Rust rules](/opt/demodb/_workfolder/_donors/lean-ctx/rust/LEAN-CTX.md:1) define the read/search/shell/session workflow this ADR evaluates.
+- [donor skill manifest](/opt/demodb/_workfolder/_donors/lean-ctx/skills/lean-ctx/SKILL.md:1) describes the MCP tool surface, read modes, shell compression, and cross-session memory behavior.
+- [donor MCP registry](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/server/registry.rs:122) registers the concrete `ctx_*` tool implementations, including read, shell, search, session, and knowledge tools.
+- [donor tool dispatch](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/server/call_tool.rs:272) is the runtime choke point for compression, sensitivity handling, and large-output archiving decisions.
+- [donor ctx_read](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/tools/ctx_read/mod.rs:1), [ctx_shell](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/tools/ctx_shell.rs:1), [ctx_search](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/tools/ctx_search.rs:1), [ctx_session](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/tools/ctx_session.rs:1), and [ctx_knowledge](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/tools/ctx_knowledge/mod.rs:1) are the donor implementation roots for the workflow mechanics rejected as Ontocode runtime dependencies.
+- [donor shell compression](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/shell/compress/engine.rs:1), [rules injection](/opt/demodb/_workfolder/_donors/lean-ctx/rust/src/rules_inject/content.rs:38), and [VS Code MCP wiring](/opt/demodb/_workfolder/_donors/lean-ctx/vscode-extension/src/cli-commands.ts:72) support the ADR's conclusion that lean-ctx remains external workflow tooling.
+
 ## Problem
 
 The project has many repeated operational tasks:
@@ -212,18 +221,18 @@ Architecture decision:
 
 GitNexus evidence used for this review:
 
-- State/backbone storage owner: [runtime.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime.rs:142), [memories.rs](/opt/demodb/_workfolder/ontocode/codex-rs/state/src/runtime/memories.rs:28), [local.rs](/opt/demodb/_workfolder/ontocode/codex-rs/agent-graph-store/src/local.rs:12)
-- Model-visible tool planning owner: [spec_plan.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/spec_plan.rs:548), [shell.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/handlers/shell.rs:59), [events.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/events.rs:143)
-- Extension/plugin contribution owner: [registry.rs](/opt/demodb/_workfolder/ontocode/codex-rs/ext/extension-api/src/registry.rs:124), [extension.rs](/opt/demodb/_workfolder/ontocode/codex-rs/ext/skills/src/extension.rs:68), [extension.rs](/opt/demodb/_workfolder/ontocode/codex-rs/ext/web-search/src/extension.rs:128)
-- Provider engine/descriptor owner: [descriptor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/descriptor.rs:7), [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:109)
-- OAuth credential storage/import/redaction owners: [oauth.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:58), [server.rs](/opt/demodb/_workfolder/ontocode/codex-rs/login/src/server.rs:643), [claude_oauth_import.rs](/opt/demodb/_workfolder/ontocode/codex-rs/external-agent-migration/src/claude_oauth_import.rs:10)
-- MCP owner: [connection_manager.rs](/opt/demodb/_workfolder/ontocode/codex-rs/codex-mcp/src/connection_manager.rs:105), [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/codex-rs/codex-mcp/src/mcp/mod.rs:318), [rmcp_client.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/rmcp_client.rs:376)
-- Context owner: [fragment.rs](/opt/demodb/_workfolder/ontocode/codex-rs/context-fragments/src/fragment.rs:46), [contextual_user_message.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/context/contextual_user_message.rs:46), [contributors.rs](/opt/demodb/_workfolder/ontocode/codex-rs/ext/extension-api/src/contributors.rs:100)
-- Hooks/external-agent owner: [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/external-agent-migration/src/lib.rs:110), [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:166), [hooks.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/tests/suite/hooks.rs:383)
-- Shell/policy owner: [shell.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/handlers/shell.rs:59), [unix_escalation.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/tools/runtimes/shell/unix_escalation.rs:102), [exec_policy.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/exec_policy.rs:631)
-- App-server/config compatibility owner: [export.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server-protocol/src/export.rs:193), [config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/config_processor.rs:148)
-- External-agent config migration owner: [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:172), [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:166)
-- Diff/test owner examples: [turn_diff_tracker.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/src/turn_diff_tracker.rs:63), [rmcp_client.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/tests/suite/rmcp_client.rs:2002), [history_cell/tests.rs](/opt/demodb/_workfolder/ontocode/codex-rs/tui/src/history_cell/tests.rs:576), [common/lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core/tests/common/lib.rs:48)
+- State/backbone storage owner: [runtime.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime.rs:142), [memories.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/state/src/runtime/memories.rs:28), [local.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/agent-graph-store/src/local.rs:12)
+- Model-visible tool planning owner: [spec_plan.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/spec_plan.rs:548), [shell.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/handlers/shell.rs:59), [events.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/events.rs:143)
+- Extension/plugin contribution owner: [registry.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/ext/extension-api/src/registry.rs:124), [extension.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/ext/skills/src/extension.rs:68), [extension.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/ext/web-search/src/extension.rs:128)
+- Provider engine/descriptor owner: [descriptor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/descriptor.rs:7), [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:109)
+- OAuth credential storage/import/redaction owners: [oauth.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:58), [server.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/login/src/server.rs:643), [claude_oauth_import.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/external-agent-migration/src/claude_oauth_import.rs:10)
+- MCP owner: [connection_manager.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/codex-mcp/src/connection_manager.rs:105), [mcp/mod.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/codex-mcp/src/mcp/mod.rs:318), [rmcp_client.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/rmcp_client.rs:376)
+- Context owner: [fragment.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/context-fragments/src/fragment.rs:46), [contextual_user_message.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/context/contextual_user_message.rs:46), [contributors.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/ext/extension-api/src/contributors.rs:100)
+- Hooks/external-agent owner: [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/external-agent-migration/src/lib.rs:110), [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:166), [hooks.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/tests/suite/hooks.rs:383)
+- Shell/policy owner: [shell.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/handlers/shell.rs:59), [unix_escalation.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/tools/runtimes/shell/unix_escalation.rs:102), [exec_policy.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/exec_policy.rs:631)
+- App-server/config compatibility owner: [export.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server-protocol/src/export.rs:193), [config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/config_processor.rs:148)
+- External-agent config migration owner: [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:172), [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:166)
+- Diff/test owner examples: [turn_diff_tracker.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/src/turn_diff_tracker.rs:63), [rmcp_client.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/tests/suite/rmcp_client.rs:2002), [history_cell/tests.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/tui/src/history_cell/tests.rs:576), [common/lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core/tests/common/lib.rs:48)
 
 ## Challenge Outcome
 
@@ -245,7 +254,7 @@ Every candidate must be assigned to exactly one implementation surface before wo
 | Surface | Allowed candidates | Existing owner | Constraint |
 |---|---|---|---|
 | Repository-only script | Memory-bank, tracking, GitNexus, doc-link, diff summaries | `.memory-bank`, scripts, GitNexus CLI/MCP | Must not become a model-visible tool or runtime dependency. |
-| Core operational backbone | Task cards, evidence records, gate results, readiness summaries | `codex-rs/state`, `codex-rs/state/src/runtime/memories.rs`, `codex-rs/context-fragments`, GitNexus evidence boundary | Stores facts and gates only; must not execute provider/MCP/shell behavior or expose public APIs by default. |
+| Core operational backbone | Task cards, evidence records, gate results, readiness summaries | `ontocode-rs/state`, `ontocode-rs/state/src/runtime/memories.rs`, `ontocode-rs/context-fragments`, GitNexus evidence boundary | Stores facts and gates only; must not execute provider/MCP/shell behavior or expose public APIs by default. |
 | GitNexus wrapper | Impact, context, rename, detect-change, architecture reuse reports | GitNexus MCP/CLI | Must not persist inferred graph data as truth. |
 | Codex model-visible tool | Only if the model must invoke it during a turn | Core tool spec/handlers and extension registry | Requires tool spec tests, lifecycle tests, and compatibility review. |
 | App-server API | Only if external clients need it | app-server v2 protocol and processors | Requires ADR, schema generation, docs, and app-server protocol tests. |
@@ -285,7 +294,7 @@ Affordability decision:
 - Freeze the 196-item catalog as backlog labels only.
 - Approve the Core Operational Backbone contract as the first core path.
 - Approve only Stage 0 as the first repository-script implementation.
-- Stage 0 must be repository-only, read-mostly, deterministic, and implemented outside `codex-rs`.
+- Stage 0 must be repository-only, read-mostly, deterministic, and implemented outside `ontocode-rs`.
 - Stage 0 must not call network services, not modify Rust code, not expose app-server APIs, and not register model-visible tools.
 - Any later stage requires a new task card added to this ADR with exact input files, output files, commands, and pass/fail checks.
 
@@ -298,7 +307,7 @@ A low-capability agent may implement only tasks that satisfy all of these rules:
 - The task has one command for verification.
 - The task has no architecture choice left open.
 - The task does not require reading more than 5 source files.
-- The task does not touch `codex-rs/core`, `codex-rs/app-server`, `codex-rs/model-provider`, `codex-rs/rmcp-client`, or `codex-rs/codex-mcp`.
+- The task does not touch `ontocode-rs/core`, `ontocode-rs/app-server`, `ontocode-rs/model-provider`, `ontocode-rs/rmcp-client`, or `ontocode-rs/codex-mcp`.
 - The task does not rename symbols.
 - The task does not change public config, CLI behavior, app-server protocol, credential persistence, shell policy, MCP behavior, provider runtime behavior, or model context injection.
 - If any rule is violated, stop and create a new ADR or senior-review task instead of coding.

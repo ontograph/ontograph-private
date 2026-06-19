@@ -91,21 +91,21 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--codex-command-runner-bin",
+        "--ontocode-command-runner-bin",
         type=Path,
         help=(
-            "Optional prebuilt Windows codex-command-runner.exe executable. "
-            "If omitted for Windows targets, codex-command-runner is built "
+            "Optional prebuilt Windows ontocode-command-runner.exe executable. "
+            "If omitted for Windows targets, ontocode-command-runner is built "
             "with Cargo."
         ),
     )
     parser.add_argument(
-        "--codex-windows-sandbox-setup-bin",
+        "--ontocode-windows-sandbox-setup-bin",
         type=Path,
         help=(
-            "Optional prebuilt Windows codex-windows-sandbox-setup.exe "
+            "Optional prebuilt Windows ontocode-windows-sandbox-setup.exe "
             "executable. If omitted for Windows targets, "
-            "codex-windows-sandbox-setup is built with Cargo."
+            "ontocode-windows-sandbox-setup is built with Cargo."
         ),
     )
     parser.add_argument(
@@ -147,13 +147,13 @@ def main() -> int:
         ),
         codex_command_runner_bin=resolve_optional_input_path(
             args.codex_command_runner_bin,
-            "prebuilt Windows codex-command-runner.exe executable",
-            "--codex-command-runner-bin",
+            "prebuilt Windows ontocode-command-runner.exe executable",
+            "--ontocode-command-runner-bin",
         ),
         codex_windows_sandbox_setup_bin=resolve_optional_input_path(
             args.codex_windows_sandbox_setup_bin,
-            "prebuilt Windows codex-windows-sandbox-setup.exe executable",
-            "--codex-windows-sandbox-setup-bin",
+            "prebuilt Windows ontocode-windows-sandbox-setup.exe executable",
+            "--ontocode-windows-sandbox-setup-bin",
         ),
     )
     version = read_workspace_version()

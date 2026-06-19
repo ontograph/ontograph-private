@@ -1,0 +1,24 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-features"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "ontocode_features"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-otel = { workspace = true }
+ontocode-protocol = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

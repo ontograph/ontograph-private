@@ -26,9 +26,10 @@ This is a compact memory-bank reference. Full rules remain in `../AGENTS.md`.
 ## Rust Workflow
 
 - Use `just test`, not `cargo test`.
-- Run `just fmt` in `codex-rs/` after Rust changes.
+- Run `just fmt` in `ontocode-rs/` after Rust changes.
 - Run scoped tests for changed crates.
 - Ask before running full workspace `just test`.
+- For compilation, build, packaging, install, or binary-run tasks, always give the user the exact command(s), the working directory or `--manifest-path`, and the expected binary or artifact path.
 - Do not kill Rust commands by PID; slow Rust builds and locks are expected.
 - If `codex-cli` hits linker OOM, use:
 

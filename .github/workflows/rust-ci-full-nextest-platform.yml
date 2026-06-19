@@ -60,7 +60,7 @@ jobs:
     timeout-minutes: 60
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: ontocode-rs
     env:
       # Windows ARM64 archives are built on Windows x64, while their shards run
       # on native Windows ARM64. Key producer-side caches by the archive runner
@@ -210,18 +210,18 @@ jobs:
             cargo build \
               --target ${{ inputs.target }} \
               --profile ${{ inputs.profile }} \
-              -p codex-linux-sandbox \
-              --bin codex-linux-sandbox
-            cp "target/${{ inputs.target }}/${{ inputs.profile }}/codex-linux-sandbox" "${helper_dir}/"
+              -p ontocode-linux-sandbox \
+              --bin ontocode-linux-sandbox
+            cp "target/${{ inputs.target }}/${{ inputs.profile }}/ontocode-linux-sandbox" "${helper_dir}/"
           else
             cargo build \
               --target ${{ inputs.target }} \
               --profile ${{ inputs.profile }} \
-              -p codex-windows-sandbox \
-              --bin codex-windows-sandbox-setup \
-              --bin codex-command-runner
-            cp "target/${{ inputs.target }}/${{ inputs.profile }}/codex-windows-sandbox-setup.exe" "${helper_dir}/"
-            cp "target/${{ inputs.target }}/${{ inputs.profile }}/codex-command-runner.exe" "${helper_dir}/"
+              -p ontocode-windows-sandbox \
+              --bin ontocode-windows-sandbox-setup \
+              --bin ontocode-command-runner
+            cp "target/${{ inputs.target }}/${{ inputs.profile }}/ontocode-windows-sandbox-setup.exe" "${helper_dir}/"
+            cp "target/${{ inputs.target }}/${{ inputs.profile }}/ontocode-command-runner.exe" "${helper_dir}/"
           fi
 
       - name: Upload Cargo timings (nextest)
@@ -229,7 +229,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: cargo-timings-rust-ci-nextest-${{ inputs.target }}-${{ inputs.profile }}
-          path: codex-rs/target/**/cargo-timings/cargo-timing.html
+          path: ontocode-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       - name: Upload nextest archive
@@ -293,7 +293,7 @@ jobs:
     timeout-minutes: 60
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: ontocode-rs
     env:
       NEXTEST_ARCHIVE_FILE: nextest-${{ inputs.artifact_id }}.tar.zst
       TEST_HELPERS_ARTIFACT: nextest-test-helpers-${{ inputs.artifact_id }}
@@ -376,14 +376,14 @@ jobs:
             helper_dir="${RUNNER_TEMP}/${TEST_HELPERS_ARTIFACT}"
             helper_target_dir="$(pwd)/target/${{ inputs.target }}/${{ inputs.profile }}"
             mkdir -p "${helper_target_dir}"
-            cp "${helper_dir}/codex-linux-sandbox" "${helper_target_dir}/"
-            chmod +x "${helper_target_dir}/codex-linux-sandbox"
+            cp "${helper_dir}/ontocode-linux-sandbox" "${helper_target_dir}/"
+            chmod +x "${helper_target_dir}/ontocode-linux-sandbox"
           elif [[ "${RUNNER_OS}" == "Windows" ]]; then
             helper_dir="${RUNNER_TEMP}/${TEST_HELPERS_ARTIFACT}"
             helper_target_dir="$(pwd)/target/${{ inputs.target }}/${{ inputs.profile }}"
             mkdir -p "${helper_target_dir}"
-            cp "${helper_dir}/codex-windows-sandbox-setup.exe" "${helper_target_dir}/"
-            cp "${helper_dir}/codex-command-runner.exe" "${helper_target_dir}/"
+            cp "${helper_dir}/ontocode-windows-sandbox-setup.exe" "${helper_target_dir}/"
+            cp "${helper_dir}/ontocode-command-runner.exe" "${helper_target_dir}/"
           fi
 
           nextest_args=(
@@ -399,16 +399,16 @@ jobs:
 
           test_command=(cargo nextest "${nextest_args[@]}")
           if [[ "${RUNNER_OS}" == "Linux" ]]; then
-            sandbox_helper="${helper_target_dir}/codex-linux-sandbox"
+            sandbox_helper="${helper_target_dir}/ontocode-linux-sandbox"
             test_command=(
               env
-              "CARGO_BIN_EXE_codex-linux-sandbox=${sandbox_helper}"
-              "CARGO_BIN_EXE_codex_linux_sandbox=${sandbox_helper}"
+              "CARGO_BIN_EXE_ontocode-linux-sandbox=${sandbox_helper}"
+              "CARGO_BIN_EXE_ontocode_linux_sandbox=${sandbox_helper}"
               cargo nextest "${nextest_args[@]}"
             )
           elif [[ "${RUNNER_OS}" == "Windows" ]]; then
-            setup_helper="$(cygpath -w "${helper_target_dir}/codex-windows-sandbox-setup.exe")"
-            command_runner="$(cygpath -w "${helper_target_dir}/codex-command-runner.exe")"
+            setup_helper="$(cygpath -w "${helper_target_dir}/ontocode-windows-sandbox-setup.exe")"
+            command_runner="$(cygpath -w "${helper_target_dir}/ontocode-command-runner.exe")"
             test_command=(
               env
               "CARGO_BIN_EXE_codex_windows_sandbox_setup=${setup_helper}"
@@ -428,7 +428,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: nextest-junit-rust-ci-${{ inputs.artifact_id }}-shard-${{ matrix.shard }}
-          path: codex-rs/target/nextest/default/junit.xml
+          path: ontocode-rs/target/nextest/default/junit.xml
           if-no-files-found: warn
 
       - name: Tear down remote test env

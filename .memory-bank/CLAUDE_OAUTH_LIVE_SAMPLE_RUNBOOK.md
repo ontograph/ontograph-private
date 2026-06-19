@@ -33,6 +33,41 @@ Keep structural fields intact:
 - expiry field name and unit
 - issuer or metadata URLs
 
+## Accepted Artifact Shape
+
+The accepted live-evidence artifact is a single redacted JSON bundle with a
+small metadata envelope and the sampled credential payload.
+
+Required envelope fields:
+
+- `captured_at_utc`
+- `captured_from` or an equivalent source label
+- `host_os`
+- `claude_version` or equivalent build identifier
+- `redaction_notes`
+
+Required payload shape:
+
+- one top-level credential collection
+- at least one `mcp_oauth` record
+- each `mcp_oauth` record must keep:
+  - `connector_name`
+  - `server_url`
+  - `client_id`
+  - `access_token`
+  - `refresh_token`, if present
+  - `scopes`, if present
+  - `expires_at`, if present
+  - `expires_at_unit`, if present
+  - `issuer` or `auth_server_metadata_url`, if present
+  - account/workspace/organization metadata, if present
+
+Redaction must be deterministic:
+
+- use stable placeholder strings for repeated values
+- never leave raw tokens, cookies, or bearer headers in the sample
+- never redact the structural keys listed above
+
 ## Where To Look
 
 Check these locations on a machine where Claude has an authenticated MCP connector:
@@ -77,6 +112,18 @@ Expected successful output includes:
 
 If status is `NonImportable`, Stage 1 should close with a non-importable verdict and the next implementation should use re-auth or externally mediated refresh instead of direct token import.
 
+## Stop Conditions
+
+Stop the capture session and do not expand scope if any of these are true:
+
+- the sample lacks `server_url`, `client_id`, or `access_token`
+- the only usable record is a global account grant with no connector boundary
+- the sample would require logging raw tokens to prove its shape
+- validating the sample would require changing Claude runtime or introducing a
+  new auth broker, provider registry, or public API
+- the output cannot be redacted without destroying the structural fields needed
+  for import mapping
+
 ## Acceptance Criteria
 
 The sample unblocks T2 only if it answers:
@@ -90,7 +137,7 @@ The sample unblocks T2 only if it answers:
 
 ## Current Validator
 
-The opt-in validator lives in `codex-rs/external-agent-migration/src/claude_oauth_import.rs` as:
+The opt-in validator lives in `ontocode-rs/external-agent-migration/src/claude_oauth_import.rs` as:
 
 - `validates_redacted_live_sample_from_env`
 

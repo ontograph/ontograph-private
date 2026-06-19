@@ -5,7 +5,7 @@ import type { OntocodeConfigObject } from "../src/codexOptions";
 
 export const codexExecPath =
   process.env.CODEX_EXEC_PATH ??
-  path.join(process.cwd(), "..", "..", "codex-rs", "target", "debug", "codex");
+  path.join(process.cwd(), "..", "..", "ontocode-rs", "target", "debug", "codex");
 
 type CreateTestClientOptions = {
   apiKey?: string;

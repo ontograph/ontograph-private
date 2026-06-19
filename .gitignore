@@ -96,3 +96,4 @@ __pycache__/
 tmp/
 NEXT_STEPS_AGENT_PROMPT.md
 AGENTS.md.bak
+.ontoindex

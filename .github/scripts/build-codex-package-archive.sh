@@ -9,8 +9,8 @@ Usage: build-codex-package-archive.sh \
   --entrypoint-dir <dir> \
   --archive-dir <dir> \
   [--bwrap-bin <path>] \
-  [--codex-command-runner-bin <path>] \
-  [--codex-windows-sandbox-setup-bin <path>] \
+  [--ontocode-command-runner-bin <path>] \
+  [--ontocode-windows-sandbox-setup-bin <path>] \
   [--target-suffixed-entrypoint]
 EOF
 }
@@ -48,18 +48,18 @@ while [[ $# -gt 0 ]]; do
       bwrap_bin_provided="true"
       shift 2
       ;;
-    --codex-command-runner-bin)
+    --ontocode-command-runner-bin)
       resource_args+=(
-        --codex-command-runner-bin
-        "${2:?--codex-command-runner-bin requires a value}"
+        --ontocode-command-runner-bin
+        "${2:?--ontocode-command-runner-bin requires a value}"
       )
       command_runner_bin_provided="true"
       shift 2
       ;;
-    --codex-windows-sandbox-setup-bin)
+    --ontocode-windows-sandbox-setup-bin)
       resource_args+=(
-        --codex-windows-sandbox-setup-bin
-        "${2:?--codex-windows-sandbox-setup-bin requires a value}"
+        --ontocode-windows-sandbox-setup-bin
+        "${2:?--ontocode-windows-sandbox-setup-bin requires a value}"
       )
       sandbox_setup_bin_provided="true"
       shift 2
@@ -92,9 +92,9 @@ case "$bundle" in
     archive_stem="codex-package"
     ;;
   app-server)
-    variant="codex-app-server"
-    entrypoint="codex-app-server"
-    archive_stem="codex-app-server-package"
+    variant="ontocode-app-server"
+    entrypoint="ontocode-app-server"
+    archive_stem="ontocode-app-server-package"
     ;;
   *)
     echo "No Codex package variant for bundle: $bundle" >&2
@@ -122,13 +122,13 @@ case "$target" in
     fi
     ;;
   *windows*)
-    command_runner_bin="${entrypoint_dir%/}/codex-command-runner.exe"
-    sandbox_setup_bin="${entrypoint_dir%/}/codex-windows-sandbox-setup.exe"
+    command_runner_bin="${entrypoint_dir%/}/ontocode-command-runner.exe"
+    sandbox_setup_bin="${entrypoint_dir%/}/ontocode-windows-sandbox-setup.exe"
     if [[ "$command_runner_bin_provided" == "false" && -f "$command_runner_bin" ]]; then
-      resource_args+=(--codex-command-runner-bin "$command_runner_bin")
+      resource_args+=(--ontocode-command-runner-bin "$command_runner_bin")
     fi
     if [[ "$sandbox_setup_bin_provided" == "false" && -f "$sandbox_setup_bin" ]]; then
-      resource_args+=(--codex-windows-sandbox-setup-bin "$sandbox_setup_bin")
+      resource_args+=(--ontocode-windows-sandbox-setup-bin "$sandbox_setup_bin")
     fi
     ;;
 esac

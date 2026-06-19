@@ -107,7 +107,7 @@ def test_root_fmt_recipes_use_shared_formatter_driver() -> None:
         ],
     }
     expected = {
-        "working_directory": 'set working-directory := "codex-rs"',
+        "working_directory": 'set working-directory := "ontocode-rs"',
         "fmt_comment": "# Format the justfile, Rust, Python SDK code, and Python scripts.",
         "fmt_commands": ["{{ python }} ../scripts/format.py"],
         "fmt_check_comment": "# Check formatting without modifying files.",

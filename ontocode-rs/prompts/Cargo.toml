@@ -1,0 +1,25 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-prompts"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "ontocode_prompts"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+ontocode-context-fragments = { workspace = true }
+ontocode-git-utils = { workspace = true }
+ontocode-execpolicy = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+ontocode-utils-template = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

@@ -1,0 +1,10 @@
+---
+source: tui/src/chatwidget/tests/popups_and_settings.rs
+expression: popup.clone()
+---
+  Select Model and Effort
+  Access legacy models by running codex -m <model_name> or in your config.toml
+
+› 1. gpt-5.4 (current)  gpt-5.4 description
+
+  Press enter to confirm or esc to go back

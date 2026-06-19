@@ -2,13 +2,27 @@
 
 ## Status
 
-Challenged
+Challenged; superseded for model runtime by the 2026-06-19 OpenAI-only native
+auth policy.
 
 ## Date
 
 2026-06-04
 
 ## Context
+
+Current authority, 2026-06-19:
+
+- OpenAI/Codex is the only native OAuth-backed model provider.
+- Claude model runtime must be configured as an external OpenAI-compatible API
+  provider or sidecar.
+- Ontocode core must not import, persist, refresh, or consume Claude OAuth
+  credentials for model execution.
+- Claude MCP OAuth, if ever needed, remains a separate MCP-domain question and
+  must not become model-provider auth.
+
+The previous 2026-06-18 authority below is superseded where it implied future
+Claude model OAuth work inside Ontocode core.
 
 The current codebase has two separate authentication domains:
 
@@ -20,6 +34,17 @@ This separation works for the current first-party and custom-provider cases, but
 The immediate product goal is to support importing OAuth-backed Claude credentials instead of only importing `.claude` MCP configuration and asking the user to authenticate again.
 
 The broader architectural goal is to support more providers without expanding hard-coded branches or embedding provider-specific credential translation logic throughout the runtime.
+
+Superseded authority, 2026-06-18:
+
+- This ADR does not authorize a broad credential broker or second auth stack.
+- Claude OAuth import/runtime remains blocked on sanitized real credential
+  evidence and security review.
+- Codex/OpenAI remains the first-class default and fallback.
+- Future Claude OAuth work must be additive and provider-scoped; it must not
+  replace, mutate, or make Codex/OpenAI depend on Claude auth.
+- This authority is replaced by the 2026-06-19 revision above and
+  [OpenAI-Only Provider Policy Cleanup](audit_session-2026-06-19-openai-only-provider-policy.md).
 
 ## Problem
 
@@ -201,7 +226,7 @@ This is a gating issue. If Claude stores only opaque claude.ai connector grants,
 
 ### 2. A New Broker May Duplicate Existing MCP OAuth Storage
 
-The repo already has MCP OAuth storage in `codex-rs/rmcp-client/src/oauth.rs`.
+The repo already has MCP OAuth storage in `ontocode-rs/rmcp-client/src/oauth.rs`.
 
 That implementation already includes:
 
@@ -312,6 +337,8 @@ Required outputs:
 - refresh mechanism
 - account and scope metadata
 - legal/security constraints for import
+- one redacted live sample bundle that preserves the connector boundary and can
+  be validated without exposing secret values
 
 No broad refactor should start before this is complete.
 
@@ -325,6 +352,19 @@ Success criteria:
 - `mcpServerStatus/list` reports authenticated state
 - the MCP server can be called successfully
 - refresh either works locally or fails with a clear recoverable state
+
+The only approved live-evidence input for this stage is a redacted bundle that
+contains:
+
+- source metadata for the machine and Claude build
+- a connector-scoped credential record with preserved `connector_name`,
+  `server_url`, `client_id`, `scopes`, and expiry fields when present
+- deterministic redactions for tokens, account IDs, workspace IDs, and emails
+- validator output showing `Complete` or `Partial` with at least one
+  importable credential
+
+If the live sample instead proves only an opaque global grant, that is a valid
+decision record but not a basis for enabling runtime import.
 
 If this succeeds, the first production implementation should prefer extending the existing MCP OAuth store instead of creating a new broker.
 

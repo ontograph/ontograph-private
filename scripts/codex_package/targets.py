@@ -57,10 +57,10 @@ PACKAGE_VARIANTS: dict[str, PackageVariant] = {
         executable_stem="codex",
         aliases=["ontocode"],
     ),
-    "codex-app-server": PackageVariant(
-        name="codex-app-server",
-        cargo_bin="codex-app-server",
-        executable_stem="codex-app-server",
+    "ontocode-app-server": PackageVariant(
+        name="ontocode-app-server",
+        cargo_bin="ontocode-app-server",
+        executable_stem="ontocode-app-server",
     ),
 }
 

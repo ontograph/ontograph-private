@@ -24,12 +24,12 @@ The ADR is explicitly `Challenged`, and the real Claude OAuth import path remain
 ## Done
 
 - Stage 0 evidence gate is documented/tracked as done.
-- Claude OAuth parser/report/status boundary exists in `codex-rs/external-agent-migration/src/claude_oauth_import.rs`.
+- Claude OAuth parser/report/status boundary exists in `ontocode-rs/external-agent-migration/src/claude_oauth_import.rs`.
 - Status outcomes exist: `Complete`, `Partial`, `NonImportable`, `Empty`, `ConsentRequired`, and `LockedKeychain`.
 - Debug output redacts token-bearing fields.
 - Synthetic fixture tests exist.
 - Ignored live-sample validator exists behind `CLAUDE_OAUTH_REDACTED_SAMPLE`.
-- Existing MCP OAuth storage helper exists in `codex-rs/rmcp-client/src/oauth.rs`.
+- Existing MCP OAuth storage helper exists in `ontocode-rs/rmcp-client/src/oauth.rs`.
 - Provider-selector work was separated into another ADR.
 
 ## Verification

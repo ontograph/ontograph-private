@@ -1,0 +1,8 @@
+# R5BI Models Manager Rename Worker Verification
+
+- Identity-only rename: `codex-models-manager` -> `ontocode-models-manager`, `codex_models_manager` -> `ontocode_models_manager`.
+- Preserved behavior: model catalog loading, cache TTL/etag behavior, remote model refresh, default model selection, model override precedence, collaboration mode presets, auth/backend behavior, app-server/TUI/CLI model listing behavior, config keys, wire/generated names, telemetry/product strings, persisted state, and the existing `models-manager` directory path.
+- Changed files: `ontocode-rs/Cargo.toml`, `ontocode-rs/Cargo.lock`, `ontocode-rs/models-manager/Cargo.toml`, `ontocode-rs/models-manager/BUILD.bazel`, `ontocode-rs/models-manager/src/lib.rs`, plus the dependent Cargo manifests and source import sites under app-server, cli, core, core-api, memories/write, model-provider, and tui.
+- Verification: `CARGO_BUILD_JOBS=8 just test -p ontocode-models-manager --no-tests=pass`; `CARGO_BUILD_JOBS=8 cargo check -p ontocode-core --tests`; `CARGO_BUILD_JOBS=8 cargo check -p ontocode-app-server --tests`; `CARGO_BUILD_JOBS=8 cargo check -p ontocode-tui --tests`; `CARGO_BUILD_JOBS=8 cargo check -p ontocode-cli --tests`; `CARGO_BUILD_JOBS=8 just fmt`; `CARGO_BUILD_JOBS=8 just bazel-lock-update`; `CARGO_BUILD_JOBS=8 just bazel-lock-check`; stale-reference search; cargo metadata residual count; `git diff --check`; OntoIndex `detect-changes --repo codex`.
+- Results: all required checks passed; stale-reference search returned no `codex_models_manager` or `codex-models-manager` hits; cargo metadata reports 12 remaining `codex-*` packages.
+- Fallback model: `gpt-5.4-mini` after Spark usage-limit fallback.

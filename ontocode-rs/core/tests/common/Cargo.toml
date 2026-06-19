@@ -1,0 +1,52 @@
+[package]
+name = "core_test_support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+assert_cmd = { workspace = true }
+base64 = { workspace = true }
+ontocode-arg0 = { workspace = true }
+ontocode-config = { workspace = true }
+ontocode-core = { workspace = true }
+ontocode-extension-api = { workspace = true }
+ontocode-exec-server = { workspace = true }
+ontocode-features = { workspace = true }
+ontocode-hooks = { workspace = true }
+ontocode-login = { workspace = true }
+ontocode-model-provider-info = { workspace = true }
+ontocode-models-manager = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+ontocode-utils-cargo-bin = { workspace = true }
+ctor = { workspace = true }
+futures = { workspace = true }
+notify = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+regex-lite = { workspace = true }
+serde_json = { workspace = true }
+similar = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["net", "time"] }
+tokio-tungstenite = { workspace = true }
+tracing = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { workspace = true }
+walkdir = { workspace = true }
+wiremock = { workspace = true }
+shlex = { workspace = true }
+zstd = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+reqwest = { workspace = true }

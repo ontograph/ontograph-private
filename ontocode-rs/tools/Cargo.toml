@@ -1,0 +1,38 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-tools"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+ontocode-app-server-protocol = { workspace = true }
+ontocode-code-mode = { workspace = true }
+ontocode-features = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+ontocode-utils-output-truncation = { workspace = true }
+ontocode-utils-pty = { workspace = true }
+ontocode-utils-string = { workspace = true }
+jsonptr = { workspace = true }
+rmcp = { workspace = true, default-features = false, features = [
+    "base64",
+    "macros",
+    "schemars",
+    "server",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+
+[dev-dependencies]
+ontocode-utils-cargo-bin = { workspace = true }
+pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false

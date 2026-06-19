@@ -17,10 +17,10 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Verify codex-rs Cargo manifests inherit workspace settings
+      - name: Verify ontocode-rs Cargo manifests inherit workspace settings
         run: python3 .github/scripts/verify_cargo_workspace_manifests.py
 
-      - name: Verify codex-tui does not import codex-core directly
+      - name: Verify ontocode-tui does not import codex-core directly
         run: python3 .github/scripts/verify_tui_core_boundary.py
 
       - name: Verify Bazel clippy flags match Cargo workspace lints

@@ -38,7 +38,7 @@ The main blockers are:
 
 - avoid adding a broad credential broker before evidence proves it is needed
 - preserve the existing MCP OAuth store as the first Claude import target
-- keep provider-specific runtime behavior localized in `codex-rs/model-provider`
+- keep provider-specific runtime behavior localized in `ontocode-rs/model-provider`
 - support many OpenAI-compatible providers through config and descriptors
 - provide a path for truly heterogeneous providers without making core auth code provider-specific
 - keep each implementation slice independently testable and reviewable
@@ -62,9 +62,9 @@ Architecture decision:
 
 Related source links:
 
-- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:166)
-- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:78)
-- [oauth.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:58)
+- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:166)
+- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:78)
+- [oauth.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:58)
 
 ## OpenClaw Review Addendum
 
@@ -85,11 +85,11 @@ Architecture decision:
 
 Related source links:
 
-- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:260)
-- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:391)
-- [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/external-agent-migration/src/lib.rs:1)
-- [oauth.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:58)
-- [loader.rs](/opt/demodb/_workfolder/ontocode/codex-rs/core-plugins/src/loader.rs:555)
+- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:260)
+- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:391)
+- [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/external-agent-migration/src/lib.rs:1)
+- [oauth.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:58)
+- [loader.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/core-plugins/src/loader.rs:555)
 
 ## Hermes Agent Review Addendum
 
@@ -109,10 +109,10 @@ Architecture decision:
 
 Related source links:
 
-- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:260)
-- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:391)
-- [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/external-agent-migration/src/lib.rs:227)
-- [oauth.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:58)
+- [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:260)
+- [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:391)
+- [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/external-agent-migration/src/lib.rs:227)
+- [oauth.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:58)
 
 ## GBrain Review Addendum
 
@@ -206,7 +206,7 @@ Scope:
 Pros:
 
 - improves provider growth with low runtime risk
-- keeps provider behavior centralized in `codex-rs/model-provider`
+- keeps provider behavior centralized in `ontocode-rs/model-provider`
 - avoids plugin security complexity for the first extensibility step
 - avoids premature public schema commitments
 
@@ -368,7 +368,7 @@ Tests:
 Implementation:
 
 - keep `ProviderEngine` private until a real provider requires user-selectable engine configuration
-- keep descriptor behavior internal to `codex-rs/model-provider`
+- keep descriptor behavior internal to `ontocode-rs/model-provider`
 - add no schema-backed `engine`, auth policy, model catalog policy, or capability override fields yet
 - preserve existing provider config compatibility
 

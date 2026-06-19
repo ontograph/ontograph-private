@@ -17,7 +17,7 @@ from typing import Sequence
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-BUILD_SCRIPT = REPO_ROOT / "codex-cli" / "scripts" / "build_npm_package.py"
+BUILD_SCRIPT = REPO_ROOT / "ontocode-cli" / "scripts" / "build_npm_package.py"
 WORKFLOW_NAME = ".github/workflows/rust-release.yml"
 GITHUB_REPO = "openai/codex"
 BINARY_TARGETS = (
@@ -56,10 +56,10 @@ class WorkflowArtifact:
 
 
 BINARY_COMPONENTS = {
-    "codex-responses-api-proxy": BinaryComponent(
-        artifact_prefix="codex-responses-api-proxy",
-        dest_dir="codex-responses-api-proxy",
-        binary_basename="codex-responses-api-proxy",
+    "ontocode-responses-api-proxy": BinaryComponent(
+        artifact_prefix="ontocode-responses-api-proxy",
+        dest_dir="ontocode-responses-api-proxy",
+        binary_basename="ontocode-responses-api-proxy",
     ),
 }
 

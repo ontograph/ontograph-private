@@ -1,4 +1,4 @@
-set working-directory := "codex-rs"
+set working-directory := "ontocode-rs"
 set positional-arguments
 export JUST_SHELL := justfile_directory() / "scripts/just-shell.py"
 set shell := ["python3", "-c", 'import os, runpy; runpy.run_path(os.environ["JUST_SHELL"], run_name="__main__")']
@@ -11,16 +11,17 @@ python := if os_family() == "windows" { "python" } else { "python3" }
 help:
     just -l
 
-# `codex`
-alias c := codex
-codex *args:
-    cargo run --bin codex -- {args}
+# `ontocode`
+alias c := ontocode
+alias codex := ontocode
+ontocode *args:
+    cargo run --bin ontocode -- {args}
 
-# `codex exec`
+# `ontocode exec`
 exec *args:
-    cargo run --bin codex -- exec {args}
+    cargo run --bin ontocode -- exec {args}
 
-# Start `codex exec-server` and run codex-tui.
+# Start `ontocode exec-server` and run ontocode-tui.
 [no-cd]
 [positional-arguments]
 [unix]
@@ -29,12 +30,12 @@ tui-with-exec-server *args:
 
 # Run the CLI version of the file-search crate.
 file-search *args:
-    cargo run --bin codex-file-search -- {args}
+    cargo run --bin ontocode-file-search -- {args}
 
 # Build the CLI and run the app-server test client
 app-server-test-client *args:
-    cargo build -p codex-cli
-    cargo run -p codex-app-server-test-client -- --codex-bin ./target/debug/codex {args}
+    cargo build -p ontocode-cli --bin ontocode
+    cargo run -p ontocode-app-server-test-client -- --codex-bin ./target/debug/ontocode {args}
 
 # Format the justfile, Rust, Python SDK code, and Python scripts.
 fmt:
@@ -97,17 +98,18 @@ bench *args:
 bench-smoke:
     just bench -- --test
 
-# Build and run Codex from source using Bazel.
+# Build and run Ontocode from source using Bazel.
+alias bazel-codex := bazel-ontocode
 # On Unix, use `[no-cd]` and `--run_under="cd $PWD &&"` to ensure Bazel runs
 # the command in the current working directory.
 [no-cd]
 [unix]
-bazel-codex *args:
-    bazel run //codex-rs/cli:codex --run_under="cd $PWD &&" -- "$@"
+bazel-ontocode *args:
+    bazel run //ontocode-rs/cli:ontocode --run_under="cd $PWD &&" -- "$@"
 
 [windows]
-bazel-codex *args:
-    bazel run //codex-rs/cli:codex --run_under='cd /d "{{ invocation_directory_native() }}" &&' -- @($args | Select-Object -Skip 1)
+bazel-ontocode *args:
+    bazel run //ontocode-rs/cli:ontocode --run_under='cd /d "{{ invocation_directory_native() }}" &&' -- @($args | Select-Object -Skip 1)
 
 [no-cd]
 bazel-lock-update:
@@ -136,25 +138,25 @@ bazel-argument-comment-lint:
     bazel build --config=argument-comment-lint -- $({{ justfile_directory() }}/tools/argument-comment-lint/list-bazel-targets.sh)
 
 build-for-release:
-    bazel build //codex-rs/cli:release_binaries
+    bazel build //ontocode-rs/cli:release_binaries
 
 # Run the MCP server
 mcp-server-run *args:
-    cargo run -p codex-mcp-server -- {args}
+    cargo run -p ontocode-mcp-server -- {args}
 
 # Regenerate the json schema for config.toml from the current config types.
 write-config-schema:
-    cargo run -p codex-core --bin codex-write-config-schema
+    cargo run -p ontocode-core --bin ontocode-write-config-schema
 
 # Regenerate vendored app-server protocol schema artifacts.
 write-app-server-schema *args:
-    cargo run -p codex-app-server-protocol --bin write_schema_fixtures -- {args}
+    cargo run -p ontocode-app-server-protocol --bin write_schema_fixtures -- {args}
 
 [no-cd]
 write-hooks-schema:
-    cargo run --manifest-path {{ justfile_directory() }}/codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures
+    cargo run --manifest-path {{ justfile_directory() }}/ontocode-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures
 
-# Run the argument-comment Dylint checks across codex-rs.
+# Run the argument-comment Dylint checks across ontocode-rs.
 [no-cd]
 [unix]
 argument-comment-lint *args:

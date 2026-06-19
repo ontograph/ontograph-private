@@ -125,18 +125,18 @@ If you are changing the lint crate itself, use the source-build wrapper:
 ./tools/argument-comment-lint/run.py -p codex-core
 ```
 
-Run the lint against `codex-rs` from the repo root:
+Run the lint against `ontocode-rs` from the repo root:
 
 ```bash
 just argument-comment-lint
 bazel build --config=argument-comment-lint -- \
   $(./tools/argument-comment-lint/list-bazel-targets.sh)
-./tools/argument-comment-lint/run-prebuilt-linter.py -p codex-core
+./tools/argument-comment-lint/run-prebuilt-linter.py -p ontocode-core
 just argument-comment-lint -p codex-core
 ```
 
 If no package selection is provided, `just argument-comment-lint` now defaults
-to the Bazel aspect path over `//codex-rs/...`. The Python wrappers remain the
+to the Bazel aspect path over `//ontocode-rs/...`. The Python wrappers remain the
 package-scoped escape hatch and still default the underlying Cargo invocation
 to `--all-targets` unless you explicitly narrow the target set, so targeted
 wrapper runs cover test-only call sites by default. The Bazel entrypoints use
@@ -148,7 +148,7 @@ Repo runs also promote `argument_comment_mismatch` and
 `uncommented_anonymous_literal_argument` to errors by default:
 
 ```bash
-./tools/argument-comment-lint/run-prebuilt-linter.py -p codex-core
+./tools/argument-comment-lint/run-prebuilt-linter.py -p ontocode-core
 ```
 
 The wrapper does that by setting `DYLINT_RUSTFLAGS`, and it leaves an explicit
@@ -166,5 +166,5 @@ CARGO_INCREMENTAL=1 \
 To override an explicitly narrow target selection, or to be explicit in scripts:
 
 ```bash
-./tools/argument-comment-lint/run-prebuilt-linter.py -p codex-core -- --all-targets
+./tools/argument-comment-lint/run-prebuilt-linter.py -p ontocode-core -- --all-targets
 ```

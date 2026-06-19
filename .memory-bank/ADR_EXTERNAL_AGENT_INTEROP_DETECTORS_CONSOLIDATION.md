@@ -38,13 +38,13 @@ The source ADRs remain historical source-evidence files. This ADR is the dispatc
 
 | Surface | Existing owner | Source link | Consolidated requirement |
 |---|---|---|---|
-| External-agent detection | `ExternalAgentConfigService` | [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/config/external_agent_config.rs:104) | Future Rust integration must extend this owner, not create a second detector service. |
-| App-server request processing | `ExternalAgentConfigRequestProcessor` | [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/codex-rs/app-server/src/request_processors/external_agent_config_processor.rs:46) | No new app-server API in Stage 0; later API changes require separate compatibility ADR/tests. |
-| External-agent import helpers | `external-agent-migration` crate | [lib.rs](/opt/demodb/_workfolder/ontocode/codex-rs/external-agent-migration/src/lib.rs:111) | Stage 0 must not call import helpers that write hooks, commands, subagents, MCP config, or skills. |
-| MCP | `McpConnectionManager` and RMCP owners | [connection_manager.rs](/opt/demodb/_workfolder/ontocode/codex-rs/codex-mcp/src/connection_manager.rs:104) | Detect MCP config presence only; do not mutate MCP config or create a parallel MCP registry. |
-| Model context | `ContextualUserFragment` | [fragment.rs](/opt/demodb/_workfolder/ontocode/codex-rs/context-fragments/src/fragment.rs:46) | No Stage 0 context injection; later context must use bounded fragments with hard caps. |
-| Provider runtime | `model-provider` descriptors/engines | [provider.rs](/opt/demodb/_workfolder/ontocode/codex-rs/model-provider/src/provider.rs:108) | Provider mapping is out of scope; delegate to provider ADRs. |
-| Credentials/OAuth | login/RMCP auth stores and provider auth ADRs | [oauth.rs](/opt/demodb/_workfolder/ontocode/codex-rs/rmcp-client/src/oauth.rs:58) | Report auth artifact presence only; never import or print token values. |
+| External-agent detection | `ExternalAgentConfigService` | [external_agent_config.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/config/external_agent_config.rs:104) | Future Rust integration must extend this owner, not create a second detector service. |
+| App-server request processing | `ExternalAgentConfigRequestProcessor` | [external_agent_config_processor.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/app-server/src/request_processors/external_agent_config_processor.rs:46) | No new app-server API in Stage 0; later API changes require separate compatibility ADR/tests. |
+| External-agent import helpers | `external-agent-migration` crate | [lib.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/external-agent-migration/src/lib.rs:111) | Stage 0 must not call import helpers that write hooks, commands, subagents, MCP config, or skills. |
+| MCP | `McpConnectionManager` and RMCP owners | [connection_manager.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/codex-mcp/src/connection_manager.rs:104) | Detect MCP config presence only; do not mutate MCP config or create a parallel MCP registry. |
+| Model context | `ContextualUserFragment` | [fragment.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/context-fragments/src/fragment.rs:46) | No Stage 0 context injection; later context must use bounded fragments with hard caps. |
+| Provider runtime | `model-provider` descriptors/engines | [provider.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/model-provider/src/provider.rs:108) | Provider mapping is out of scope; delegate to provider ADRs. |
+| Credentials/OAuth | login/RMCP auth stores and provider auth ADRs | [oauth.rs](/opt/demodb/_workfolder/ontocode/ontocode-rs/rmcp-client/src/oauth.rs:58) | Report auth artifact presence only; never import or print token values. |
 | Operational evidence | consolidated evidence backbone | [ADR_GITNEXUS_CODE_GRAPH_ADOPTION.md](ADR_GITNEXUS_CODE_GRAPH_ADOPTION.md) | Detector output may later be imported as `workflow` or `architecture` evidence only through the unified evidence model. |
 
 ## Consolidated Stage 0 Contract

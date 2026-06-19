@@ -74,7 +74,7 @@ This is not asserted to be Claude's real schema. It is a contract fixture for te
 
 ## Mapping Target
 
-The first approved storage target is `StoredOAuthTokens` in `codex-rs/rmcp-client/src/oauth.rs`.
+The first approved storage target is `StoredOAuthTokens` in `ontocode-rs/rmcp-client/src/oauth.rs`.
 
 Required mapping:
 
@@ -140,6 +140,17 @@ Tests must not write to the real user keyring or real home directory. Use tempor
 
 Before marking Stage 1 done, validate against a real redacted sample that preserves schema and non-secret structural values.
 
+Accepted live evidence shape:
+
+- one redacted JSON bundle with capture metadata and the sampled credential
+  payload
+- at least one `mcp_oauth` record
+- preserved connector name, server URL, OAuth client ID, scopes, expiry
+  fields, and issuer or auth-server metadata if present
+- stable placeholder replacements for access tokens, refresh tokens, ID
+  tokens, account IDs, workspace IDs, and emails
+- validator output from `validates_redacted_live_sample_from_env`
+
 The live sample must answer:
 
 - whether Claude stores connector credentials as raw OAuth tokens or opaque grants
@@ -151,13 +162,22 @@ The live sample must answer:
 
 If the live sample does not contain enough fields to construct `StoredOAuthTokens`, Stage 1 should close with an explicit non-importable verdict and Stage 2 should design re-auth or externally mediated refresh UX instead of direct token import.
 
+Stop conditions for the live validation gate:
+
+- do not accept samples that omit the connector boundary
+- do not accept samples that require raw tokens to prove structure
+- do not accept a capture that would force a new broker, registry, or public
+  API before the first live sample is understood
+- do not accept samples that only prove the main Claude login store without a
+  connector-specific record
+
 ## Next Engineering Task
 
 Implement a fixture-driven parser module only after agreeing on the crate owner.
 
 Recommended first owner:
 
-- `codex-rs/external-agent-migration`
+- `ontocode-rs/external-agent-migration`
 
 Reason:
 
@@ -169,14 +189,14 @@ Do not modify `StoredOAuthTokens` for the first parser spike.
 
 ## Implementation Status
 
-Implemented in `codex-rs/external-agent-migration/src/claude_oauth_import.rs`.
+Implemented in `ontocode-rs/external-agent-migration/src/claude_oauth_import.rs`.
 
 Current scope:
 
 - parses the synthetic fixture shape into `ImportableMcpOAuthCredential`
 - returns structured rejection reasons for non-importable records
 - reports high-level import status as complete, partial, non-importable, or empty
-- provides `OAuthBearerTokenParts` and `StoredOAuthTokens::from_bearer_token_parts` in `codex-rs/rmcp-client/src/oauth.rs` for future caller-level storage wiring
+- provides `OAuthBearerTokenParts` and `StoredOAuthTokens::from_bearer_token_parts` in `ontocode-rs/rmcp-client/src/oauth.rs` for future caller-level storage wiring
 - provides an opt-in live-sample validator documented in `CLAUDE_OAUTH_LIVE_SAMPLE_RUNBOOK.md`
 - provides `scripts/redact_claude_oauth_sample.py` to turn credential-like JSON into a sanitized sample and shape summary
 - keeps storage wiring out of scope until a real redacted Claude credential sample validates the schema

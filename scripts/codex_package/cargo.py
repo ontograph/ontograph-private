@@ -11,7 +11,7 @@ from .targets import TargetSpec
 from .v8 import resolve_codex_v8_cargo_env
 
 
-CODEX_RS_ROOT = REPO_ROOT / "codex-rs"
+CODEX_RS_ROOT = REPO_ROOT / "ontocode-rs"
 
 
 @dataclass(frozen=True)
@@ -86,11 +86,13 @@ def build_source_binaries(
         ),
         codex_command_runner_bin=resolve_output_path(
             codex_command_runner_bin,
-            output_dir / "codex-command-runner.exe" if spec.is_windows else None,
+            output_dir / "ontocode-command-runner.exe" if spec.is_windows else None,
         ),
         codex_windows_sandbox_setup_bin=resolve_output_path(
             codex_windows_sandbox_setup_bin,
-            output_dir / "codex-windows-sandbox-setup.exe" if spec.is_windows else None,
+            output_dir / "ontocode-windows-sandbox-setup.exe"
+            if spec.is_windows
+            else None,
         ),
     )
     validate_source_outputs(outputs)
@@ -113,10 +115,10 @@ def source_binaries_for_target(
     if build_bwrap:
         binaries.append("bwrap")
     if build_codex_command_runner:
-        binaries.append("codex-command-runner")
+        binaries.append("ontocode-command-runner")
         binaries.append("ontocode-command-runner")
     if build_codex_windows_sandbox_setup:
-        binaries.append("codex-windows-sandbox-setup")
+        binaries.append("ontocode-windows-sandbox-setup")
         binaries.append("ontocode-windows-sandbox-setup")
     return binaries
 
@@ -132,11 +134,11 @@ def validate_prebuilt_resource_inputs(
         raise RuntimeError("--bwrap-bin is only supported for Linux targets.")
     if codex_command_runner_bin is not None and not spec.is_windows:
         raise RuntimeError(
-            "--codex-command-runner-bin is only supported for Windows targets."
+            "--ontocode-command-runner-bin is only supported for Windows targets."
         )
     if codex_windows_sandbox_setup_bin is not None and not spec.is_windows:
         raise RuntimeError(
-            "--codex-windows-sandbox-setup-bin is only supported for Windows targets."
+            "--ontocode-windows-sandbox-setup-bin is only supported for Windows targets."
         )
 
 

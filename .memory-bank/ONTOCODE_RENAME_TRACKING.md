@@ -15,9 +15,9 @@ Source plan: `ONTOCODE_RENAME_PROJECT_PLAN.md`
 | ID | Task | Scope | Status | Notes |
 | --- | --- | --- | --- | --- |
 | T1 | Surface inventory and compatibility matrix | New Markdown doc | done | Added `ONTOCODE_RENAME_SURFACE_MATRIX.md` |
-| T2 | User-facing branding doc updates | `README.md`, `codex-rs/README.md`, `sdk/python/README.md`, package descriptions as appropriate | done | Updated user-facing branding while preserving commands and package identities |
-| T3 | `ontocode` CLI alias implementation and tests | `codex-rs/cli` and related tests/build glue | done | Wrapper now resolves `CARGO_BIN_EXE_codex` before sibling fallback; direct alias verification confirmed env-path dispatch and `ONTOCODE_CLI_COMMAND_NAME=ontocode` propagation. Full `just test -p codex-cli` remains blocked by stale/stalled shared-target nextest workers |
-| T4 | Config/env dual-read compatibility | config loader, env resolution, tests | done | `ONTOCODE_HOME` precedence and default home resolution implemented in `codex-rs/utils/home-dir` with targeted tests |
+| T2 | User-facing branding doc updates | `README.md`, `ontocode-rs/README.md`, `sdk/python/README.md`, package descriptions as appropriate | done | Updated user-facing branding while preserving commands and package identities |
+| T3 | `ontocode` CLI alias implementation and tests | `ontocode-rs/cli` and related tests/build glue | done | Wrapper now resolves `CARGO_BIN_EXE_codex` before sibling fallback; direct alias verification confirmed env-path dispatch and `ONTOCODE_CLI_COMMAND_NAME=ontocode` propagation. Full `just test -p codex-cli` remains blocked by stale/stalled shared-target nextest workers |
+| T4 | Config/env dual-read compatibility | config loader, env resolution, tests | done | `ONTOCODE_HOME` precedence and default home resolution implemented in `ontocode-rs/utils/home-dir` with targeted tests |
 | T5 | Persisted-state migration and rollback design | Design doc / implementation if feasible | done | Added `ONTOCODE_PERSISTED_STATE_MIGRATION.md` |
 | T6 | Package identity migration design | Design doc | done | Added `ONTOCODE_PACKAGE_IDENTITY_MIGRATION.md` |
 | T7 | Protocol/integration alias inventory | Design doc / audit | done | Added `ONTOCODE_PROTOCOL_INTEGRATION_INVENTORY.md` |
@@ -27,7 +27,7 @@ Source plan: `ONTOCODE_RENAME_PROJECT_PLAN.md`
 | T11 | Remaining codex-named surfaces disposition pass | generated SDK models, wire identifiers, internal Rust types/crates | done | Added `ONTOCODE_REMAINING_SURFACES_DISPOSITION.md`; remaining non-SDK `codex` surfaces are now explicitly preserved or deferred by policy |
 | T12 | Tighten Ontocode CLI canonicalization | CLI help/display, docs, examples, cli tests | done | CLI help/display now prefers Ontocode when invoked via alias; docs and tests updated |
 | T13 | Packaging alias implementation | npm, python, native runtime packaging | done | npm, Python, and native runtime packaging now install both `codex` and `ontocode` binaries |
-| T14 | Internal helper rename (Stage 4) | codex-exec, codex-exec-server, sandbox helpers, etc. | in_progress | Adding aliases for internal helpers to support `ontocode-*` names |
+| T14 | Internal helper rename (Stage 4) | ontocode-exec, ontocode-exec-server, sandbox helpers, etc. | in_progress | Adding aliases for internal helpers to support `ontocode-*` names |
 | T15 | Optional package rename (Stage 3) | @openai/ontocode, etc. | deferred | Only start after release tooling supports dual publish |
 
 ## Dispatch Log
@@ -44,7 +44,7 @@ Source plan: `ONTOCODE_RENAME_PROJECT_PLAN.md`
 | 7 | Marked T6 done | Package identity migration design reviewed and accepted |
 | 8 | Marked T7 done | Protocol/integration inventory reviewed and accepted |
 | 9 | Marked T4 in progress | Dispatching config/env compatibility slice while T3 continues |
-| 10 | Updated T4 before implementation | Manager continuing home/env resolution slice in `codex-rs/utils/home-dir` |
+| 10 | Updated T4 before implementation | Manager continuing home/env resolution slice in `ontocode-rs/utils/home-dir` |
 | 11 | Marked T4 done | Home/env resolution now prefers `ONTOCODE_HOME`, preserves `CODEX_HOME`, and covers default-home precedence with tests |
 | 12 | T3 still in progress | Partial implementation reported; manager requesting wrapper-based rework and full verification |
 | 13 | Updated T3 before fallback verification | Recorded stalled full-crate nextest runs; manager proceeding with targeted alias verification and repair loop |

@@ -77,15 +77,15 @@ rsync \
   --human-readable \
   --itemize-changes \
   --exclude '.git/' \
-  --exclude 'codex-rs/target/' \
+  --exclude 'ontocode-rs/target/' \
   --filter=':- .gitignore' \
   "$@" \
   "${repo_root}/" \
   "${remote_host}:${remote_path}/" \
   >&2
 
-remote_exec_server_log_path="/tmp/codex-exec-server-${sync_instance_id}.log"
-remote_exec_server_pid_path="/tmp/codex-exec-server-${sync_instance_id}.pid"
+remote_exec_server_log_path="/tmp/ontocode-exec-server-${sync_instance_id}.log"
+remote_exec_server_pid_path="/tmp/ontocode-exec-server-${sync_instance_id}.pid"
 
 remote_start_output="$(
   ssh "${remote_host}" bash -s -- \
@@ -98,13 +98,13 @@ remote_exec_server_log_path="$1"
 remote_exec_server_pid_path="$2"
 remote_exec_server_start_timeout_seconds="$3"
 remote_repo_root="$HOME/code/codex-sync"
-remote_codex_rs="$remote_repo_root/codex-rs"
+remote_codex_rs="$remote_repo_root/ontocode-rs"
 
 cd "${remote_codex_rs}"
-cargo build -p codex-cli --bin codex
+cargo build -p ontocode-cli --bin ontocode
 
 rm -f "${remote_exec_server_log_path}" "${remote_exec_server_pid_path}"
-nohup ./target/debug/codex exec-server --listen ws://127.0.0.1:0 \
+nohup ./target/debug/ontocode exec-server --listen ws://127.0.0.1:0 \
   >"${remote_exec_server_log_path}" 2>&1 &
 remote_exec_server_pid="$!"
 echo "${remote_exec_server_pid}" >"${remote_exec_server_pid_path}"

@@ -12,11 +12,11 @@ cd "${repo_root}"
 manual_rust_test_targets="$(
   ./.github/scripts/run-bazel-query-ci.sh \
     --output=label \
-    -- 'kind("rust_test rule", attr(tags, "manual", //codex-rs/...))'
+    -- 'kind("rust_test rule", attr(tags, "manual", //ontocode-rs/...))'
 )"
 if [[ "${RUNNER_OS:-}" != "Windows" ]]; then
   manual_rust_test_targets="$(printf '%s\n' "${manual_rust_test_targets}" | grep -v -- '-windows-cross-bin$' || true)"
 fi
 
-printf '%s\n' "//codex-rs/..."
+printf '%s\n' "//ontocode-rs/..."
 printf '%s\n' "${manual_rust_test_targets}"
