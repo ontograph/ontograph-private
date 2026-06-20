@@ -2,33 +2,46 @@ name: Gemini CLI Donor Context/Tools/Agents/Evals Pre-Junior Project Plan
 desc: Junior-safe, test-first plan for the first approved slices from ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS.md
 type: project_plan
 date: 2026-06-16
-status: narrowed
+status: closed-no-dispatch
 
 # Gemini CLI Donor Context/Tools/Agents/Evals Pre-Junior Project Plan
 
 ## Goal
 
-Implement only the first low-risk, test-first slices from
+Close the pre-junior implementation plan for
 [ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS.md](ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS.md).
 
-This plan is written for pre-junior implementers. Every task must stay in the
-ADR dispatch owner table, add tests before runtime changes, and stop when the
-existing owner already has adequate coverage.
+OntoIndex-backed review found no remaining Gemini-specific pre-junior slice
+that is both new and a core functionality extension. Future Gemini donor work
+needs a fresh manager card with one failing core regression test before
+implementation.
 
-## Approved First Slice
+## Closure Decision
 
-Only this Gemini-specific item remains approved for pre-junior dispatch:
+No tasks are currently dispatchable from this plan.
 
-1. context-fidelity tests
+The previously retained context-fidelity slice is already covered by existing
+TUI/core tests:
+
+- `ontocode-rs/tui/src/ide_context/prompt.rs` covers active file, selected
+  content, selected ranges, prompt delimiter/user request injection, truncation,
+  and open-tab bounds.
+- `ontocode-rs/tui/src/chatwidget/tests/composer_submission.rs` covers hiding
+  IDE prompt context from displayed user-message text.
+- `ontocode-rs/core/tests/suite/additional_context.rs` covers model-visible
+  additional context and user-message preservation.
 
 The previous compression, model-visible tool error, and golden response fixture
-items are duplicated by [ADR_OH_MY_PI_DONOR_KEEP_REFACTOR_MAP.md](ADR_OH_MY_PI_DONOR_KEEP_REFACTOR_MAP.md)
+items are duplicated by
+[ADR_OH_MY_PI_DONOR_KEEP_REFACTOR_MAP.md](ADR_OH_MY_PI_DONOR_KEEP_REFACTOR_MAP.md)
 and must be dispatched from that ADR if still needed. Claude Code donor items
 classified as `NARROW`, `DEFER`, or `REJECT` are parked in
 [ADR_CLAUDE_CODE_DONOR_CORE_EXTENSION_REVIEW_DEFERRED_NARROW_REJECT.md](ADR_CLAUDE_CODE_DONOR_CORE_EXTENSION_REVIEW_DEFERRED_NARROW_REJECT.md)
 and are not dispatchable from this Gemini plan.
 
-Everything else in the Gemini ADR is backlog until a manager creates a separate task.
+Everything else in the Gemini ADR is backlog until a manager creates a separate
+task that names a current-codebase owner, proves the behavior is missing, and
+extends existing core functionality.
 
 ## Consolidated Duplicate Scope
 
@@ -49,73 +62,17 @@ Do not dispatch these from this Gemini plan; use the Oh My Pi ADR owner map or t
 - Do not add new telemetry fields unless a reviewer explicitly approves the exact existing telemetry owner.
 - Do not build a new eval framework. Use existing Rust test and snapshot harnesses.
 
-## Stage 0: Preflight
+## Revival Rule
 
-Purpose: make sure the implementer understands the current test homes before editing.
+Move work back out of this closure only when all of these are true:
 
-Read:
-
-- [ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS.md](ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS.md)
-- [ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_DEFERRED_TODO.md](ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_DEFERRED_TODO.md)
-- [ADR_OH_MY_PI_DONOR_KEEP_REFACTOR_MAP.md](ADR_OH_MY_PI_DONOR_KEEP_REFACTOR_MAP.md)
-- [ADR_CLAUDE_CODE_DONOR_CORE_EXTENSION_REVIEW_DEFERRED_NARROW_REJECT.md](ADR_CLAUDE_CODE_DONOR_CORE_EXTENSION_REVIEW_DEFERRED_NARROW_REJECT.md)
-- `ontocode-rs/core/tests/common/context_snapshot.rs`
-- `ontocode-rs/core/tests/suite/additional_context.rs`
-
-Checks:
-
-- Run OntoIndex context on the owner symbol or file named in the stage before editing Rust.
-- Record the intended owner file in the task note before editing.
-- If the intended change needs a new runtime concept, stop and ask for manager review.
-
-Acceptance:
-
-- The implementer can name the owner file for the slice.
-- No files are changed in Stage 0.
-
-## Stage 1: Context Fidelity Tests
-
-Owner:
-
-- `ontocode-rs/core/tests/common/context_snapshot.rs`
-- `ontocode-rs/core/tests/suite/additional_context.rs`
-- `ontocode-rs/tui/src/ide_context/prompt.rs`
-
-Task:
-
-- Add or extend the smallest test proving active file, selected range, and user prompt context render predictably.
-- Prefer snapshot coverage if the output is already snapshot-shaped.
-- Do not add a new context builder.
-- Do not implement Claude Code parked rows 073, 084, 089, 090, 094, 095, or 187 here. This stage is only a narrow regression test for existing context rendering.
-
-Acceptance:
-
-- Test fails if active file, selection, or prompt text disappears.
-- Test output is bounded and deterministic.
-
-Run:
-
-```sh
-cd ontocode-rs
-CARGO_BUILD_JOBS=8 just test -p ontocode-core
-```
-
-If touching `tui/src/ide_context/*`, run:
-
-```sh
-cd ontocode-rs
-CARGO_BUILD_JOBS=8 just test -p ontocode-tui
-```
-
-## Closure Checklist
-
-- Run `just fmt` in `ontocode-rs`.
-- Run `CARGO_BUILD_JOBS=8 just fix -p ontocode-core` if `ontocode-core` changed.
-- Run `CARGO_BUILD_JOBS=8 just fix -p ontocode-tui` if `ontocode-tui` changed.
-- Run `CARGO_BUILD_JOBS=8 just test -p ontocode-core` if `ontocode-core` changed.
-- Run `CARGO_BUILD_JOBS=8 just test -p ontocode-tui` if `ontocode-tui` changed.
-- Update this plan status only after tests pass.
-- Do not accept snapshot updates blindly; inspect each `.snap.new` before accepting.
+- OntoIndex context/impact identifies a current core owner and missing behavior.
+- The task extends existing core functionality rather than adding duplicate
+  coverage, TUI-only formatting, or a parallel runtime.
+- The card includes one failing core regression test shape before runtime
+  changes.
+- The task stays under the Gemini ADR dispatch owner table or a newer accepted
+  ADR that supersedes it.
 
 ## Stop Conditions
 

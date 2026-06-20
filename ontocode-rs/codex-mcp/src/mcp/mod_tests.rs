@@ -110,6 +110,77 @@ fn mcp_prompt_auto_approval_honors_approved_tools_in_all_permission_modes() {
 }
 
 #[test]
+fn mcp_prompt_auto_approval_state_reports_reason() {
+    assert_eq!(
+        mcp_permission_prompt_auto_approval_state(
+            AskForApproval::OnRequest,
+            &PermissionProfile::read_only(),
+            McpPermissionPromptAutoApproveContext {
+                tool_approval_mode: Some(AppToolApproval::Approve),
+            },
+        ),
+        McpPermissionPromptAutoApproveState::AutoApproved {
+            reason: McpPermissionPromptAutoApproveReason::ExplicitToolApprovalMode,
+        }
+    );
+    assert_eq!(
+        mcp_permission_prompt_auto_approval_state(
+            AskForApproval::OnRequest,
+            &PermissionProfile::read_only(),
+            McpPermissionPromptAutoApproveContext::default(),
+        ),
+        McpPermissionPromptAutoApproveState::NeedsApproval {
+            reason: McpPermissionPromptAutoApproveReason::ApprovalPolicyNotNever,
+        }
+    );
+    assert_eq!(
+        mcp_permission_prompt_auto_approval_state(
+            AskForApproval::Never,
+            &PermissionProfile::read_only(),
+            McpPermissionPromptAutoApproveContext::default(),
+        ),
+        McpPermissionPromptAutoApproveState::NeedsApproval {
+            reason: McpPermissionPromptAutoApproveReason::PermissionProfileManagedRestricted,
+        }
+    );
+    assert_eq!(
+        mcp_permission_prompt_auto_approval_state(
+            AskForApproval::Never,
+            &PermissionProfile::Disabled,
+            McpPermissionPromptAutoApproveContext::default(),
+        ),
+        McpPermissionPromptAutoApproveState::AutoApproved {
+            reason: McpPermissionPromptAutoApproveReason::PermissionProfileDisabled,
+        }
+    );
+    assert_eq!(
+        mcp_permission_prompt_auto_approval_state(
+            AskForApproval::Never,
+            &PermissionProfile::External {
+                network: NetworkSandboxPolicy::Enabled,
+            },
+            McpPermissionPromptAutoApproveContext::default(),
+        ),
+        McpPermissionPromptAutoApproveState::AutoApproved {
+            reason: McpPermissionPromptAutoApproveReason::PermissionProfileExternal,
+        }
+    );
+    assert_eq!(
+        mcp_permission_prompt_is_auto_approved(
+            AskForApproval::Never,
+            &PermissionProfile::Disabled,
+            McpPermissionPromptAutoApproveContext::default(),
+        ),
+        mcp_permission_prompt_auto_approval_state(
+            AskForApproval::Never,
+            &PermissionProfile::Disabled,
+            McpPermissionPromptAutoApproveContext::default(),
+        )
+        .is_auto_approved()
+    );
+}
+
+#[test]
 fn mcp_prompt_auto_approval_rejects_auto_mode_in_default_permission_mode() {
     assert!(!mcp_permission_prompt_is_auto_approved(
         AskForApproval::OnRequest,

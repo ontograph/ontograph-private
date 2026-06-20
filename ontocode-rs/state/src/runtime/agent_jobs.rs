@@ -37,8 +37,9 @@ INSERT INTO agent_jobs (
     updated_at,
     started_at,
     completed_at,
-    last_error
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)
+    last_error,
+    final_summary
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)
             "#,
         )
         .bind(params.id.as_str())
@@ -116,7 +117,8 @@ SELECT
     updated_at,
     started_at,
     completed_at,
-    last_error
+    last_error,
+    final_summary
 FROM agent_jobs
 WHERE id = ?
             "#,
@@ -227,19 +229,28 @@ WHERE id = ?
         Ok(())
     }
 
-    pub async fn mark_agent_job_completed(&self, job_id: &str) -> anyhow::Result<()> {
+    pub async fn mark_agent_job_completed(
+        &self,
+        job_id: &str,
+        final_summary: Option<&str>,
+    ) -> anyhow::Result<()> {
         let now = Utc::now().timestamp();
         sqlx::query(
             r#"
 UPDATE agent_jobs
-SET status = ?, updated_at = ?, completed_at = ?, last_error = NULL
+SET status = ?, updated_at = ?, completed_at = ?, last_error = NULL, final_summary = COALESCE(?, final_summary)
 WHERE id = ?
+ AND status NOT IN (?, ?, ?)
             "#,
         )
         .bind(AgentJobStatus::Completed.as_str())
         .bind(now)
         .bind(now)
+        .bind(final_summary)
         .bind(job_id)
+        .bind(AgentJobStatus::Completed.as_str())
+        .bind(AgentJobStatus::Failed.as_str())
+        .bind(AgentJobStatus::Cancelled.as_str())
         .execute(self.pool.as_ref())
         .await?;
         Ok(())

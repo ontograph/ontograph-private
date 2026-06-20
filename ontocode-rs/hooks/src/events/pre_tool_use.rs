@@ -744,6 +744,7 @@ mod tests {
             matcher: Some("^Bash$".to_string()),
             command: "echo hook".to_string(),
             timeout_sec: 5,
+            is_async: false,
             status_message: None,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
             source: ontocode_protocol::protocol::HookSource::User,

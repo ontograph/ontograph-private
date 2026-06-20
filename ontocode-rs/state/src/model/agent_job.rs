@@ -89,6 +89,7 @@ pub struct AgentJob {
     pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
     pub last_error: Option<String>,
+    pub final_summary: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -156,6 +157,7 @@ pub(crate) struct AgentJobRow {
     pub(crate) started_at: Option<i64>,
     pub(crate) completed_at: Option<i64>,
     pub(crate) last_error: Option<String>,
+    pub(crate) final_summary: Option<String>,
 }
 
 impl TryFrom<AgentJobRow> for AgentJob {
@@ -195,6 +197,7 @@ impl TryFrom<AgentJobRow> for AgentJob {
                 .map(epoch_seconds_to_datetime)
                 .transpose()?,
             last_error: value.last_error,
+            final_summary: value.final_summary,
         })
     }
 }

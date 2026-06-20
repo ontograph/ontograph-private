@@ -962,6 +962,37 @@ async fn apply_patch_cli_verification_failure_has_no_side_effects() -> Result<()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_cli_parse_failure_has_no_writes() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+
+    harness.write_file("sentinel.txt", "before\n").await?;
+
+    let patch = "*** Begin Patch\n*** Update File: sentinel.txt\n@@\n-before\n+after\n*** Frobnicate File: created.txt\n+hello\n*** End Patch";
+    let call_id = "apply-parse-failure-no-write";
+    mount_apply_patch(&harness, call_id, patch, "failed").await;
+
+    harness.submit("apply malformed patch").await?;
+
+    let out = harness.apply_patch_output(call_id).await;
+    assert!(
+        out.contains("apply_patch verification failed"),
+        "expected parse failure output: {out}"
+    );
+    assert!(
+        out.contains("not a valid hunk header"),
+        "expected malformed header diagnostics: {out}"
+    );
+    assert_eq!(harness.read_file_text("sentinel.txt").await?, "before\n");
+    assert!(
+        !harness.path_exists("created.txt").await?,
+        "parse failure should not create new files: {out}"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn apply_patch_shell_command_heredoc_with_cd_updates_relative_workdir() -> Result<()> {
     skip_if_no_network!(Ok(()));
 

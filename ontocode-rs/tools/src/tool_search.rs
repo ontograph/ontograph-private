@@ -11,6 +11,8 @@ use crate::default_namespace_description;
 pub struct ToolSearchEntry {
     pub search_text: String,
     pub output: LoadableToolSpec,
+    pub disabled_reason: Option<String>,
+    pub source: Option<String>,
 }
 
 #[derive(Clone)]
@@ -25,14 +27,16 @@ impl ToolSearchInfo {
         spec: ToolSpec,
         source_info: Option<ToolSearchSourceInfo>,
     ) -> Option<Self> {
-        let search_text = default_tool_search_text(tool_name, &spec);
-        Self::from_spec(search_text, spec, source_info)
+        let search_text = default_tool_search_text(tool_name, &spec, None, None);
+        Self::from_spec(search_text, spec, source_info, None, None)
     }
 
     pub fn from_spec(
         search_text: String,
         spec: ToolSpec,
         source_info: Option<ToolSearchSourceInfo>,
+        disabled_reason: Option<String>,
+        source: Option<String>,
     ) -> Option<Self> {
         let output = match spec {
             ToolSpec::Function(mut tool) => {
@@ -61,13 +65,20 @@ impl ToolSearchInfo {
             entry: ToolSearchEntry {
                 search_text,
                 output,
+                disabled_reason,
+                source,
             },
             source_info,
         })
     }
 }
 
-pub fn default_tool_search_text(tool_name: &ToolName, spec: &ToolSpec) -> String {
+pub fn default_tool_search_text(
+    tool_name: &ToolName,
+    spec: &ToolSpec,
+    disabled_reason: Option<&str>,
+    source: Option<&str>,
+) -> String {
     let mut parts = Vec::new();
     push_search_part(&mut parts, tool_name.to_string());
     push_search_part(&mut parts, tool_name.name.replace('_', " "));
@@ -99,6 +110,13 @@ pub fn default_tool_search_text(tool_name: &ToolName, spec: &ToolSpec) -> String
             push_search_part(&mut parts, tool.description.clone());
             push_search_part(&mut parts, tool.format.syntax.clone());
         }
+    }
+
+    if let Some(reason) = disabled_reason {
+        push_search_part(&mut parts, reason.to_string());
+    }
+    if let Some(src) = source {
+        push_search_part(&mut parts, src.to_string());
     }
 
     parts.join(" ")

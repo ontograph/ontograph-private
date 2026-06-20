@@ -67,5 +67,6 @@ You can also use Ontocode with an API key, but this requires [additional setup](
 - [**Contributing**](./docs/contributing.md)
 - [**Installing & building**](./docs/install.md)
 - [**Open source fund**](./docs/open-source-fund.md)
+- [**Security**](./SECURITY.md)
 
 This repository is licensed under the [Apache-2.0 License](LICENSE).

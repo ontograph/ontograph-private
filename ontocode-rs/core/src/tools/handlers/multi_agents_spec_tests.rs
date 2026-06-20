@@ -78,6 +78,7 @@ fn spawn_agent_tool_v2_requires_task_name_and_lists_visible_models() {
     assert!(description.contains(
         "- `visible-model`: visible description Reasoning efforts: medium (default). Service tiers: priority."
     ));
+    assert!(description.contains(SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE));
     assert!(!description.contains("hidden-model"));
     assert!(properties.contains_key("task_name"));
     assert!(properties.contains_key("message"));
@@ -159,6 +160,29 @@ fn spawn_agent_tool_v1_keeps_legacy_fork_context_field() {
             .and_then(|schema| schema.description.as_deref()),
         Some(SPAWN_AGENT_SERVICE_TIER_OVERRIDE_DESCRIPTION)
     );
+}
+
+#[test]
+fn spawn_agent_tool_v1_lists_model_priority_guidance() {
+    let tool = create_spawn_agent_tool_v1(SpawnAgentToolOptions {
+        available_models: vec![model_preset("visible", /*show_in_picker*/ true)],
+        agent_type_description: "role help".to_string(),
+        hide_agent_type_model_reasoning: false,
+        include_usage_hint: true,
+        usage_hint_text: None,
+        max_concurrent_threads_per_session: None,
+    });
+
+    let ToolSpec::Namespace(namespace) = tool else {
+        panic!("spawn_agent v1 should be a namespace tool");
+    };
+    let Some(ResponsesApiNamespaceTool::Function(ResponsesApiTool { description, .. })) =
+        namespace.tools.first()
+    else {
+        panic!("spawn_agent should be a namespace function tool");
+    };
+
+    assert!(description.contains(SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE));
 }
 
 #[test]

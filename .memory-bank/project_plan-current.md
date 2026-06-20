@@ -68,6 +68,18 @@ Upcoming work depends on:
 - Multi-agent goal orchestration refinements.
 - `NATIVE_CONTEXT_TOOLS_CORE_ENGINE_PROJECT_PLAN.md` C0 is complete: shell-output reducers now live in existing `ontocode-core` formatting, focused reducer tests pass, the arg0 test-binary-support alias collision is fixed, and broad `ontocode-core` tests pass when run with a fresh isolated `TMPDIR`.
 - `GITNEXUS_CODE_GRAPH_ADOPTION_PRE_JUNIOR_PROJECT_PLAN.md` is complete through S0-S9: the Rust `operational_evidence_records` ledger, bounded state runtime methods, runtime topology evidence, explicit artifact/workflow import, and planned-versus-done gate evaluator are implemented in `ontocode-state`. S10 remains blocked until a separate ADR approves any model-visible context fragment.
+- `GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_PRE_JUNIOR_PROJECT_PLAN.md`
+  is closed no-dispatch after OntoIndex review found the retained
+  context-fidelity slice already covered and no remaining new core-extension
+  task.
+- `ADR_QWEN_DONOR_BLOCKED_ROWS_UNBLOCK.md` reopens the 12 blocked Qwen donor
+  rows only as narrow existing-owner slices. Broad public metadata, persisted
+  read-evidence, full transcript, native HTTP-hook, and artifact-classifier
+  surfaces remain ADR-blocked.
+- `CLAUDE_CODE_DONOR_DEFERRED_NARROW_REJECT_PRE_JUNIOR_PROJECT_PLAN.md`
+  is closed no-dispatch: all 146 parked DEFER/NARROW/REJECT rows are tracked,
+  with zero remaining dispatch rows and no new core-extension implementation
+  accepted from the parked set.
 - Gemini/Kimi/Antigravity OAuth donor plans are superseded for model runtime.
   Their ADRs remain as historical donor evidence for external sidecars only.
 - `ADR_KIMI_OAUTH_CLIPROXY_IMPORT_AND_DEVICE_FLOW.md` is complete to ADR gates: parser/fixture coverage, existing provider OAuth storage projection, and slash auth/status visibility are done. The next allowed Kimi slice is login-only device flow after explicit client-id approval; native runtime remains ADR-blocked and `/model` stays out of scope.

@@ -1,12 +1,15 @@
 use std::path::Path;
 
 use futures::StreamExt;
+use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 
 use ontocode_protocol::protocol::HookCompletedEvent;
 use ontocode_protocol::protocol::HookEventName;
 use ontocode_protocol::protocol::HookExecutionMode;
 use ontocode_protocol::protocol::HookHandlerType;
+use ontocode_protocol::protocol::HookOutputEntry;
+use ontocode_protocol::protocol::HookOutputEntryKind;
 use ontocode_protocol::protocol::HookRunStatus;
 use ontocode_protocol::protocol::HookRunSummary;
 use ontocode_protocol::protocol::HookScope;
@@ -24,6 +27,9 @@ pub(crate) struct ParsedHandler<T> {
     pub data: T,
     pub completion_order: usize,
 }
+
+const MAX_HOOK_ITERATIONS: usize = 10;
+const MAX_ASYNC_HOOKS: usize = 4;
 
 pub(crate) fn select_handlers(
     handlers: &[ConfiguredHandler],
@@ -73,7 +79,11 @@ pub(crate) fn running_summary(handler: &ConfiguredHandler) -> HookRunSummary {
         id: handler.run_id(),
         event_name: handler.event_name,
         handler_type: HookHandlerType::Command,
-        execution_mode: HookExecutionMode::Sync,
+        execution_mode: if handler.is_async {
+            HookExecutionMode::Async
+        } else {
+            HookExecutionMode::Sync
+        },
         scope: scope_for_event(handler.event_name),
         source_path: handler.source_path.clone(),
         source: handler.source,
@@ -87,9 +97,7 @@ pub(crate) fn running_summary(handler: &ConfiguredHandler) -> HookRunSummary {
     }
 }
 
-const MAX_HOOK_ITERATIONS: usize = 10;
-
-pub(crate) async fn execute_handlers<T>(
+pub(crate) async fn execute_handlers<T: Default>(
     shell: &CommandShell,
     handlers: Vec<ConfiguredHandler>,
     input_json: String,
@@ -113,14 +121,65 @@ pub(crate) async fn execute_handlers<T>(
         handlers
     };
 
-    let mut pending = FuturesUnordered::new();
+    let mut pending: FuturesUnordered<BoxFuture<'_, (usize, ParsedHandler<T>)>> =
+        FuturesUnordered::new();
+    let mut async_hooks_started = 0usize;
     for (configured_order, handler) in handlers.into_iter().enumerate() {
+        let turn_id = turn_id.clone();
+        if handler.is_async {
+            if async_hooks_started >= MAX_ASYNC_HOOKS {
+                warn!(
+                    "Async hook loop detected: too many async handlers ({}) for a single event. Capping to {}.",
+                    async_hooks_started + 1,
+                    MAX_ASYNC_HOOKS
+                );
+                pending.push(Box::pin(async move {
+                    (
+                        configured_order,
+                        ParsedHandler {
+                            completed: failed_async_summary(
+                                &handler,
+                                turn_id.clone(),
+                                "async hook concurrency limit reached",
+                            ),
+                            data: T::default(),
+                            completion_order: 0,
+                        },
+                    )
+                }));
+                continue;
+            }
+
+            async_hooks_started += 1;
+            let shell = shell.clone();
+            let handler_for_task = handler.clone();
+            let input_json_for_task = input_json.clone();
+            let cwd = cwd.to_path_buf();
+            tokio::spawn(async move {
+                let _ = run_command(&shell, &handler_for_task, &input_json_for_task, &cwd).await;
+            });
+            pending.push(Box::pin(async move {
+                (
+                    configured_order,
+                    ParsedHandler {
+                        completed: HookCompletedEvent {
+                            turn_id,
+                            run: running_summary(&handler),
+                        },
+                        data: T::default(),
+                        completion_order: 0,
+                    },
+                )
+            }));
+            continue;
+        }
+
         let input_json = input_json.clone();
         let turn_id = turn_id.clone();
-        pending.push(async move {
+        pending.push(Box::pin(async move {
             let result = run_command(shell, &handler, &input_json, cwd).await;
             (configured_order, parse(&handler, result, turn_id))
-        });
+        }));
     }
 
     let mut completed = Vec::new();
@@ -134,6 +193,22 @@ pub(crate) async fn execute_handlers<T>(
     completed.into_iter().map(|(_, parsed)| parsed).collect()
 }
 
+fn failed_async_summary(
+    handler: &ConfiguredHandler,
+    turn_id: Option<String>,
+    message: &str,
+) -> HookCompletedEvent {
+    let mut run = running_summary(handler);
+    run.status = HookRunStatus::Failed;
+    run.completed_at = Some(run.started_at);
+    run.duration_ms = Some(0);
+    run.entries = vec![HookOutputEntry {
+        kind: HookOutputEntryKind::Error,
+        text: message.to_string(),
+    }];
+    HookCompletedEvent { turn_id, run }
+}
+
 pub(crate) fn completed_summary(
     handler: &ConfiguredHandler,
     run_result: &CommandRunResult,
@@ -144,7 +219,11 @@ pub(crate) fn completed_summary(
         id: handler.run_id(),
         event_name: handler.event_name,
         handler_type: HookHandlerType::Command,
-        execution_mode: HookExecutionMode::Sync,
+        execution_mode: if handler.is_async {
+            HookExecutionMode::Async
+        } else {
+            HookExecutionMode::Sync
+        },
         scope: scope_for_event(handler.event_name),
         source_path: handler.source_path.clone(),
         source: handler.source,
@@ -194,6 +273,7 @@ mod tests {
             matcher: matcher.map(str::to_owned),
             command: command.to_string(),
             timeout_sec: 5,
+            is_async: false,
             status_message: None,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
             source: HookSource::User,

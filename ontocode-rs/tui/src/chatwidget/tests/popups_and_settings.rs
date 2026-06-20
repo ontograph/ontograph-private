@@ -2730,6 +2730,62 @@ async fn gemini_config_allows_gemini_model_submission() {
 }
 
 #[tokio::test]
+async fn external_provider_allows_gemini_slug_from_own_catalog() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gemini-3.1-pro-low")).await;
+    chat.config.model_provider_id = "cliproxyapi".to_string();
+    let external_model = ModelPreset {
+        id: "gemini-3.1-pro-low".to_string(),
+        model: "gemini-3.1-pro-low".to_string(),
+        display_name: "Gemini 3.1 Pro Low".to_string(),
+        description: "External provider model".to_string(),
+        default_reasoning_effort: ReasoningEffortConfig::Medium,
+        supported_reasoning_efforts: vec![ReasoningEffortPreset {
+            effort: ReasoningEffortConfig::Medium,
+            description: "medium".to_string(),
+        }],
+        supports_personality: false,
+        additional_speed_tiers: Vec::new(),
+        service_tiers: Vec::new(),
+        default_service_tier: None,
+        is_default: false,
+        upgrade: None,
+        show_in_picker: true,
+        availability_nux: None,
+        supported_in_api: true,
+        input_modalities: default_input_modalities(),
+    };
+    chat.model_catalog =
+        std::sync::Arc::new(crate::model_catalog::ModelCatalog::with_provider_groups(
+            vec![],
+            vec![crate::model_catalog::ProviderModelGroup {
+                provider_id: "cliproxyapi".to_string(),
+                display_name: "CLIProxyAPI".to_string(),
+                models: vec![external_model.clone()],
+                disabled_reason: None,
+            }],
+        ));
+
+    assert_eq!(
+        chat.unsupported_model_provider_message("gemini-3.1-pro-low"),
+        None
+    );
+
+    chat.open_reasoning_popup_for_provider(external_model, None);
+
+    let events = std::iter::from_fn(|| rx.try_recv().ok()).collect::<Vec<_>>();
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            AppEvent::PersistModelSelection(selection)
+                if selection.model == "gemini-3.1-pro-low"
+                    && selection.model_provider.as_deref() == Some("cliproxyapi")
+                    && selection.effort == Some(ReasoningEffortConfig::Medium)
+        )),
+        "expected external provider persistence event; events: {events:?}"
+    );
+}
+
+#[tokio::test]
 async fn server_overloaded_error_does_not_switch_models() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
     chat.set_model("gpt-5.3-codex");

@@ -634,6 +634,7 @@ mod tests {
             matcher: None,
             command: "echo hook".to_string(),
             timeout_sec: 600,
+            is_async: false,
             status_message: None,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
             source: ontocode_protocol::protocol::HookSource::User,

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::time::Duration;
 
 use ontocode_config::AbsolutePathBuf;
 use ontocode_config::ConfigLayerEntry;
@@ -20,6 +21,7 @@ use ontocode_config::TomlValue;
 use ontocode_plugin::PluginHookSource;
 use ontocode_plugin::PluginId;
 use ontocode_protocol::ThreadId;
+use ontocode_protocol::protocol::HookExecutionMode;
 use ontocode_protocol::protocol::HookOutputEntry;
 use ontocode_protocol::protocol::HookOutputEntryKind;
 use ontocode_protocol::protocol::HookRunStatus;
@@ -27,6 +29,7 @@ use ontocode_protocol::protocol::HookSource;
 use ontocode_protocol::protocol::HookTrustStatus;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
+use tokio::time::timeout;
 
 use super::ClaudeHooksEngine;
 use super::CommandShell;
@@ -1358,4 +1361,195 @@ fn plugin_hook_load_warnings_are_startup_warnings() {
     );
 
     assert_eq!(engine.warnings(), &["failed plugin hook".to_string()]);
+}
+
+#[tokio::test]
+async fn async_pre_tool_use_hooks_return_immediately_and_timeout_in_background() {
+    let temp = tempdir().expect("create temp dir");
+    let script_path = AbsolutePathBuf::try_from(temp.path().join("async-hook.py"))
+        .expect("absolute async hook path");
+    let marker_path = temp.path().join("async-hook-marker.txt");
+    fs::write(
+        script_path.as_path(),
+        format!(
+            r#"import pathlib
+import time
+
+time.sleep(2)
+pathlib.Path(r"{marker}").write_text("done", encoding="utf-8")
+"#,
+            marker = marker_path.display(),
+        ),
+    )
+    .expect("write async hook script");
+
+    let config_layer_stack = ConfigLayerStack::new(
+        vec![ConfigLayerEntry::new(
+            ConfigLayerSource::User {
+                file: AbsolutePathBuf::try_from(temp.path().join("config.toml"))
+                    .expect("absolute config path"),
+                profile: None,
+            },
+            serde_json::from_value(serde_json::json!({
+                "hooks": {
+                    "PreToolUse": [{
+                        "matcher": "^Bash$",
+                        "hooks": [{
+                            "type": "command",
+                            "command": format!("python3 {}", script_path.display()),
+                            "timeout": 1,
+                            "async": true,
+                            "statusMessage": "async",
+                        }],
+                    }],
+                },
+            }))
+            .expect("config TOML should deserialize"),
+        )],
+        ConfigRequirements::default(),
+        ConfigRequirementsToml::default(),
+    )
+    .expect("config layer stack");
+    let engine = ClaudeHooksEngine::new(
+        /*enabled*/ true,
+        /*bypass_hook_trust*/ true,
+        Some(&config_layer_stack),
+        Vec::new(),
+        Vec::new(),
+        CommandShell {
+            program: String::new(),
+            args: Vec::new(),
+        },
+    );
+
+    let outcome = timeout(
+        Duration::from_millis(250),
+        engine.run_pre_tool_use(PreToolUseRequest {
+            session_id: ThreadId::new(),
+            turn_id: "turn-async".to_string(),
+            subagent: None,
+            cwd: cwd(),
+            transcript_path: None,
+            model: "gpt-test".to_string(),
+            permission_mode: "default".to_string(),
+            tool_name: "Bash".to_string(),
+            matcher_aliases: Vec::new(),
+            tool_use_id: "tool-async".to_string(),
+            tool_input: serde_json::json!({ "command": "echo hello" }),
+        }),
+    )
+    .await
+    .expect("async hook should not block the turn");
+
+    assert!(!outcome.should_block);
+    assert_eq!(outcome.hook_events.len(), 1);
+    assert_eq!(
+        outcome.hook_events[0].run.execution_mode,
+        HookExecutionMode::Async
+    );
+    assert_eq!(outcome.hook_events[0].run.status, HookRunStatus::Running);
+
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert!(
+        !marker_path.exists(),
+        "async hook timeout should kill the process before it can write its marker"
+    );
+}
+
+#[tokio::test]
+async fn async_hook_concurrency_is_capped() {
+    let temp = tempdir().expect("create temp dir");
+    let script_path = AbsolutePathBuf::try_from(temp.path().join("async-hook.py"))
+        .expect("absolute async hook path");
+    fs::write(
+        script_path.as_path(),
+        r#"import time
+time.sleep(2)
+"#,
+    )
+    .expect("write async hook script");
+
+    let mut hooks = Vec::new();
+    for _ in 0..11 {
+        hooks.push(serde_json::json!({
+            "type": "command",
+            "command": format!("python3 {}", script_path.display()),
+            "timeout": 5,
+            "async": true,
+        }));
+    }
+
+    let config_layer_stack = ConfigLayerStack::new(
+        vec![ConfigLayerEntry::new(
+            ConfigLayerSource::User {
+                file: AbsolutePathBuf::try_from(temp.path().join("config.toml"))
+                    .expect("absolute config path"),
+                profile: None,
+            },
+            serde_json::from_value(serde_json::json!({
+                "hooks": {
+                    "PreToolUse": [{
+                        "matcher": "^Bash$",
+                        "hooks": hooks,
+                    }],
+                },
+            }))
+            .expect("config TOML should deserialize"),
+        )],
+        ConfigRequirements::default(),
+        ConfigRequirementsToml::default(),
+    )
+    .expect("config layer stack");
+    let engine = ClaudeHooksEngine::new(
+        /*enabled*/ true,
+        /*bypass_hook_trust*/ true,
+        Some(&config_layer_stack),
+        Vec::new(),
+        Vec::new(),
+        CommandShell {
+            program: String::new(),
+            args: Vec::new(),
+        },
+    );
+
+    let outcome = timeout(
+        Duration::from_millis(250),
+        engine.run_pre_tool_use(PreToolUseRequest {
+            session_id: ThreadId::new(),
+            turn_id: "turn-cap".to_string(),
+            subagent: None,
+            cwd: cwd(),
+            transcript_path: None,
+            model: "gpt-test".to_string(),
+            permission_mode: "default".to_string(),
+            tool_name: "Bash".to_string(),
+            matcher_aliases: Vec::new(),
+            tool_use_id: "tool-cap".to_string(),
+            tool_input: serde_json::json!({ "command": "echo hello" }),
+        }),
+    )
+    .await
+    .expect("async hooks should not block the turn");
+
+    assert_eq!(outcome.hook_events.len(), 10);
+    assert_eq!(
+        outcome
+            .hook_events
+            .iter()
+            .filter(|event| event.run.status == HookRunStatus::Running)
+            .count(),
+        4
+    );
+    let overflow = outcome
+        .hook_events
+        .iter()
+        .find(|event| event.run.status == HookRunStatus::Failed)
+        .expect("overflow async hook should fail");
+    assert!(
+        overflow
+            .run
+            .entries
+            .iter()
+            .any(|entry| entry.text.contains("async hook concurrency limit reached"))
+    );
 }

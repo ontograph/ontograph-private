@@ -544,13 +544,18 @@ async fn build_provider_model_groups(
             | ProviderRuntimeEngine::GeminiGenerateContent
             | ProviderRuntimeEngine::GitHubCopilot
             | ProviderRuntimeEngine::OpenAiResponses => {
-                let models = provider
+                let catalog = provider
                     .models_manager(
                         config.codex_home.to_path_buf(),
                         /*config_model_catalog*/ None,
                     )
-                    .list_models(RefreshStrategy::Online)
+                    .raw_model_catalog(RefreshStrategy::Online)
                     .await;
+                let models = catalog
+                    .models
+                    .into_iter()
+                    .map(Into::into)
+                    .collect::<Vec<_>>();
                 if !models.is_empty() {
                     groups.push(ProviderModelGroup {
                         provider_id,

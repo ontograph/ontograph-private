@@ -85,15 +85,8 @@ pub fn spawn_response_stream(
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct Error {
-    r#type: Option<String>,
-    code: Option<String>,
-    message: Option<String>,
-    plan_type: Option<String>,
-    resets_at: Option<i64>,
-}
+pub use crate::error::ErrorPayload as Error;
+//
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -315,21 +308,21 @@ pub fn process_responses_event(
                 if let Some(error) = resp_val.get("error")
                     && let Ok(error) = serde_json::from_value::<Error>(error.clone())
                 {
-                    if is_context_window_error(&error) {
+                    if error.is_context_window_error() {
                         response_error = ApiError::ContextWindowExceeded;
-                    } else if is_quota_exceeded_error(&error) {
+                    } else if error.is_quota_exceeded_error() {
                         response_error = ApiError::QuotaExceeded;
-                    } else if is_usage_not_included(&error) {
+                    } else if error.is_usage_not_included() {
                         response_error = ApiError::UsageNotIncluded;
-                    } else if is_cyber_policy_error(&error) {
+                    } else if error.is_cyber_policy_error() {
                         let message = cyber_policy_message(error.message);
                         response_error = ApiError::CyberPolicy { message };
-                    } else if is_invalid_prompt_error(&error) {
+                    } else if error.is_invalid_prompt_error() {
                         let message = error
                             .message
                             .unwrap_or_else(|| "Invalid request.".to_string());
                         response_error = ApiError::InvalidRequest { message };
-                    } else if is_server_overloaded_error(&error) {
+                    } else if error.is_server_overloaded_error() {
                         response_error = ApiError::ServerOverloaded;
                     } else {
                         let delay = try_parse_retry_after(&error);

@@ -110,6 +110,8 @@ impl ToolExecutor<ToolInvocation> for McpHandler {
             build_mcp_search_text(&self.tool_info),
             self.spec(),
             source_info,
+            None,
+            None,
         )
     }
 

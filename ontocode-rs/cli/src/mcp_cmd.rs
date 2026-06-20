@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -553,42 +554,12 @@ async fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) ->
                     .get(name.as_str())
                     .map(|entry| entry.auth_status)
                     .unwrap_or(McpAuthStatus::Unsupported);
-                let transport = match &cfg.transport {
-                    McpServerTransportConfig::Stdio {
-                        command,
-                        args,
-                        env,
-                        env_vars,
-                        cwd,
-                    } => serde_json::json!({
-                        "type": "stdio",
-                        "command": command,
-                        "args": args,
-                        "env": env,
-                        "env_vars": env_vars,
-                        "cwd": cwd,
-                    }),
-                    McpServerTransportConfig::StreamableHttp {
-                        url,
-                        bearer_token_env_var,
-                        http_headers,
-                        env_http_headers,
-                    } => {
-                        serde_json::json!({
-                            "type": "streamable_http",
-                            "url": url,
-                            "bearer_token_env_var": bearer_token_env_var,
-                            "http_headers": http_headers,
-                            "env_http_headers": env_http_headers,
-                        })
-                    }
-                };
 
                 serde_json::json!({
                     "name": name,
                     "enabled": cfg.enabled,
                     "disabled_reason": cfg.disabled_reason.as_ref().map(ToString::to_string),
-                    "transport": transport,
+                    "transport": redacted_mcp_transport_json(&cfg.transport),
                     "startup_timeout_sec": cfg
                         .startup_timeout_sec
                         .map(|timeout| timeout.as_secs_f64()),
@@ -796,39 +767,11 @@ async fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Re
     };
 
     if get_args.json {
-        let transport = match &server.transport {
-            McpServerTransportConfig::Stdio {
-                command,
-                args,
-                env,
-                env_vars,
-                cwd,
-            } => serde_json::json!({
-                "type": "stdio",
-                "command": command,
-                "args": args,
-                "env": env,
-                "env_vars": env_vars,
-                "cwd": cwd,
-            }),
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                bearer_token_env_var,
-                http_headers,
-                env_http_headers,
-            } => serde_json::json!({
-                "type": "streamable_http",
-                "url": url,
-                "bearer_token_env_var": bearer_token_env_var,
-                "http_headers": http_headers,
-                "env_http_headers": env_http_headers,
-            }),
-        };
         let output = serde_json::to_string_pretty(&serde_json::json!({
             "name": get_args.name,
             "enabled": server.enabled,
             "disabled_reason": server.disabled_reason.as_ref().map(ToString::to_string),
-            "transport": transport,
+            "transport": redacted_mcp_transport_json(&server.transport),
             "enabled_tools": server.enabled_tools.clone(),
             "disabled_tools": server.disabled_tools.clone(),
             "startup_timeout_sec": server
@@ -986,4 +929,43 @@ fn format_mcp_status(config: &McpServerConfig) -> String {
     } else {
         "disabled".to_string()
     }
+}
+
+fn redacted_mcp_transport_json(transport: &McpServerTransportConfig) -> serde_json::Value {
+    match transport {
+        McpServerTransportConfig::Stdio {
+            command,
+            args,
+            env,
+            env_vars,
+            cwd,
+        } => serde_json::json!({
+            "type": "stdio",
+            "command": command,
+            "args": args,
+            "env": redacted_string_map(env.as_ref()),
+            "env_vars": env_vars,
+            "cwd": cwd,
+        }),
+        McpServerTransportConfig::StreamableHttp {
+            url,
+            bearer_token_env_var,
+            http_headers,
+            env_http_headers,
+        } => serde_json::json!({
+            "type": "streamable_http",
+            "url": url,
+            "bearer_token_env_var": bearer_token_env_var,
+            "http_headers": redacted_string_map(http_headers.as_ref()),
+            "env_http_headers": env_http_headers,
+        }),
+    }
+}
+
+fn redacted_string_map(map: Option<&HashMap<String, String>>) -> Option<BTreeMap<String, String>> {
+    map.map(|map| {
+        map.iter()
+            .map(|(key, _)| (key.clone(), "*****".to_string()))
+            .collect()
+    })
 }

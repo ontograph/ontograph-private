@@ -98,6 +98,8 @@ pub struct TurnContext {
     pub(crate) truncation_policy: TruncationPolicy,
     pub(crate) dynamic_tools: Vec<DynamicToolSpec>,
     pub(crate) turn_metadata_state: Arc<TurnMetadataState>,
+    pub(crate) file_read_evidence:
+        Arc<std::sync::Mutex<ontocode_protocol::read_evidence::FileReadEvidence>>,
     pub(crate) extension_data: Arc<ontocode_extension_api::ExtensionData>,
     pub(crate) turn_skills: TurnSkillsContext,
     pub(crate) turn_timing_state: Arc<TurnTimingState>,
@@ -269,6 +271,7 @@ impl TurnContext {
             truncation_policy,
             dynamic_tools: self.dynamic_tools.clone(),
             turn_metadata_state: self.turn_metadata_state.clone(),
+            file_read_evidence: self.file_read_evidence.clone(),
             extension_data: Arc::clone(&self.extension_data),
             turn_skills: self.turn_skills.clone(),
             turn_timing_state: Arc::clone(&self.turn_timing_state),
@@ -336,6 +339,12 @@ impl TurnContext {
             .then_some(file_system_sandbox_policy)
     }
 
+    pub(crate) fn record_file_read(&self, path: &AbsolutePathBuf) {
+        if let Ok(mut evidence) = self.file_read_evidence.lock() {
+            *evidence.paths.entry(path.clone()).or_insert(0) += 1;
+        }
+    }
+
     pub(crate) fn compact_prompt(&self) -> &str {
         self.compact_prompt
             .as_deref()
@@ -362,6 +371,7 @@ impl TurnContext {
             multi_agent_version: Some(self.multi_agent_version),
             realtime_active: Some(self.realtime_active),
             effort: self.reasoning_effort,
+            file_read_evidence: Some(self.file_read_evidence.lock().unwrap().clone()),
             summary: ReasoningSummaryConfig::Auto,
         }
     }
@@ -574,6 +584,7 @@ impl Session {
             truncation_policy: model_info.truncation_policy.into(),
             dynamic_tools: session_configuration.dynamic_tools.clone(),
             turn_metadata_state,
+            file_read_evidence: Arc::new(std::sync::Mutex::new(Default::default())),
             extension_data,
             turn_skills: TurnSkillsContext::new(skills_outcome),
             turn_timing_state: Arc::new(TurnTimingState::default()),

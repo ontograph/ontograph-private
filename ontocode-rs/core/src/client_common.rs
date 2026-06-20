@@ -4,8 +4,10 @@ use ontocode_config::types::Personality;
 use ontocode_protocol::error::Result;
 use ontocode_protocol::models::BaseInstructions;
 use ontocode_protocol::models::ResponseItem;
+use ontocode_tools::ResponsesApiNamespaceTool;
 use ontocode_tools::ToolSpec;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
@@ -53,8 +55,53 @@ impl Default for Prompt {
 
 impl Prompt {
     pub(crate) fn get_formatted_input(&self) -> Vec<ResponseItem> {
-        self.input.clone()
+        let namespaces_by_function = namespaces_by_function(&self.tools);
+        self.input
+            .iter()
+            .cloned()
+            .map(|mut item| {
+                if let ResponseItem::FunctionCall {
+                    name,
+                    namespace: namespace @ None,
+                    ..
+                } = &mut item
+                    && let Some(Some(tool_namespace)) = namespaces_by_function.get(name)
+                {
+                    *namespace = Some(tool_namespace.clone());
+                }
+                item
+            })
+            .collect()
     }
+}
+
+fn namespaces_by_function(tools: &[ToolSpec]) -> HashMap<String, Option<String>> {
+    let mut namespaces = HashMap::new();
+    for tool in tools {
+        match tool {
+            ToolSpec::Function(tool) => {
+                namespaces.insert(tool.name.clone(), None);
+            }
+            ToolSpec::Namespace(namespace) => {
+                for tool in &namespace.tools {
+                    let ResponsesApiNamespaceTool::Function(tool) = tool;
+                    namespaces
+                        .entry(tool.name.clone())
+                        .and_modify(|existing| {
+                            if existing.as_deref() != Some(namespace.name.as_str()) {
+                                *existing = None;
+                            }
+                        })
+                        .or_insert_with(|| Some(namespace.name.clone()));
+                }
+            }
+            ToolSpec::ToolSearch { .. }
+            | ToolSpec::ImageGeneration { .. }
+            | ToolSpec::WebSearch { .. }
+            | ToolSpec::Freeform(_) => {}
+        }
+    }
+    namespaces
 }
 
 pub struct ResponseStream {

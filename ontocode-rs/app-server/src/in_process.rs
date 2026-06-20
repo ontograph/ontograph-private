@@ -108,6 +108,62 @@ fn server_notification_requires_delivery(notification: &ServerNotification) -> b
     )
 }
 
+async fn send_server_notification(
+    event_tx: &mpsc::Sender<InProcessServerEvent>,
+    skipped_events: &mut usize,
+    notification: ServerNotification,
+) -> bool {
+    if *skipped_events > 0 {
+        if server_notification_requires_delivery(&notification) {
+            if event_tx
+                .send(InProcessServerEvent::Lagged {
+                    skipped: *skipped_events,
+                })
+                .await
+                .is_err()
+            {
+                return false;
+            }
+            *skipped_events = 0;
+        } else {
+            match event_tx.try_send(InProcessServerEvent::Lagged {
+                skipped: *skipped_events,
+            }) {
+                Ok(()) => {
+                    *skipped_events = 0;
+                }
+                Err(mpsc::error::TrySendError::Full(_)) => {
+                    *skipped_events = skipped_events.saturating_add(1);
+                    warn!("dropping in-process server notification because consumer queue is full");
+                    return true;
+                }
+                Err(mpsc::error::TrySendError::Closed(_)) => {
+                    return false;
+                }
+            }
+        }
+    }
+
+    let requires_delivery = server_notification_requires_delivery(&notification);
+    let event = InProcessServerEvent::ServerNotification(notification);
+    if requires_delivery {
+        if event_tx.send(event).await.is_err() {
+            return false;
+        }
+        return true;
+    }
+
+    match event_tx.try_send(event) {
+        Ok(()) => true,
+        Err(mpsc::error::TrySendError::Full(_)) => {
+            *skipped_events = (*skipped_events).saturating_add(1);
+            warn!("dropping in-process server notification because consumer queue is full");
+            true
+        }
+        Err(mpsc::error::TrySendError::Closed(_)) => false,
+    }
+}
+
 /// Input needed to start an in-process app-server runtime.
 ///
 /// These fields mirror the pieces of ambient process state that stdio and
@@ -391,6 +447,7 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
         let outbound_initialized = Arc::new(AtomicBool::new(false));
         let outbound_experimental_api_enabled = Arc::new(AtomicBool::new(false));
         let outbound_opted_out_notification_methods = Arc::new(RwLock::new(HashSet::new()));
+        let mut skipped_events = 0usize;
 
         let mut outbound_connections = HashMap::<ConnectionId, OutboundConnectionState>::new();
         outbound_connections.insert(
@@ -656,25 +713,14 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
                             }
                         }
                         OutgoingMessage::AppServerNotification(notification) => {
-                            if server_notification_requires_delivery(&notification) {
-                                if event_tx
-                                    .send(InProcessServerEvent::ServerNotification(notification))
-                                    .await
-                                    .is_err()
-                                {
-                                    break;
-                                }
-                            } else if let Err(send_error) =
-                                event_tx.try_send(InProcessServerEvent::ServerNotification(notification))
+                            if !send_server_notification(
+                                &event_tx,
+                                &mut skipped_events,
+                                notification,
+                            )
+                            .await
                             {
-                                match send_error {
-                                    mpsc::error::TrySendError::Full(_) => {
-                                        warn!("dropping in-process server notification (queue full)");
-                                    }
-                                    mpsc::error::TrySendError::Closed(_) => {
-                                        break;
-                                    }
-                                }
+                                break;
                             }
                         }
                     }
@@ -892,6 +938,85 @@ mod tests {
                     duration_ms: None,
                 },
             })
+        ));
+    }
+
+    #[tokio::test]
+    async fn send_server_notification_surfaces_lagged_markers_after_dropped_notifications() {
+        let (event_tx, mut event_rx) = mpsc::channel(1);
+        let mut skipped_events = 0usize;
+
+        let first = ServerNotification::ConfigWarning(ConfigWarningNotification {
+            summary: "first".to_string(),
+            details: None,
+            path: None,
+            range: None,
+        });
+        let dropped_one = ServerNotification::ConfigWarning(ConfigWarningNotification {
+            summary: "dropped".to_string(),
+            details: None,
+            path: None,
+            range: None,
+        });
+        let dropped_two = ServerNotification::ConfigWarning(ConfigWarningNotification {
+            summary: "dropped".to_string(),
+            details: None,
+            path: None,
+            range: None,
+        });
+
+        assert!(send_server_notification(&event_tx, &mut skipped_events, first).await);
+        assert!(send_server_notification(&event_tx, &mut skipped_events, dropped_one).await);
+        assert!(send_server_notification(&event_tx, &mut skipped_events, dropped_two).await);
+        assert_eq!(skipped_events, 2);
+
+        let receive_task = tokio::spawn(async move {
+            let mut events = Vec::new();
+            for _ in 0..3 {
+                events.push(
+                    timeout(Duration::from_secs(2), event_rx.recv())
+                        .await
+                        .expect("event should arrive before timeout")
+                        .expect("event stream should stay open"),
+                );
+            }
+            events
+        });
+
+        let terminal = ServerNotification::TurnCompleted(TurnCompletedNotification {
+            thread_id: "thread-1".to_string(),
+            turn: Turn {
+                id: "turn-1".to_string(),
+                items: Vec::new(),
+                items_view: TurnItemsView::NotLoaded,
+                status: TurnStatus::Completed,
+                error: None,
+                started_at: None,
+                completed_at: Some(0),
+                duration_ms: None,
+            },
+        });
+        assert!(send_server_notification(&event_tx, &mut skipped_events, terminal).await);
+        assert_eq!(skipped_events, 0);
+
+        let events = receive_task
+            .await
+            .expect("receiver task should join successfully");
+        assert!(matches!(
+            &events[0],
+            InProcessServerEvent::ServerNotification(ServerNotification::ConfigWarning(
+                ConfigWarningNotification { summary, .. }
+            )) if summary == "first"
+        ));
+        assert!(matches!(
+            &events[1],
+            InProcessServerEvent::Lagged { skipped: 2 }
+        ));
+        assert!(matches!(
+            &events[2],
+            InProcessServerEvent::ServerNotification(ServerNotification::TurnCompleted(
+                TurnCompletedNotification { .. }
+            ))
         ));
     }
 }

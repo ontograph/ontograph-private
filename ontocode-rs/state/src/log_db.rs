@@ -28,6 +28,7 @@ use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tracing::Event;
+use tracing::Level;
 use tracing::field::Field;
 use tracing::field::Visit;
 use tracing::span::Attributes;
@@ -35,6 +36,7 @@ use tracing::span::Id;
 use tracing::span::Record;
 use tracing_subscriber::Layer;
 use tracing_subscriber::field::RecordFields;
+use tracing_subscriber::filter::Targets;
 use tracing_subscriber::fmt::FormatFields;
 use tracing_subscriber::fmt::FormattedFields;
 use tracing_subscriber::fmt::format::DefaultFields;
@@ -47,6 +49,22 @@ use crate::StateRuntime;
 const LOG_QUEUE_CAPACITY: usize = 512;
 const LOG_BATCH_SIZE: usize = 128;
 const LOG_FLUSH_INTERVAL: Duration = Duration::from_secs(2);
+
+pub fn default_filter() -> Targets {
+    Targets::new()
+        .with_default(Level::WARN)
+        .with_target("codex_api", Level::INFO)
+        .with_target("codex_app_server", Level::INFO)
+        .with_target("codex_core", Level::INFO)
+        .with_target("codex_mcp", Level::INFO)
+        .with_target("codex_state", Level::INFO)
+        .with_target("codex_tui", Level::INFO)
+        .with_target("codex_otel.log_only", Level::WARN)
+        .with_target("codex_otel.trace_safe", Level::WARN)
+        .with_target("hyper_util", Level::WARN)
+        .with_target("log", Level::WARN)
+        .with_target("opentelemetry_sdk", Level::WARN)
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LogSinkQueueConfig {

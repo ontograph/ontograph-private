@@ -84,7 +84,7 @@ pub struct SessionStartOutcome {
     pub additional_contexts: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 struct SessionStartHandlerData {
     should_stop: bool,
     stop_reason: Option<String>,
@@ -518,6 +518,7 @@ mod tests {
             matcher: None,
             command: "echo hook".to_string(),
             timeout_sec: 600,
+            is_async: false,
             status_message: None,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
             source: ontocode_protocol::protocol::HookSource::User,

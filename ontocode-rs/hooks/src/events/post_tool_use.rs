@@ -552,6 +552,7 @@ mod tests {
             matcher: Some("^Bash$".to_string()),
             command: "python3 post_tool_use_hook.py".to_string(),
             timeout_sec: 5,
+            is_async: false,
             status_message: Some("running post tool use hook".to_string()),
             source_path: test_path_buf("/tmp/hooks.json").abs(),
             source: ontocode_protocol::protocol::HookSource::User,

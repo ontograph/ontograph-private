@@ -34,6 +34,10 @@ const RMCP_ECHO_TOOL_NAME: &str = "mcp__rmcp__echo";
 const RMCP_HOOK_MATCHER: &str = RMCP_ECHO_TOOL_NAME;
 const RMCP_ECHO_MESSAGE: &str = "hook e2e ping";
 
+fn expected_hook_additional_context(text: &str) -> String {
+    format!("<hook_additional_context source=\"hooks\">\n{text}\n</hook_additional_context>")
+}
+
 fn enable_mcp_tool_name_features(config: &mut Config, prefix_mcp_tool_names: bool) {
     if !prefix_mcp_tool_names {
         let _ = config.features.enable(Feature::NonPrefixedMcpToolNames);
@@ -483,7 +487,7 @@ async fn post_tool_use_records_mcp_tool_payload_and_context(
     assert!(
         final_request
             .message_input_texts("developer")
-            .contains(&post_context.to_string()),
+            .contains(&expected_hook_additional_context(post_context)),
         "follow-up request should include MCP post tool use additional context",
     );
     let output_item = final_request.function_call_output(call_id);

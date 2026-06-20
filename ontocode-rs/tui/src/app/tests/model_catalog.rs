@@ -5,14 +5,62 @@ use ontocode_model_provider_info::GEMINI_CLI_PROVIDER_ID;
 use ontocode_model_provider_info::GEMINI_PROVIDER_ID;
 use ontocode_model_provider_info::ModelProviderInfo;
 use ontocode_model_provider_info::OPENAI_PROVIDER_ID;
+use ontocode_model_provider_info::WireApi;
 use ontocode_models_manager::native_provider_catalogs;
+use ontocode_protocol::openai_models::ConfigShellToolType;
 use ontocode_protocol::openai_models::ModelAvailabilityNux;
+use ontocode_protocol::openai_models::ModelInfo;
+use ontocode_protocol::openai_models::ModelVisibility;
+use ontocode_protocol::openai_models::ModelsResponse;
+use ontocode_protocol::openai_models::TruncationPolicyConfig;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use tokio::sync::mpsc::unbounded_channel;
+use wiremock::MockServer;
 
 fn all_model_presets() -> Vec<ModelPreset> {
     crate::legacy_core::test_support::all_model_presets().clone()
+}
+
+fn dynamic_model(slug: &str, visibility: ModelVisibility) -> ModelInfo {
+    ModelInfo {
+        slug: slug.to_string(),
+        display_name: slug.to_string(),
+        description: None,
+        default_reasoning_level: None,
+        supported_reasoning_levels: Vec::new(),
+        shell_type: ConfigShellToolType::Default,
+        visibility,
+        supported_in_api: false,
+        priority: 0,
+        additional_speed_tiers: Vec::new(),
+        service_tiers: Vec::new(),
+        default_service_tier: None,
+        availability_nux: None,
+        upgrade: None,
+        base_instructions: String::new(),
+        model_messages: None,
+        supports_reasoning_summaries: false,
+        default_reasoning_summary: Default::default(),
+        support_verbosity: false,
+        default_verbosity: None,
+        apply_patch_tool_type: None,
+        web_search_tool_type: Default::default(),
+        truncation_policy: TruncationPolicyConfig::bytes(/*limit*/ 10_000),
+        supports_parallel_tool_calls: false,
+        supports_image_detail_original: false,
+        context_window: None,
+        max_context_window: None,
+        auto_compact_token_limit: None,
+        effective_context_window_percent: 95,
+        experimental_supported_tools: Vec::new(),
+        input_modalities: Default::default(),
+        used_fallback_model_metadata: false,
+        supports_search_tool: false,
+        auto_review_model_override: None,
+        tool_mode: None,
+        multi_agent_version: None,
+    }
 }
 
 fn model_availability_nux_config(shown_count: &[(&str, u32)]) -> ModelAvailabilityNuxConfig {
@@ -193,6 +241,60 @@ async fn build_provider_model_groups_includes_openai_group_when_current_provider
             .filter(|group| group.provider_id == OPENAI_PROVIDER_ID)
             .count(),
         1
+    );
+}
+
+#[tokio::test]
+async fn build_provider_model_groups_keeps_external_provider_raw_catalog() {
+    let server = MockServer::start().await;
+    core_test_support::responses::mount_models_once(
+        &server,
+        ModelsResponse {
+            models: vec![
+                dynamic_model("gpt-5.3-codex-spark", ModelVisibility::List),
+                dynamic_model("hidden-provider-model", ModelVisibility::Hide),
+            ],
+        },
+    )
+    .await;
+    let (chat_widget, _app_event_tx, _rx, _op_rx) = make_chatwidget_manual_with_sender().await;
+    let mut config = chat_widget.config_ref().clone();
+    config.model_provider_id = OPENAI_PROVIDER_ID.to_string();
+    config.model_provider = config
+        .model_providers
+        .get(OPENAI_PROVIDER_ID)
+        .cloned()
+        .expect("openai provider should exist");
+    config.model_providers.insert(
+        "cliproxyapi".to_string(),
+        ModelProviderInfo {
+            name: "CLIProxyAPI".to_string(),
+            base_url: Some(format!("{}/v1", server.uri())),
+            wire_api: WireApi::Responses,
+            experimental_bearer_token: Some("provider-token".to_string()),
+            ..ModelProviderInfo::default()
+        },
+    );
+
+    let groups = build_provider_model_groups(&config, &all_model_presets()).await;
+
+    let provider_group = groups
+        .iter()
+        .find(|group| group.provider_id == "cliproxyapi")
+        .expect("cliproxyapi provider group should be present");
+    assert!(
+        provider_group
+            .models
+            .iter()
+            .any(|model| model.model == "gpt-5.3-codex-spark"),
+        "expected dynamic CLIProxyAPI model in group: {:?}",
+        provider_group.models
+    );
+    assert!(
+        provider_group
+            .models
+            .iter()
+            .any(|model| !model.show_in_picker)
     );
 }
 

@@ -825,8 +825,16 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
             vec![
-                ("developer", "first tide note".to_string()),
-                ("developer", "second tide note".to_string()),
+                (
+                    "developer",
+                    "<hook_additional_context source=\"hooks\">\nfirst tide note\n</hook_additional_context>"
+                        .to_string(),
+                ),
+                (
+                    "developer",
+                    "<hook_additional_context source=\"hooks\">\nsecond tide note\n</hook_additional_context>"
+                        .to_string(),
+                ),
             ],
         );
     }

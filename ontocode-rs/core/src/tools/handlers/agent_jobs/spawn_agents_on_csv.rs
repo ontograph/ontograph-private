@@ -246,6 +246,7 @@ pub async fn handle(
                 job_id.as_str(),
                 Some(ontocode_state::AgentJobItemStatus::Failed),
                 Some(5),
+                Some(0),
             )
             .await
             .unwrap_or_default();
@@ -283,6 +284,7 @@ pub async fn handle(
         total_items: progress.total_items,
         completed_items: progress.completed_items,
         failed_items: progress.failed_items,
+        final_summary: job.final_summary.clone(),
         job_error,
         failed_item_errors,
     })

@@ -37,6 +37,7 @@ pub use spawn_agents_on_csv::SpawnAgentsOnCsvHandler;
 
 const DEFAULT_AGENT_JOB_CONCURRENCY: usize = 16;
 const MAX_AGENT_JOB_CONCURRENCY: usize = 64;
+const AGENT_JOB_EXPORT_PAGE_SIZE: usize = 256;
 const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const DEFAULT_AGENT_JOB_ITEM_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 
@@ -168,6 +169,7 @@ async fn run_agent_job_loop(
     let mut active_items: HashMap<ThreadId, ActiveJobItem> = HashMap::new();
     recover_running_items(
         session.clone(),
+        turn.clone(),
         db.clone(),
         job_id.as_str(),
         &mut active_items,
@@ -190,6 +192,7 @@ async fn run_agent_job_loop(
                     job_id.as_str(),
                     Some(ontocode_state::AgentJobItemStatus::Pending),
                     Some(slots),
+                    Some(0),
                 )
                 .await?;
             for item in pending_items {
@@ -323,7 +326,9 @@ async fn run_agent_job_loop(
     if cancelled {
         return Ok(());
     }
-    db.mark_agent_job_completed(job_id.as_str()).await?;
+    let final_summary = job.final_summary.as_deref();
+    db.mark_agent_job_completed(job_id.as_str(), final_summary)
+        .await?;
     Ok(())
 }
 
@@ -331,9 +336,27 @@ async fn export_job_csv_snapshot(
     db: Arc<ontocode_state::StateRuntime>,
     job: &ontocode_state::AgentJob,
 ) -> anyhow::Result<()> {
-    let items = db
-        .list_agent_job_items(job.id.as_str(), /*status*/ None, /*limit*/ None)
-        .await?;
+    let mut items = Vec::new();
+    let mut offset = 0;
+    loop {
+        let page = db
+            .list_agent_job_items(
+                job.id.as_str(),
+                /*status*/ None,
+                Some(AGENT_JOB_EXPORT_PAGE_SIZE),
+                Some(offset),
+            )
+            .await?;
+        let page_len = page.len();
+        if page_len == 0 {
+            break;
+        }
+        offset += page_len;
+        items.extend(page);
+        if page_len < AGENT_JOB_EXPORT_PAGE_SIZE {
+            break;
+        }
+    }
     let csv_content = render_job_csv(job.input_headers.as_slice(), items.as_slice())
         .map_err(|err| anyhow::anyhow!("failed to render job csv for auto-export: {err}"))?;
     let output_path = PathBuf::from(job.output_csv_path.clone());
@@ -346,6 +369,7 @@ async fn export_job_csv_snapshot(
 
 async fn recover_running_items(
     session: Arc<Session>,
+    turn: Arc<TurnContext>,
     db: Arc<ontocode_state::StateRuntime>,
     job_id: &str,
     active_items: &mut HashMap<ThreadId, ActiveJobItem>,
@@ -356,6 +380,7 @@ async fn recover_running_items(
             job_id,
             Some(ontocode_state::AgentJobItemStatus::Running),
             /*limit*/ None,
+            /*offset*/ None,
         )
         .await?;
     for item in running_items {
@@ -396,7 +421,56 @@ async fn recover_running_items(
                 continue;
             }
         };
-        if is_final(&session.services.agent_control.get_status(thread_id).await) {
+        let status = session.services.agent_control.get_status(thread_id).await;
+        if matches!(status, AgentStatus::NotFound) {
+            let resumed_thread_id = match session
+                .services
+                .agent_control
+                .resume_agent_from_rollout(
+                    turn.config.as_ref().clone(),
+                    thread_id,
+                    SessionSource::SubAgent(SubAgentSource::Other(format!("agent_job:{job_id}"))),
+                )
+                .await
+            {
+                Ok(resumed_thread_id) => resumed_thread_id,
+                Err(err) => {
+                    let error_message = format!("failed to resume worker: {err}");
+                    db.mark_agent_job_item_failed(
+                        job_id,
+                        item.item_id.as_str(),
+                        error_message.as_str(),
+                    )
+                    .await?;
+                    continue;
+                }
+            };
+            if resumed_thread_id != thread_id {
+                let resumed_thread_id_str = resumed_thread_id.to_string();
+                let _ = db
+                    .set_agent_job_item_thread(
+                        job_id,
+                        item.item_id.as_str(),
+                        resumed_thread_id_str.as_str(),
+                    )
+                    .await?;
+            }
+            active_items.insert(
+                resumed_thread_id,
+                ActiveJobItem {
+                    item_id: item.item_id.clone(),
+                    started_at: started_at_from_item(&item),
+                    status_rx: session
+                        .services
+                        .agent_control
+                        .subscribe_status(resumed_thread_id)
+                        .await
+                        .ok(),
+                },
+            );
+            continue;
+        }
+        if is_final(&status) {
             finalize_finished_item(
                 session.clone(),
                 db.clone(),
@@ -511,7 +585,7 @@ async fn finalize_finished_item(
         .ok_or_else(|| {
             anyhow::anyhow!("job item not found for finalization: {job_id}/{item_id}")
         })?;
-    if matches!(item.status, ontocode_state::AgentJobItemStatus::Running) {
+    if !item.status.is_final() {
         if item.result_json.is_some() {
             let _ = db.mark_agent_job_item_completed(job_id, item_id).await?;
         } else {

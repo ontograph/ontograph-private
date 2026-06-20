@@ -60,6 +60,10 @@ const BLOCKED_PROMPT_CONTEXT: &str = "Remember the blocked lighthouse note.";
 const PERMISSION_REQUEST_HOOK_MATCHER: &str = "^Bash$";
 const PERMISSION_REQUEST_ALLOW_REASON: &str = "should not be used for allow";
 
+fn expected_hook_additional_context(text: &str) -> String {
+    format!("<hook_additional_context source=\"hooks\">\n{text}\n</hook_additional_context>")
+}
+
 fn restrictive_workspace_write_profile() -> PermissionProfile {
     PermissionProfile::workspace_write_with(
         &[],
@@ -1283,7 +1287,10 @@ async fn session_start_hook_spills_large_additional_context() -> Result<()> {
     let developer_messages = request.message_input_texts("developer");
     let developer_message = developer_messages
         .iter()
-        .find(|message| spilled_hook_output_path(message).is_some())
+        .find(|message| {
+            message.starts_with("<hook_additional_context source=\"hooks\">\n")
+                && spilled_hook_output_path(message).is_some()
+        })
         .context("spilled developer hook message")?;
     assert!(developer_message.contains("tokens truncated"));
     let path = spilled_hook_output_path(developer_message).context("spill path")?;
@@ -1344,7 +1351,10 @@ async fn pre_tool_use_hook_spills_large_additional_context() -> Result<()> {
     let developer_messages = requests[1].message_input_texts("developer");
     let developer_message = developer_messages
         .iter()
-        .find(|message| spilled_hook_output_path(message).is_some())
+        .find(|message| {
+            message.starts_with("<hook_additional_context source=\"hooks\">\n")
+                && spilled_hook_output_path(message).is_some()
+        })
         .context("spilled developer hook message")?;
     assert!(developer_message.contains("tokens truncated"));
     let path = spilled_hook_output_path(developer_message).context("spill path")?;
@@ -1410,14 +1420,14 @@ async fn compact_session_start_hook_records_additional_context_for_next_turn() -
         !requests[0]
             .message_input_texts("developer")
             .iter()
-            .any(|message| message == additional_context),
+            .any(|message| message == &expected_hook_additional_context(additional_context)),
         "compact matcher should not run for initial startup",
     );
     assert!(
         requests[2]
             .message_input_texts("developer")
             .iter()
-            .any(|message| message == additional_context),
+            .any(|message| message == &expected_hook_additional_context(additional_context)),
         "compact matcher should inject additional context before the next model turn",
     );
 
@@ -1513,13 +1523,13 @@ async fn resumed_thread_runs_resume_then_compact_session_start_hooks() -> Result
     assert!(
         developer_messages
             .iter()
-            .any(|message| message == resume_context),
+            .any(|message| message == &expected_hook_additional_context(resume_context)),
         "resume matcher should inject additional context before the next model turn",
     );
     assert!(
         developer_messages
             .iter()
-            .any(|message| message == compact_context),
+            .any(|message| message == &expected_hook_additional_context(compact_context)),
         "compact matcher should inject additional context before the next model turn",
     );
 
@@ -1746,7 +1756,7 @@ async fn blocked_user_prompt_submit_persists_additional_context_for_next_turn() 
     assert!(
         request
             .message_input_texts("developer")
-            .contains(&BLOCKED_PROMPT_CONTEXT.to_string()),
+            .contains(&expected_hook_additional_context(BLOCKED_PROMPT_CONTEXT)),
         "second request should include developer context persisted from the blocked prompt",
     );
     assert!(
@@ -2515,7 +2525,7 @@ async fn pre_tool_use_records_additional_context_for_shell_command() -> Result<(
     assert!(
         requests[1]
             .message_input_texts("developer")
-            .contains(&pre_context.to_string()),
+            .contains(&expected_hook_additional_context(pre_context)),
         "follow-up request should include pre tool use additional context",
     );
     let output_item = requests[1].function_call_output(call_id);
@@ -2588,7 +2598,7 @@ async fn blocked_pre_tool_use_records_additional_context_for_shell_command() -> 
     assert!(
         requests[1]
             .message_input_texts("developer")
-            .contains(&pre_context.to_string()),
+            .contains(&expected_hook_additional_context(pre_context)),
         "follow-up request should include blocked pre tool use additional context",
     );
     let output_item = requests[1].function_call_output(call_id);
@@ -3642,7 +3652,7 @@ async fn post_tool_use_records_additional_context_for_shell_command() -> Result<
     assert!(
         requests[1]
             .message_input_texts("developer")
-            .contains(&post_context.to_string()),
+            .contains(&expected_hook_additional_context(post_context)),
         "follow-up request should include post tool use additional context",
     );
     let output_item = requests[1].function_call_output(call_id);
@@ -3680,6 +3690,74 @@ async fn post_tool_use_records_additional_context_for_shell_command() -> Result<
         hook_inputs[0]["turn_id"]
             .as_str()
             .is_some_and(|turn_id| !turn_id.is_empty())
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn post_tool_use_receives_truncated_shell_command_output() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = start_mock_server().await;
+    let call_id = "posttooluse-shell-command-large-output";
+    let command = r#"python3 -c 'print("large-post-tool-output-" * 6000)'"#.to_string();
+    let args = serde_json::json!({ "command": command });
+    let responses = mount_sse_sequence(
+        &server,
+        vec![
+            sse(vec![
+                ev_response_created("resp-1"),
+                core_test_support::responses::ev_function_call(
+                    call_id,
+                    "shell_command",
+                    &serde_json::to_string(&args)?,
+                ),
+                ev_completed("resp-1"),
+            ]),
+            sse(vec![
+                ev_response_created("resp-2"),
+                ev_assistant_message("msg-1", "post hook context observed"),
+                ev_completed("resp-2"),
+            ]),
+        ],
+    )
+    .await;
+
+    let post_context = "Remember the large bash post-tool note.";
+    let mut builder = test_codex()
+        .with_pre_build_hook(|home| {
+            if let Err(error) =
+                write_post_tool_use_hook(home, Some("^Bash$"), "context", post_context)
+            {
+                panic!("failed to write post tool use hook test fixture: {error}");
+            }
+        })
+        .with_config(trust_discovered_hooks);
+    let test = builder.build(&server).await?;
+
+    test.submit_turn("run the large shell command with post hook")
+        .await?;
+
+    let requests = responses.requests();
+    assert_eq!(requests.len(), 2);
+    assert!(
+        requests[1]
+            .message_input_texts("developer")
+            .contains(&expected_hook_additional_context(post_context)),
+        "follow-up request should include post tool use additional context",
+    );
+
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    assert_eq!(hook_inputs.len(), 1);
+    let tool_response = hook_inputs[0]["tool_response"]
+        .as_str()
+        .context("shell tool_response should be a string")?;
+    assert!(tool_response.contains("tokens truncated"));
+    assert!(
+        tool_response.len() < 60_000,
+        "PostToolUse hook should receive capped output, got {} bytes",
+        tool_response.len()
     );
 
     Ok(())
@@ -4106,7 +4184,7 @@ async fn post_tool_use_records_additional_context_for_apply_patch() -> Result<()
     assert!(
         requests[1]
             .message_input_texts("developer")
-            .contains(&post_context.to_string()),
+            .contains(&expected_hook_additional_context(post_context)),
         "follow-up request should include apply_patch post tool use context",
     );
     assert!(
@@ -4181,7 +4259,7 @@ async fn post_tool_use_records_apply_patch_context_with_edit_alias() -> Result<(
     assert!(
         requests[1]
             .message_input_texts("developer")
-            .contains(&post_context.to_string()),
+            .contains(&expected_hook_additional_context(post_context)),
         "follow-up request should include apply_patch post tool use context",
     );
     assert!(

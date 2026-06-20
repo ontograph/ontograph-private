@@ -1064,6 +1064,59 @@ async fn list_all_tools_uses_cached_tool_info_snapshot_when_client_startup_fails
 }
 
 #[tokio::test]
+async fn list_all_tools_uses_cached_inventory_when_client_startup_times_out() {
+    let startup_tools = vec![create_test_tool(
+        CODEX_APPS_MCP_SERVER_NAME,
+        "calendar_create_event",
+    )];
+    let server_info = create_test_server_info("Codex Apps");
+    let timeout_client = futures::future::ready::<Result<ManagedClient, StartupOutcomeError>>(Err(
+        StartupOutcomeError::Failed {
+            error: "request timed out".to_string(),
+        },
+    ))
+    .boxed()
+    .shared();
+    let approval_policy = Constrained::allow_any(AskForApproval::OnFailure);
+    let permission_profile = Constrained::allow_any(PermissionProfile::default());
+    let mut manager = McpConnectionManager::new_uninitialized(
+        &approval_policy,
+        &permission_profile,
+        /*prefix_mcp_tool_names*/ true,
+    );
+    let startup_complete = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    manager.clients.insert(
+        CODEX_APPS_MCP_SERVER_NAME.to_string(),
+        AsyncManagedClient {
+            client: timeout_client,
+            cached_tool_info_snapshot: Some(startup_tools),
+            cached_server_info: Some(server_info.clone()),
+            startup_complete,
+            tool_plugin_provenance: Arc::new(ToolPluginProvenance::default()),
+            cancel_token: CancellationToken::new(),
+        },
+    );
+
+    let tools = manager.list_all_tools().await;
+    let tool = tools
+        .iter()
+        .find(|tool| {
+            tool.canonical_tool_name()
+                == ToolName::namespaced("mcp__codex_apps", "calendar_create_event")
+        })
+        .expect("tool from startup cache");
+    assert_eq!(tool.server_name, CODEX_APPS_MCP_SERVER_NAME);
+    assert_eq!(tool.callable_name, "calendar_create_event");
+    assert_eq!(
+        manager
+            .list_available_server_infos()
+            .await
+            .get(CODEX_APPS_MCP_SERVER_NAME),
+        Some(&server_info)
+    );
+}
+
+#[tokio::test]
 async fn list_all_tools_adds_server_metadata_to_cached_tools() {
     let server_name = "docs";
     let startup_tools = vec![create_test_tool(server_name, "search")];

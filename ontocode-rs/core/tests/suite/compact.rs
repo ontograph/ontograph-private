@@ -2107,6 +2107,81 @@ async fn pre_sampling_compact_runs_on_switch_to_smaller_context_model() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn pre_sampling_compact_does_not_run_for_same_model() {
+    skip_if_no_network!();
+
+    let server = MockServer::start().await;
+    let model = "gpt-5.3-codex";
+
+    let _models_mock = mount_models_once(
+        &server,
+        ModelsResponse {
+            models: vec![model_info_with_context_window(
+                model, /*context_window*/ 273_000,
+            )],
+        },
+    )
+    .await;
+
+    let request_log = mount_sse_sequence(
+        &server,
+        vec![
+            sse(vec![
+                ev_assistant_message("m1", "before same-model turn"),
+                ev_completed_with_tokens("r1", /*total_tokens*/ 120_000),
+            ]),
+            sse(vec![
+                ev_assistant_message("m2", "after same-model turn"),
+                ev_completed_with_tokens("r2", /*total_tokens*/ 100),
+            ]),
+        ],
+    )
+    .await;
+
+    let model_provider = non_openai_model_provider(&server);
+    let mut builder = test_codex()
+        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_model(model)
+        .with_config(move |config| {
+            config.model_provider = model_provider;
+            set_test_compact_prompt(config);
+        });
+    let test = builder.build(&server).await.expect("build test codex");
+
+    test.codex
+        .submit(disabled_permission_user_turn(
+            "before same-model turn",
+            test.cwd.path().to_path_buf(),
+            model.to_string(),
+        ))
+        .await
+        .expect("submit first user turn");
+    wait_for_event(&test.codex, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
+
+    test.codex
+        .submit(disabled_permission_user_turn(
+            "after same-model turn",
+            test.cwd.path().to_path_buf(),
+            model.to_string(),
+        ))
+        .await
+        .expect("submit second user turn");
+    wait_for_event(&test.codex, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
+
+    assert_eq!(
+        request_log.requests().len(),
+        2,
+        "same-model turns should not emit an extra pre-sampling compact request"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn body_after_prefix_model_switch_budget_compacts_with_next_model() {
     skip_if_no_network!();
 

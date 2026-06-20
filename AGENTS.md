@@ -98,7 +98,13 @@ Likewise, when reviewing code, do not hesitate to push back on PRs that would un
 
 Before implementing provider, auth, MCP, hooks, shell, session/context, diagnostics, or external-agent import work:
 
-- For coding tasks in this repository, use `gpt-5.4-mini`.
+- For sub-agent coding tasks in this repository, request models in this order:
+  `gemini-3.5-flash-low`, `gemini-3-flash-agent`, `gemini-pro-agent`,
+  `claude-sonnet-4-6`, `gpt-5.3-codex-spark`, `gpt-5.4-mini`.
+  You must use the exact model names listed above; do not truncate them (e.g. do not ask for `gemini-3-flash`).
+  Use the first available model. If an exact model fails today, do not retry that
+  same model again until tomorrow; use the next available model in the order
+  for today's next attempt.
 - Treat every proposed change or refactor as rejected by default until it passes both checks:
   - it adds real new functionality, behavior, safety, compatibility, or operational value rather than cosmetic churn or duplicate plumbing
   - it extends the existing core solution and stays inline with the current architecture instead of introducing a parallel owner or side stack
@@ -376,25 +382,24 @@ This project is indexed by GitNexus as **codex** (72144 symbols, 164215 relation
 <!-- ontoindex:start -->
 # OntoIndex — Code Intelligence
 
-This project is indexed by OntoIndex as **codex** (76163 symbols, 201773 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by OntoIndex as **codex** (78429 symbols, 207210 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
 
 > If any OntoIndex tool warns the index is stale, coordinate first; exactly one process should run `ontoindex analyze`.
-> If OntoIndex MCP is unreachable (for example `Transport closed`, timeout, or connection failure), stop implementation work that depends on OntoIndex, tell the user OntoIndex is unavailable, and propose concrete repair steps before continuing. Do not silently substitute grep/manual edits for required OntoIndex impact checks.
 
 ## Always Do
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `ontoindex_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `ontoindex_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run MCP `impact({action: "symbol", repo: "codex", target: "symbolName", direction: "upstream"})` or CLI `ontoindex impact --repo codex <symbol>`, then report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run MCP `gn_verify_diff({repo: "codex", scope: "all"})` or CLI `ontoindex detect-changes --repo codex` before committing** to verify your changes only affect expected symbols and execution flows.
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `ontoindex_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `ontoindex_context({name: "symbolName"})`.
+- When exploring unfamiliar code, use MCP `search({action: "semantic", repo: "codex", query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use MCP `inspect({action: "context", repo: "codex", target: "symbolName"})`.
 
 ## Never Do
 
-- NEVER edit a function, class, or method without first running `ontoindex_impact` on it.
+- NEVER edit a function, class, or method without first running MCP `impact` or CLI `ontoindex impact` on it.
 - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `ontoindex_rename` which understands the call graph.
-- NEVER commit changes without running `ontoindex_detect_changes()` to check affected scope.
+- NEVER rename symbols with find-and-replace — use MCP `refactor({action: "rename", ...})` which understands the call graph.
+- NEVER commit changes without running MCP `gn_verify_diff` or CLI `ontoindex detect-changes` to check affected scope.
 
 ## Resources
 

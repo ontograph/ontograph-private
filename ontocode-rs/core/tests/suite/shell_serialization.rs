@@ -266,6 +266,53 @@ async fn apply_patch_custom_tool_call_reports_failure_output() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_custom_tool_call_truncates_failure_output_over_cap() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+
+    let call_id = "apply-patch-failure-cap";
+    let file_name = "custom_tool_apply_patch_failure_cap.txt";
+    harness.write_file(file_name, "before\n").await?;
+    let missing_line = "missing ".repeat(12_000);
+    let patch = format!(
+        "*** Begin Patch\n*** Update File: {file_name}\n@@\n-{missing_line}\n+after\n*** End Patch\n"
+    );
+    mount_apply_patch(&harness, call_id, &patch, "apply_patch failure cap done").await;
+
+    harness
+        .test()
+        .submit_turn_with_permission_profile(
+            "attempt a failing apply_patch via custom tool",
+            PermissionProfile::Disabled,
+        )
+        .await?;
+
+    let output = harness.apply_patch_output(call_id).await;
+    let expected_output = format!(
+        "apply_patch verification failed: Failed to find expected lines in {}/{file_name}:\n{missing_line}",
+        harness.cwd().to_string_lossy()
+    );
+
+    assert!(
+        output.starts_with("apply_patch verification failed: Failed to find expected lines in"),
+        "expected apply_patch failure prefix, got {output}"
+    );
+    assert!(
+        output.contains("truncated"),
+        "expected capped failure output, got {output}"
+    );
+    assert!(
+        output.len() < expected_output.len(),
+        "expected capped failure output to be shorter than the raw failure, got {} >= {}",
+        output.len(),
+        expected_output.len()
+    );
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shell_output_is_freeform_for_nonzero_exit() -> Result<()> {
     skip_if_no_network!(Ok(()));
 

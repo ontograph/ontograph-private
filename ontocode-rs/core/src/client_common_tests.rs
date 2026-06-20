@@ -3,6 +3,10 @@ use ontocode_api::ResponsesApiRequest;
 use ontocode_api::TextControls;
 use ontocode_api::create_text_param_for_request;
 use ontocode_protocol::config_types::ServiceTier;
+use ontocode_tools::ResponsesApiNamespace;
+use ontocode_tools::ResponsesApiNamespaceTool;
+use ontocode_tools::ResponsesApiTool;
+use ontocode_tools::ToolSpec;
 use pretty_assertions::assert_eq;
 
 use super::*;
@@ -164,4 +168,74 @@ fn serializes_flex_service_tier_when_set() {
         v.get("service_tier").and_then(|tier| tier.as_str()),
         Some("flex")
     );
+}
+
+#[test]
+fn formatted_input_restores_unambiguous_function_call_namespace() {
+    let prompt = Prompt {
+        input: vec![ResponseItem::FunctionCall {
+            id: None,
+            name: "spawn_agent".to_string(),
+            namespace: None,
+            arguments: "{}".to_string(),
+            call_id: "call-1".to_string(),
+        }],
+        tools: vec![namespace_tool("agents", "spawn_agent")],
+        ..Default::default()
+    };
+
+    assert_eq!(
+        prompt.get_formatted_input(),
+        vec![ResponseItem::FunctionCall {
+            id: None,
+            name: "spawn_agent".to_string(),
+            namespace: Some("agents".to_string()),
+            arguments: "{}".to_string(),
+            call_id: "call-1".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn formatted_input_leaves_ambiguous_function_call_namespace_empty() {
+    let prompt = Prompt {
+        input: vec![ResponseItem::FunctionCall {
+            id: None,
+            name: "spawn_agent".to_string(),
+            namespace: None,
+            arguments: "{}".to_string(),
+            call_id: "call-1".to_string(),
+        }],
+        tools: vec![
+            namespace_tool("agents", "spawn_agent"),
+            namespace_tool("other_agents", "spawn_agent"),
+        ],
+        ..Default::default()
+    };
+
+    assert_eq!(
+        prompt.get_formatted_input(),
+        vec![ResponseItem::FunctionCall {
+            id: None,
+            name: "spawn_agent".to_string(),
+            namespace: None,
+            arguments: "{}".to_string(),
+            call_id: "call-1".to_string(),
+        }]
+    );
+}
+
+fn namespace_tool(namespace: &str, name: &str) -> ToolSpec {
+    ToolSpec::Namespace(ResponsesApiNamespace {
+        name: namespace.to_string(),
+        description: String::new(),
+        tools: vec![ResponsesApiNamespaceTool::Function(ResponsesApiTool {
+            name: name.to_string(),
+            description: String::new(),
+            strict: false,
+            defer_loading: None,
+            parameters: ontocode_tools::JsonSchema::default(),
+            output_schema: None,
+        })],
+    })
 }

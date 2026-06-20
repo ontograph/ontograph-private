@@ -687,6 +687,9 @@ impl ChatWidget {
     }
 
     fn model_provider_supports_model(&self, model: &str) -> bool {
+        if self.current_provider_group_contains_model(model) {
+            return true;
+        }
         if model.starts_with("gemini-") {
             return self.config.model_provider_id == GEMINI_PROVIDER_ID;
         }
@@ -694,33 +697,44 @@ impl ChatWidget {
     }
 
     fn inferred_model_provider_for_model(&self, model: &str) -> Option<String> {
-        if model.starts_with("gemini-") {
-            return Some(GEMINI_PROVIDER_ID.to_string());
-        }
-        if model.starts_with("gpt-") {
-            return Some(OPENAI_PROVIDER_ID.to_string());
-        }
-
-        if self.config.model_provider_id != GEMINI_PROVIDER_ID {
-            return None;
-        }
-
         let groups = self.model_catalog.try_list_provider_groups().ok()?;
-        let provider_id = groups
+        if let Some(provider_id) = groups
             .into_iter()
             .filter(|group| group.disabled_reason.is_none())
             .find(|group| {
-                group.provider_id != self.config.model_provider_id
-                    && group
-                        .models
-                        .iter()
-                        .any(|preset| preset.show_in_picker && preset.model == model)
+                group
+                    .models
+                    .iter()
+                    .any(|preset| preset.show_in_picker && preset.model == model)
             })
-            .map(|group| group.provider_id);
-        provider_id.or_else(|| {
-            model
-                .starts_with("gpt-")
-                .then(|| OPENAI_PROVIDER_ID.to_string())
-        })
+            .map(|group| group.provider_id)
+        {
+            return Some(provider_id);
+        }
+
+        if model.starts_with("gemini-") {
+            return Some(GEMINI_PROVIDER_ID.to_string());
+        }
+        model
+            .starts_with("gpt-")
+            .then(|| OPENAI_PROVIDER_ID.to_string())
+    }
+
+    fn current_provider_group_contains_model(&self, model: &str) -> bool {
+        self.model_catalog
+            .try_list_provider_groups()
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter(|group| {
+                group.disabled_reason.is_none()
+                    && group.provider_id == self.config.model_provider_id
+            })
+            .any(|group| {
+                group
+                    .models
+                    .iter()
+                    .any(|preset| preset.show_in_picker && preset.model == model)
+            })
     }
 }

@@ -1,5 +1,4 @@
 use pretty_assertions::assert_eq;
-use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use uuid::Uuid;
@@ -7,7 +6,7 @@ use uuid::Uuid;
 use super::*;
 
 #[tokio::test]
-async fn sqlite_sink_drops_low_level_opentelemetry_sdk_logs() {
+async fn sqlite_sink_uses_default_persistent_filter() {
     let codex_home =
         std::env::temp_dir().join(format!("codex-state-log-db-filter-{}", Uuid::new_v4()));
     let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
@@ -16,17 +15,15 @@ async fn sqlite_sink_drops_low_level_opentelemetry_sdk_logs() {
     let layer = start(runtime.clone());
 
     let guard = tracing_subscriber::registry()
-        .with(
-            layer
-                .clone()
-                .with_filter(Targets::new().with_default(tracing::Level::TRACE)),
-        )
+        .with(layer.clone().with_filter(default_filter()))
         .set_default();
 
     tracing::trace!(target: "opentelemetry_sdk", "dropped-trace");
-    tracing::debug!(target: "opentelemetry_sdk", "dropped-debug");
-    tracing::info!(target: "opentelemetry_sdk", "retained-info");
-    tracing::trace!(target: "codex_state", "retained-trace");
+    tracing::info!(target: "opentelemetry_sdk", "dropped-info");
+    tracing::trace!(target: "log", "dropped-log-trace");
+    tracing::info!(target: "codex_otel.log_only", "dropped-otel-info");
+    tracing::info!(target: "codex_state", "retained-codex-info");
+    tracing::warn!(target: "log", "retained-log-warn");
 
     layer.flush().await;
     drop(guard);
@@ -44,8 +41,8 @@ async fn sqlite_sink_drops_low_level_opentelemetry_sdk_logs() {
             ))
             .collect::<Vec<_>>(),
         vec![
-            ("INFO", "opentelemetry_sdk", Some("retained-info")),
-            ("TRACE", "codex_state", Some("retained-trace")),
+            ("INFO", "codex_state", Some("retained-codex-info")),
+            ("WARN", "log", Some("retained-log-warn")),
         ]
     );
 

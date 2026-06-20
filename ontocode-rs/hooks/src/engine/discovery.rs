@@ -465,13 +465,6 @@ fn append_matcher_groups(
                     } else {
                         command
                     };
-                    if r#async {
-                        warnings.push(format!(
-                            "skipping async hook in {}: async hooks are not supported yet",
-                            source.path.display()
-                        ));
-                        continue;
-                    }
                     if command.trim().is_empty() {
                         warnings.push(format!(
                             "skipping empty hook command in {}",
@@ -507,6 +500,7 @@ fn append_matcher_groups(
                         matcher: matcher.map(ToOwned::to_owned),
                         command: Some(command.clone()),
                         timeout_sec,
+                        is_async: r#async,
                         status_message: status_message.clone(),
                         source_path: source.path.clone(),
                         source: source.source,
@@ -529,6 +523,7 @@ fn append_matcher_groups(
                             matcher: matcher.map(ToOwned::to_owned),
                             command,
                             timeout_sec,
+                            is_async: r#async,
                             status_message,
                             source_path: source.path.clone(),
                             source: source.source,
@@ -780,6 +775,7 @@ mod tests {
                 matcher: None,
                 command: "echo hello".to_string(),
                 timeout_sec: 600,
+                is_async: false,
                 status_message: None,
                 source_path: source_path.clone(),
                 source: hook_source(),
@@ -815,6 +811,7 @@ mod tests {
                 matcher: Some("^Bash$".to_string()),
                 command: "echo hello".to_string(),
                 timeout_sec: 600,
+                is_async: false,
                 status_message: None,
                 source_path: source_path.clone(),
                 source: hook_source(),
@@ -1006,6 +1003,45 @@ mod tests {
             } else {
                 "echo unix"
             }
+        );
+    }
+
+    #[test]
+    fn async_command_hooks_are_discovered() {
+        let mut handlers = Vec::new();
+        let mut hook_entries = Vec::new();
+        let mut warnings = Vec::new();
+        let mut display_order = 0;
+        let source_path = source_path();
+        let hook_states = std::collections::HashMap::new();
+
+        append_matcher_groups(
+            &mut handlers,
+            &mut hook_entries,
+            &mut warnings,
+            &mut display_order,
+            &hook_handler_source(&source_path, &hook_states),
+            HookEventName::PreToolUse,
+            vec![MatcherGroup {
+                matcher: Some("^Bash$".to_string()),
+                hooks: vec![HookHandlerConfig::Command {
+                    command: "python3 /tmp/async-hook.py".to_string(),
+                    command_windows: None,
+                    timeout_sec: Some(5),
+                    r#async: true,
+                    status_message: Some("async".to_string()),
+                }],
+            }],
+        );
+
+        assert!(warnings.is_empty());
+        assert_eq!(handlers.len(), 1);
+        assert!(handlers[0].is_async);
+        assert_eq!(hook_entries.len(), 1);
+        assert_eq!(hook_entries[0].timeout_sec, 5);
+        assert_eq!(
+            hook_entries[0].command.as_deref(),
+            Some("python3 /tmp/async-hook.py")
         );
     }
 

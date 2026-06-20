@@ -110,6 +110,63 @@ Next actions:
 - Do not redispatch native Gemini OAuth/import/runtime work.
 - Treat donor notes as external sidecar evidence only.
 
+### Gemini CLI Donor Context/Tools/Agents/Evals Pre-Junior
+
+Status: `closed-no-dispatch`.
+
+Authority:
+- `GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_PRE_JUNIOR_PROJECT_PLAN.md`
+
+Outcome:
+- OntoIndex-backed review found no remaining Gemini-specific pre-junior slice
+  that is both new and a core functionality extension.
+- The retained context-fidelity slice is already covered by existing TUI/core
+  tests.
+
+Next actions:
+- Do not dispatch tasks from this plan.
+- Reopen only with a fresh manager card that identifies a current core owner,
+  proves a missing behavior, and starts from one failing core regression test.
+
+### Qwen Donor Blocked Rows Unblock
+
+Status: `active-narrow-dispatch`.
+
+Authority:
+- `ADR_QWEN_DONOR_BLOCKED_ROWS_UNBLOCK.md`
+- `tmp/qwen-code-donor-dispatch-tracking.md`
+
+Outcome targeted:
+- Resolve the 12 blocked Qwen donor rows only through existing owners.
+- Keep broad public metadata, persistent read-evidence, transcript storage,
+  native HTTP hooks, and artifact classifier work blocked.
+
+Next actions:
+- Dispatch only the narrow slices listed in the ADR.
+- Update the tracker before each slice starts and after each slice closes.
+- Use OntoIndex before edits and refresh/check it after each completed slice.
+
+### Claude Code Donor Deferred/Narrow/Rejected Pre-Junior
+
+Status: `closed-no-dispatch`.
+
+Authority:
+- `CLAUDE_CODE_DONOR_DEFERRED_NARROW_REJECT_PRE_JUNIOR_PROJECT_PLAN.md`
+
+Outcome:
+- All 146 parked rows from
+  `ADR_CLAUDE_CODE_DONOR_CORE_EXTENSION_REVIEW_DEFERRED_NARROW_REJECT.md`
+  have 2026-06-20 tracking entries.
+- Rows 121 and 124-127 closed as rejected because source exploration/search is
+  already owned by OntoIndex, MCP resource/tool discovery, file-search, and
+  shell/rg paths; no new MCP source-browsing surface was accepted.
+
+Next actions:
+- Do not redispatch parked Claude Code donor rows from this plan.
+- Reopen only with a fresh manager card that proves a current owner-local defect
+  or failing regression test and does not introduce a parallel source, command,
+  MCP, plugin, hook, UI, or context owner.
+
 ### Alpha Release Readiness
 
 Status: `in_progress`.

@@ -72,18 +72,74 @@ pub fn mcp_permission_prompt_is_auto_approved(
     permission_profile: &PermissionProfile,
     context: McpPermissionPromptAutoApproveContext,
 ) -> bool {
+    mcp_permission_prompt_auto_approval_state(approval_policy, permission_profile, context)
+        .is_auto_approved()
+}
+
+/// Returns an explicit, auditable description of the MCP prompt decision.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum McpPermissionPromptAutoApproveState {
+    AutoApproved {
+        reason: McpPermissionPromptAutoApproveReason,
+    },
+    NeedsApproval {
+        reason: McpPermissionPromptAutoApproveReason,
+    },
+}
+
+impl McpPermissionPromptAutoApproveState {
+    pub fn is_auto_approved(self) -> bool {
+        matches!(self, Self::AutoApproved { .. })
+    }
+}
+
+/// Explains why an MCP permission prompt was auto-approved or kept for review.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum McpPermissionPromptAutoApproveReason {
+    ExplicitToolApprovalMode,
+    ApprovalPolicyNotNever,
+    PermissionProfileDisabled,
+    PermissionProfileExternal,
+    PermissionProfileManagedFullDiskWrite,
+    PermissionProfileManagedRestricted,
+}
+
+pub fn mcp_permission_prompt_auto_approval_state(
+    approval_policy: AskForApproval,
+    permission_profile: &PermissionProfile,
+    context: McpPermissionPromptAutoApproveContext,
+) -> McpPermissionPromptAutoApproveState {
     if context.tool_approval_mode == Some(AppToolApproval::Approve) {
-        return true;
+        return McpPermissionPromptAutoApproveState::AutoApproved {
+            reason: McpPermissionPromptAutoApproveReason::ExplicitToolApprovalMode,
+        };
     }
 
     if approval_policy != AskForApproval::Never {
-        return false;
+        return McpPermissionPromptAutoApproveState::NeedsApproval {
+            reason: McpPermissionPromptAutoApproveReason::ApprovalPolicyNotNever,
+        };
     }
 
     match permission_profile {
-        PermissionProfile::Disabled | PermissionProfile::External { .. } => true,
+        PermissionProfile::Disabled => McpPermissionPromptAutoApproveState::AutoApproved {
+            reason: McpPermissionPromptAutoApproveReason::PermissionProfileDisabled,
+        },
+        PermissionProfile::External { .. } => McpPermissionPromptAutoApproveState::AutoApproved {
+            reason: McpPermissionPromptAutoApproveReason::PermissionProfileExternal,
+        },
         PermissionProfile::Managed { file_system, .. } => {
-            file_system.to_sandbox_policy().has_full_disk_write_access()
+            if file_system.to_sandbox_policy().has_full_disk_write_access() {
+                McpPermissionPromptAutoApproveState::AutoApproved {
+                    reason:
+                        McpPermissionPromptAutoApproveReason::PermissionProfileManagedFullDiskWrite,
+                }
+            } else {
+                McpPermissionPromptAutoApproveState::NeedsApproval {
+                    reason:
+                        McpPermissionPromptAutoApproveReason::PermissionProfileManagedRestricted,
+                }
+            }
         }
     }
 }

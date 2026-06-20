@@ -118,3 +118,78 @@ fn parse_mcp_tool_preserves_output_schema_without_inferred_type() {
         }
     );
 }
+
+#[test]
+fn parse_mcp_tool_handles_cyclic_local_refs() {
+    // Example schema shape:
+    // {
+    //   "type": "object",
+    //   "properties": { "node": { "$ref": "#/$defs/Node" } },
+    //   "$defs": {
+    //     "Node": {
+    //       "type": "object",
+    //       "properties": { "next": { "$ref": "#/$defs/Node" } }
+    //     }
+    //   }
+    // }
+    //
+    // Expected normalization behavior:
+    // - Recursive refs are preserved.
+    // - The MCP wrapper reuses the existing schema sanitizer and terminates
+    //   without hanging or expanding the cycle.
+    let tool = mcp_tool(
+        "cyclic_schema",
+        "Has recursive input schema",
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "node": {"$ref": "#/$defs/Node"}
+            },
+            "$defs": {
+                "Node": {
+                    "type": "object",
+                    "properties": {
+                        "next": {"$ref": "#/$defs/Node"}
+                    }
+                }
+            }
+        }),
+    );
+
+    assert_eq!(
+        parse_mcp_tool(&tool).expect("parse MCP tool"),
+        ToolDefinition {
+            name: "cyclic_schema".to_string(),
+            description: "Has recursive input schema".to_string(),
+            input_schema: JsonSchema {
+                schema_type: Some(crate::JsonSchemaType::Single(
+                    crate::JsonSchemaPrimitiveType::Object,
+                )),
+                properties: Some(BTreeMap::from([(
+                    "node".to_string(),
+                    JsonSchema {
+                        schema_ref: Some("#/$defs/Node".to_string()),
+                        ..Default::default()
+                    },
+                )])),
+                defs: Some(BTreeMap::from([(
+                    "Node".to_string(),
+                    JsonSchema::object(
+                        BTreeMap::from([(
+                            "next".to_string(),
+                            JsonSchema {
+                                schema_ref: Some("#/$defs/Node".to_string()),
+                                ..Default::default()
+                            },
+                        )]),
+                        /*required*/ None,
+                        /*additional_properties*/ None,
+                    ),
+                )])),
+                ..Default::default()
+            },
+            output_schema: Some(mcp_call_tool_result_output_schema(serde_json::json!({}))),
+            defer_loading: false,
+        }
+    );
+}
