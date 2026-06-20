@@ -369,14 +369,6 @@ impl ToolExecutor<ToolInvocation> for ApplyPatchHandler {
                         &cwd,
                     )
                     .await;
-
-                for path in &file_paths {
-                    turn.record_file_read(path);
-                }
-
-                for path in files.keys() {
-                    turn.record_file_read(path);
-                }
                 match apply_patch::apply_patch(turn.as_ref(), &file_system_sandbox_policy, changes)
                     .await
                 {
@@ -536,10 +528,6 @@ pub(crate) async fn intercept_apply_patch(
                     cwd,
                 )
                 .await;
-
-            for path in files.keys() {
-                turn.record_file_read(path);
-            }
             match apply_patch::apply_patch(turn.as_ref(), &file_system_sandbox_policy, changes)
                 .await
             {

@@ -979,53 +979,6 @@ fn guardian_assessment_action_redacts_apply_patch_patch_text() {
 }
 
 #[test]
-
-fn guardian_assessment_action_generated_file_heuristic_preserves_optional_field() {
-    let cwd = test_path_buf("/tmp").abs();
-    let file = test_path_buf("/tmp/guardian.txt").abs();
-    let action = GuardianAssessmentAction::ApplyPatch {
-        cwd: cwd.clone(),
-        files: vec![file.clone()],
-        generated_file: Some(true),
-    };
-
-    assert_eq!(
-        serde_json::to_value(&action).expect("serialize action"),
-        serde_json::json!({
-            "type": "apply_patch",
-            "cwd": cwd,
-            "files": [file],
-            "generated_file": true
-        }),
-    );
-}
-
-#[test]
-#[test]
-fn guardian_assessment_action_generated_file_heuristic_extracts_generated_keyword_from_paths() {
-    let cwd = test_path_buf("/tmp").abs();
-    let file = test_path_buf("/tmp/src/generated_code.rs").abs();
-    let action = GuardianApprovalRequest::ApplyPatch {
-        id: "patch-1".to_string(),
-        cwd: cwd.clone(),
-        files: vec![file.clone()],
-        patch: "*** Begin Patch
-*** Update File: src/generated_code.rs
-@@
-+hello
-*** End Patch"
-            .to_string(),
-    };
-
-    let assessment = guardian_assessment_action(&action);
-    if let GuardianAssessmentAction::ApplyPatch { generated_file, .. } = assessment {
-        assert_eq!(generated_file, Some(true));
-    } else {
-        panic!("expected ApplyPatch action");
-    }
-}
-
-#[test]
 fn guardian_request_turn_id_prefers_network_access_owner_turn() {
     let network_access = GuardianApprovalRequest::NetworkAccess {
         id: "network-1".to_string(),

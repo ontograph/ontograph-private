@@ -313,17 +313,12 @@ pub(crate) fn guardian_approval_request_to_json(
             cwd,
             files,
             patch,
-        } => {
-            // Note: GuardianAssessmentAction holds the `generated_file` heuristic state now.
-            // When Guardian tests or UI components serialize the action, they will use GuardianAssessmentAction directly.
-            // For the raw prompt to the model, we only provide basic details:
-            Ok(serde_json::json!({
-                "tool": "apply_patch",
-                "cwd": cwd,
-                "files": files,
-                "patch": patch,
-            }))
-        }
+        } => Ok(serde_json::json!({
+            "tool": "apply_patch",
+            "cwd": cwd,
+            "files": files,
+            "patch": patch,
+        })),
         GuardianApprovalRequest::NetworkAccess {
             id: _,
             turn_id: _,
@@ -401,24 +396,9 @@ pub(crate) fn guardian_assessment_action(
             cwd: cwd.clone(),
         },
         GuardianApprovalRequest::ApplyPatch { cwd, files, .. } => {
-            // Apply heuristic for `generated_file` check: if all paths are inside `cwd`
-            // and their path name implies a generated artifact (e.g., .new, .gen),
-            // we label it. But wait, the requirement says "Add generated-file path heuristic only for apply-patch/guardian warning tests. No model-facing suggestion policy."
-            // So we check if files have `generated` or `.new` or something.
-            // Let's just do a naive check if the file path has `generated` in it.
-            let generated_file = if files
-                .iter()
-                .any(|p| p.to_string_lossy().contains("generated"))
-            {
-                Some(true)
-            } else {
-                None
-            };
-
             GuardianAssessmentAction::ApplyPatch {
                 cwd: cwd.clone(),
                 files: files.clone(),
-                generated_file,
             }
         }
         GuardianApprovalRequest::NetworkAccess {

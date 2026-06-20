@@ -670,17 +670,3 @@ pub fn get_error_message_ui(e: &CodexErr) -> String {
 #[cfg(test)]
 #[path = "error_tests.rs"]
 mod tests;
-
-impl CodexErr {
-    pub fn is_context_window_error(&self) -> bool {
-        matches!(self, Self::ContextWindowExceeded)
-            || (if let Self::UnexpectedStatus(e) = self {
-                e.body.contains("context_length_exceeded")
-                    || e.body.contains("maximum context length")
-            } else if let Self::Stream(s, _) = self {
-                s.contains("context_length_exceeded") || s.contains("maximum context length")
-            } else {
-                false
-            })
-    }
-}

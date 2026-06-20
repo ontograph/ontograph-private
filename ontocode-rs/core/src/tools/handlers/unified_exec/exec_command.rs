@@ -135,27 +135,6 @@ impl ToolExecutor<ToolInvocation> for ExecCommandHandler {
         let environment = Arc::clone(&turn_environment.environment);
         let fs = environment.get_filesystem();
         let args: ExecCommandArgs = parse_arguments_with_base_path(&arguments, &cwd)?;
-
-        // Parse simple read commands (cat, head, tail, grep, rg)
-        if args.cmd.starts_with("cat ")
-            || args.cmd.starts_with("head ")
-            || args.cmd.starts_with("tail ")
-        {
-            let parts: Vec<&str> = args.cmd.split_whitespace().collect();
-            if parts.len() == 2 && !parts[1].starts_with('-') {
-                let abs_path = cwd.join(parts[1]);
-                turn.record_file_read(&abs_path);
-            }
-        } else if args.cmd.starts_with("grep ") || args.cmd.starts_with("rg ") {
-            // Very naive, just picking the last argument if it does not start with '-'
-            let parts: Vec<&str> = args.cmd.split_whitespace().collect();
-            if let Some(last) = parts.last() {
-                if !last.starts_with('-') && parts.len() > 2 {
-                    let abs_path = cwd.join(last);
-                    turn.record_file_read(&abs_path);
-                }
-            }
-        }
         let hook_command = args.cmd.clone();
         maybe_emit_implicit_skill_invocation(
             session.as_ref(),
