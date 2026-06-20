@@ -165,6 +165,7 @@ impl ToolExecutor<ToolInvocation> for ViewImageHandler {
                     abs_path.display()
                 ))
             })?;
+        turn.record_file_read(&abs_path);
         let event_path = abs_path.clone();
 
         let can_request_original_detail = can_request_original_image_detail(&turn.model_info);

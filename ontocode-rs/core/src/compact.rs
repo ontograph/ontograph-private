@@ -248,7 +248,7 @@ async fn run_compact_task_inner_impl(
             Err(CodexErr::Interrupted) => {
                 return Err(CodexErr::Interrupted);
             }
-            Err(e @ CodexErr::ContextWindowExceeded) => {
+            Err(e @ CodexErr::ContextWindowExceeded) | Err(e) if e.is_context_window_error() => {
                 if turn_input_len > 1 {
                     // Trim from the beginning to preserve cache (prefix-based) and keep recent messages intact.
                     error!(

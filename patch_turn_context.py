@@ -1,13 +1,13 @@
 import re
+with open("ontocode-rs/core/src/session/review.rs", "r") as f:
+    code = f.read()
 
-with open("ontocode-rs/core/src/session/turn_context.rs", "r") as f:
-    content = f.read()
+# Someone else added `file_read_evidence` to TurnContext in another PR/commit, we just need to provide it (probably default).
+code = code.replace(
+    "auth_manager: turn_context.auth_manager.clone(),\n    };",
+    "auth_manager: turn_context.auth_manager.clone(),\n        file_read_evidence: turn_context.file_read_evidence.clone(),\n    };"
+)
 
-if "pub file_read_evidence:" not in content:
-    content = content.replace(
-        "    pub(crate) turn_metadata_state: Arc<TurnMetadataState>,\n",
-        "    pub(crate) turn_metadata_state: Arc<TurnMetadataState>,\n    pub(crate) file_read_evidence: Arc<std::sync::Mutex<ontocode_protocol::read_evidence::FileReadEvidence>>,\n"
-    )
+with open("ontocode-rs/core/src/session/review.rs", "w") as f:
+    f.write(code)
 
-with open("ontocode-rs/core/src/session/turn_context.rs", "w") as f:
-    f.write(content)

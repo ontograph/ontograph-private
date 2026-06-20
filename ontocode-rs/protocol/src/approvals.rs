@@ -149,6 +149,8 @@ pub enum GuardianAssessmentAction {
     ApplyPatch {
         cwd: AbsolutePathBuf,
         files: Vec<AbsolutePathBuf>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        generated_file: Option<bool>,
     },
     NetworkAccess {
         target: String,

@@ -382,7 +382,7 @@ This project is indexed by GitNexus as **codex** (72144 symbols, 164215 relation
 <!-- ontoindex:start -->
 # OntoIndex — Code Intelligence
 
-This project is indexed by OntoIndex as **codex** (78429 symbols, 207210 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by OntoIndex as **codex** (79440 symbols, 208690 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
 
 > If any OntoIndex tool warns the index is stale, coordinate first; exactly one process should run `ontoindex analyze`.
 
@@ -420,5 +420,25 @@ This project is indexed by OntoIndex as **codex** (78429 symbols, 207210 relatio
 | Rename / extract / split / refactor | `.claude/skills/ontoindex/ontoindex-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/ontoindex/ontoindex-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/ontoindex/ontoindex-cli/SKILL.md` |
+| Work in the Suite area (1765 symbols) | `.claude/skills/generated/suite/SKILL.md` |
+| Work in the Bottom_pane area (1446 symbols) | `.claude/skills/generated/bottom-pane/SKILL.md` |
+| Work in the Tests area (1356 symbols) | `.claude/skills/generated/tests/SKILL.md` |
+| Work in the V2 area (1060 symbols) | `.claude/skills/generated/v2/SKILL.md` |
+| Work in the Config area (885 symbols) | `.claude/skills/generated/config/SKILL.md` |
+| Work in the Request_processors area (635 symbols) | `.claude/skills/generated/request-processors/SKILL.md` |
+| Work in the Session area (621 symbols) | `.claude/skills/generated/session/SKILL.md` |
+| Work in the App area (599 symbols) | `.claude/skills/generated/app/SKILL.md` |
+| Work in the Chatwidget area (560 symbols) | `.claude/skills/generated/chatwidget/SKILL.md` |
+| Work in the Runtime area (427 symbols) | `.claude/skills/generated/runtime/SKILL.md` |
+| Work in the Handlers area (371 symbols) | `.claude/skills/generated/handlers/SKILL.md` |
+| Work in the History_cell area (342 symbols) | `.claude/skills/generated/history-cell/SKILL.md` |
+| Work in the Scripts area (342 symbols) | `.claude/skills/generated/scripts/SKILL.md` |
+| Work in the Tools area (306 symbols) | `.claude/skills/generated/tools/SKILL.md` |
+| Work in the Auth area (285 symbols) | `.claude/skills/generated/auth/SKILL.md` |
+| Work in the Local area (189 symbols) | `.claude/skills/generated/local/SKILL.md` |
+| Work in the Remote_control area (188 symbols) | `.claude/skills/generated/remote-control/SKILL.md` |
+| Work in the Agent area (184 symbols) | `.claude/skills/generated/agent/SKILL.md` |
+| Work in the Events area (173 symbols) | `.claude/skills/generated/events/SKILL.md` |
+| Work in the Tui area (166 symbols) | `.claude/skills/generated/tui/SKILL.md` |
 
 <!-- ontoindex:end -->

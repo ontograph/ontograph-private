@@ -1,17 +1,19 @@
 import re
 
-with open("ontocode-rs/protocol/src/protocol.rs", "r") as f:
-    content = f.read()
+with open("ontocode-rs/app-server-protocol/src/protocol/v2/item.rs", "r") as f:
+    code = f.read()
 
-# Add `use crate::read_evidence::FileReadEvidence;` at the top of the file
-# right after other `use`s if not there.
+# Add ignored field `generated_file` to ApplyPatch matching
+code = code.replace(
+    "CoreGuardianAssessmentAction::ApplyPatch { cwd, files } => {",
+    "CoreGuardianAssessmentAction::ApplyPatch { cwd, files, generated_file } => {"
+)
 
-# Actually let's just insert it in the struct
-if "pub file_read_evidence:" not in content:
-    content = content.replace(
-        "pub summary: ReasoningSummaryConfig,\n}",
-        "pub summary: ReasoningSummaryConfig,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub file_read_evidence: Option<crate::read_evidence::FileReadEvidence>,\n}"
-    )
+# Pass along `generated_file`
+code = code.replace(
+    "Self::ApplyPatch { cwd, files }",
+    "Self::ApplyPatch { cwd, files, generated_file }"
+)
 
-with open("ontocode-rs/protocol/src/protocol.rs", "w") as f:
-    f.write(content)
+with open("ontocode-rs/app-server-protocol/src/protocol/v2/item.rs", "w") as f:
+    f.write(code)

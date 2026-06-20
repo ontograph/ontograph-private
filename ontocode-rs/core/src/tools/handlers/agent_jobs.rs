@@ -192,7 +192,6 @@ async fn run_agent_job_loop(
                     job_id.as_str(),
                     Some(ontocode_state::AgentJobItemStatus::Pending),
                     Some(slots),
-                    Some(0),
                 )
                 .await?;
             for item in pending_items {
@@ -344,7 +343,6 @@ async fn export_job_csv_snapshot(
                 job.id.as_str(),
                 /*status*/ None,
                 Some(AGENT_JOB_EXPORT_PAGE_SIZE),
-                Some(offset),
             )
             .await?;
         let page_len = page.len();
@@ -380,7 +378,6 @@ async fn recover_running_items(
             job_id,
             Some(ontocode_state::AgentJobItemStatus::Running),
             /*limit*/ None,
-            /*offset*/ None,
         )
         .await?;
     for item in running_items {
@@ -585,7 +582,11 @@ async fn finalize_finished_item(
         .ok_or_else(|| {
             anyhow::anyhow!("job item not found for finalization: {job_id}/{item_id}")
         })?;
-    if !item.status.is_final() {
+    if !matches!(
+        item.status,
+        ontocode_state::runtime::AgentJobItemStatus::Completed
+            | ontocode_state::runtime::AgentJobItemStatus::Failed
+    ) {
         if item.result_json.is_some() {
             let _ = db.mark_agent_job_item_completed(job_id, item_id).await?;
         } else {

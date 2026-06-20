@@ -362,6 +362,7 @@ mod tests {
                 realtime_active: None,
                 effort: None,
                 summary: ontocode_protocol::config_types::ReasoningSummary::Auto,
+                file_read_evidence: None,
             }),
             "test-provider",
         );
@@ -400,6 +401,7 @@ mod tests {
                 realtime_active: None,
                 effort: None,
                 summary: ontocode_protocol::config_types::ReasoningSummary::Auto,
+                file_read_evidence: None,
             }),
             "test-provider",
         );
@@ -435,6 +437,7 @@ mod tests {
                 realtime_active: None,
                 effort: Some(ReasoningEffort::High),
                 summary: ontocode_protocol::config_types::ReasoningSummary::Auto,
+                file_read_evidence: None,
             }),
             "test-provider",
         );
@@ -466,6 +469,7 @@ mod tests {
                 realtime_active: None,
                 effort: Some(ReasoningEffort::High),
                 summary: ontocode_protocol::config_types::ReasoningSummary::Auto,
+                file_read_evidence: None,
             }),
             "test-provider",
         );
