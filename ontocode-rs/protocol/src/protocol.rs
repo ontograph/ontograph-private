@@ -5402,6 +5402,7 @@ mod tests {
             multi_agent_version: None,
             realtime_active: None,
             effort: None,
+            file_read_evidence: None,
             summary: ReasoningSummaryConfig::Auto,
         };
 
