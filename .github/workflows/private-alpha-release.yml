@@ -17,12 +17,25 @@ jobs:
   linux:
     name: Build unsigned Linux binary
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     env:
       CARGO_BUILD_JOBS: "8"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+
+      - name: Cache cargo build inputs
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ontocode-rs/target
+          key: private-alpha-linux-${{ runner.os }}-${{ hashFiles('ontocode-rs/Cargo.lock', '.github/workflows/private-alpha-release.yml') }}
+          restore-keys: |
+            private-alpha-linux-${{ runner.os }}-
 
       - name: Build ontocode
         working-directory: ontocode-rs
