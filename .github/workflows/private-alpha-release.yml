@@ -38,8 +38,16 @@ jobs:
             private-alpha-linux-${{ runner.os }}-
 
       - name: Build ontocode
-        working-directory: ontocode-rs
-        run: cargo build --release -p ontocode-cli --bin ontocode
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            version="${GITHUB_REF_NAME#rust-v}"
+          else
+            version="$(sed -n 's/^version = "\(.*\)"/\1/p' ontocode-rs/Cargo.toml | head -1)"
+          fi
+          sed -i "s/^version = \"0\\.0\\.0\"$/version = \"$version\"/" ontocode-rs/Cargo.toml
+          cd ontocode-rs
+          cargo build --release -p ontocode-cli --bin ontocode
 
       - name: Stage artifact
         run: |
