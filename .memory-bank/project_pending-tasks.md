@@ -229,7 +229,7 @@ Next actions:
 
 ### Alpha Release Readiness
 
-Status: `in_progress`.
+Status: `published-with-infra-debt`.
 
 Outcome so far:
 - Release-prep baseline documented in `ALPHA_RELEASE_READINESS.md`.
@@ -243,11 +243,13 @@ Outcome so far:
 - Clean private alpha branch `alpha/0.1.0-alpha.1` builds the release binary as `Ontocode CLI 0.1.0-alpha.1`.
 - Focused release-branch validation passes for `ontocode-api`, `ontocode-protocol`, and `ontocode-state`; state needed the missing `0037_agent_jobs_final_summary.sql` migration to match the already-present agent-job summary code.
 - Python SDK and `codex-sdk` npm staging pass with injected alpha versions.
+- Private alpha release is published at `https://github.com/ontograph/ontograph-private/releases/tag/rust-v0.1.0-alpha.1`.
+- Included assets are the local Linux release binary, root npm wrapper tarball, SDK npm tarball, and checksums.
+- Full native platform npm packaging remains blocked on private release infrastructure: the upstream `rust-release` workflow cannot start in `ontograph/ontograph-private` without the OpenAI runner labels and signing secrets.
 
 Next actions:
-- Commit and push `alpha/0.1.0-alpha.1` plus tag `rust-v0.1.0-alpha.1` to `ontograph`.
-- Wait for the private `rust-release` workflow artifact, then stage native `codex` npm with `CODEX_RELEASE_GITHUB_REPO=ontograph/ontograph-private`.
-- Create the private GitHub alpha release after native artifacts are available.
+- Add private release infrastructure before claiming full native npm coverage: either configure the required runners/signing secrets or add a dedicated unsigned private-alpha workflow that builds only the supported platform set.
+- Stage native `codex` npm with `CODEX_RELEASE_GITHUB_REPO=ontograph/ontograph-private` after a suitable artifact workflow exists.
 - Treat `ontocode-rs/` as the active Rust workspace directory.
 - Cargo metadata now reports zero `codex` binary targets after the dedicated alias-entrypoint cleanup; remaining legacy names are compatibility/runtime/prose surfaces, not duplicate Cargo bins.
 - Close `Claude OAuth Live Validation` if a real redacted sample becomes available.

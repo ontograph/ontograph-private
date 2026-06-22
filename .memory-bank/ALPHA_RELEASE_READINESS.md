@@ -47,7 +47,10 @@ Prepare the repository for an alpha release cut while preserving the existing `0
   - `codex-sdk` npm staging passed with `0.1.0-alpha.1` into `/tmp/ontocode-alpha-npm-stage/codex-sdk-npm-0.1.0-alpha.1.tgz`.
   - Python SDK staging passed with PEP 440 version `0.1.0a1` into `/tmp/ontocode-alpha-python-sdk-stage`.
   - `just test -p ontocode-core` remains a broad-suite blocker unrelated to the release staging slice: observed failures include missing `test_stdio_server`, compact-remote request emission drift, and output-reducer snapshot expectation drift.
-  - Native `codex` npm staging is blocked until a `rust-v0.1.0-alpha.1` `rust-release` workflow run exists or a workflow artifact URL is supplied.
+  - Private branch `alpha/0.1.0-alpha.1` and tag `rust-v0.1.0-alpha.1` were pushed to `ontograph/ontograph-private` as root snapshot commit `3b89d0bd21faf07c41823521c82bb7cd2961482c` because the empty private repo rejected the inherited full-history push with a missing-object unpack error.
+  - Private prerelease published at `https://github.com/ontograph/ontograph-private/releases/tag/rust-v0.1.0-alpha.1`.
+  - Included release assets: local Linux release binary, root npm wrapper tarball, `codex-sdk` npm tarball, and `SHA256SUMS`.
+  - Native platform `codex` npm staging is blocked: the private `rust-release` workflow triggered but ended as `startup_failure` before creating jobs because the workflow depends on upstream runner labels and signing secrets that are not configured in `ontograph/ontograph-private`.
   - `scripts/stage_npm_packages.py` can target a private release repo by setting `CODEX_RELEASE_GITHUB_REPO=ontograph/ontograph-private`.
   - Local release tooling prerequisites used for staging: `pnpm` via a temporary Corepack shim, `openai-codex-cli-bin==0.137.0a4`, `datamodel-code-generator==0.31.2`, and `ruff==0.15.12`.
 - `ontocode-rs/core/src/native_provider/copilot.rs`
@@ -106,8 +109,8 @@ Prepare the repository for an alpha release cut while preserving the existing `0
 - `Claude OAuth live validation`
   - Needs one real redacted `CLAUDE_OAUTH_REDACTED_SAMPLE`.
 - `Native release artifacts`
-  - Native npm packages need a successful `rust-release` workflow run for `rust-v0.1.0-alpha.1` or an explicit workflow artifact URL.
-  - For the private alpha publish path, set `CODEX_RELEASE_GITHUB_REPO=ontograph/ontograph-private` while staging native npm packages.
+  - Full native npm package set needs either configured release runners/signing secrets in `ontograph/ontograph-private` or a dedicated private-alpha unsigned workflow that uses available runners.
+  - For the private alpha publish path, set `CODEX_RELEASE_GITHUB_REPO=ontograph/ontograph-private` while staging native npm packages once a suitable artifact workflow exists.
 - `Workspace path rename`
   - The Rust workspace directory is `ontocode-rs/`.
   - This is layout debt, not a runtime blocker; changing the workspace root again would require a dedicated path-migration plan across Cargo, Bazel, scripts, and CI.

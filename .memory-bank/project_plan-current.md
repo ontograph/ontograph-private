@@ -61,7 +61,8 @@ Upcoming work depends on:
 - Alpha publish candidate is `0.1.0-alpha.1`.
 - The standalone `ontocode` launcher/runtime blocker is fixed, and both fresh dev-profile and clean release-profile `ontocode` binary verification are complete.
 - The clean private alpha release branch is `alpha/0.1.0-alpha.1` in `/tmp/ontocode-alpha-release`; release build plus focused `ontocode-api`, `ontocode-protocol`, and `ontocode-state` tests pass.
-- Remaining alpha publish work is now commit/push/tag to `ontograph`, wait for the `rust-release` workflow artifact, stage the native npm package from that artifact, and then create the private alpha release. Claude OAuth live validation remains sample-blocked and is not a publish gate for this private alpha.
+- Private alpha `0.1.0-alpha.1` is published at `https://github.com/ontograph/ontograph-private/releases/tag/rust-v0.1.0-alpha.1` with a local Linux release binary, root npm wrapper tarball, SDK npm tarball, and checksums.
+- Remaining alpha publish debt is infrastructure-only: the full native platform npm set needs private runners/signing secrets or a dedicated unsigned private-alpha workflow. Claude OAuth live validation remains sample-blocked and is not a publish gate for this private alpha.
 - The Rust workspace directory is now `ontocode-rs/`; the shipped binary surface is `ontocode`, and Cargo metadata reports zero `codex` binary targets after the main-checkout layout reconciliation.
 - The root npm wrapper directory is now `ontocode-cli/`; local pnpm/release tooling uses the new path while the public npm package identity remains compatibility-preserved.
 - `ONTOCODE_FULL_LEGACY_MIGRATION_PROJECT_PLAN.md` remains the staged migration track. Main-checkout F1 layout reconciliation is complete; remaining work is F5 verification/runtime compatibility plus release-gated F6/F7 cleanup.
