@@ -19,13 +19,15 @@ Current private alpha scope:
 - macOS, Windows, and platform npm packages later when needed
 - release builds run in single-build mode with `CARGO_BUILD_JOBS=8`
 
-## Build From Source
+## Install
 
 Install the current private Linux x64 alpha release:
 
 ```bash
 curl -fsSL https://github.com/ontograph/ontograph-private/releases/download/rust-v0.1.0-alpha.1/install-ontocode-linux-x64-v0.1.0-alpha.1.sh | sh
 ```
+
+## Build From Source
 
 Run from the repository root:
 
