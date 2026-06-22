@@ -1,0 +1,113 @@
+# Compact direct Rust reference summary for R0C
+
+Search:
+rg -n --glob '*.rs' '(^|[^A-Za-z0-9_])(use codex_[A-Za-z0-9_]*(::|[;,{])|extern crate codex_[A-Za-z0-9_]*|codex_[A-Za-z0-9_]*::)' ontocode-rs
+
+Total matches: 17041
+
+Owner class counts:
+10015 rust source
+6935 tests
+91 rust source/bin
+
+Top path clusters:
+6165 ontocode-rs/core
+3121 ontocode-rs/app-server
+1973 ontocode-rs/tui
+535 ontocode-rs/ext
+422 ontocode-rs/app-server-protocol
+376 ontocode-rs/cli
+325 ontocode-rs/exec
+244 ontocode-rs/hooks
+229 ontocode-rs/analytics
+217 ontocode-rs/exec-server
+215 ontocode-rs/thread-store
+210 ontocode-rs/codex-api
+200 ontocode-rs/rollout
+181 ontocode-rs/core-plugins
+157 ontocode-rs/windows-sandbox-rs
+148 ontocode-rs/config
+140 ontocode-rs/memories
+133 ontocode-rs/codex-mcp
+126 ontocode-rs/app-server-transport
+116 ontocode-rs/app-server-client
+105 ontocode-rs/mcp-server
+98 ontocode-rs/model-provider
+98 ontocode-rs/linux-sandbox
+96 ontocode-rs/login
+92 ontocode-rs/cloud-tasks
+90 ontocode-rs/core-skills
+86 ontocode-rs/tools
+78 ontocode-rs/otel
+78 ontocode-rs/execpolicy-legacy
+75 ontocode-rs/sandboxing
+75 ontocode-rs/core-api
+65 ontocode-rs/state
+63 ontocode-rs/rmcp-client
+55 ontocode-rs/utils
+53 ontocode-rs/thread-manager-sample
+52 ontocode-rs/app-server-test-client
+50 ontocode-rs/cloud-config
+49 ontocode-rs/rollout-trace
+45 ontocode-rs/models-manager
+37 ontocode-rs/chatgpt
+32 ontocode-rs/prompts
+32 ontocode-rs/backend-client
+29 ontocode-rs/protocol
+
+Top crate tokens:
+5590 codex_protocol
+3694 codex_app_server_protocol
+1068 codex_config
+564 codex_core
+482 codex_tools
+474 codex_state
+469 codex_utils_absolute_path
+321 codex_login
+321 codex_extension_api
+308 codex_exec_server
+203 codex_otel
+187 codex_features
+172 codex_api
+145 codex_core_plugins
+144 codex_rollout
+120 codex_analytics
+119 codex_network_proxy
+113 codex_model_provider_info
+113 codex_client
+102 codex_windows_sandbox
+100 codex_sandboxing
+95 codex_thread_store
+91 codex_cloud_tasks_client
+90 codex_code_mode
+88 codex_mcp
+86 codex_hooks
+78 codex_execpolicy_legacy
+74 codex_utils_cargo_bin
+73 codex_execpolicy
+72 codex_plugin
+70 codex_rollout_trace
+67 codex_home
+66 codex_git_utils
+65 codex_models_manager
+62 codex_utils_pty
+58 codex_utils_output_truncation
+56 codex_feedback
+53 codex_core_api
+53 codex_app_server
+51 codex_core_skills
+50 codex_exec
+47 codex_thread
+46 codex_model_provider
+46 codex_delegate
+41 codex_app_server_client
+40 codex_shell_command
+40 codex_rmcp_client
+40 codex_arg0
+40 codex_apply_patch
+37 codex_utils_cli
+37 codex_terminal_detection
+37 codex_connectors
+35 codex_tui
+30 codex_shell_escalation
+

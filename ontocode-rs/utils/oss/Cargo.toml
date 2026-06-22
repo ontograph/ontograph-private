@@ -1,0 +1,17 @@
+[package]
+name = "ontocode-utils-oss"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-core = { workspace = true }
+ontocode-lmstudio = { workspace = true }
+ontocode-model-provider-info = { workspace = true }
+ontocode-ollama = { workspace = true }
+
+[lib]
+doctest = false

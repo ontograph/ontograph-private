@@ -1,0 +1,296 @@
+# Memory Index
+
+Keep this file short. Each entry should be one line in the form:
+`- [Title](file.md) — one-line hook`
+
+## Projects
+
+- [Architecture](project_architecture.md) — Ontocode/Codex Rust workspace layout, provider/auth/MCP/session ownership, and change homes
+- [Current Forward Plan](project_plan-current.md) — Active project plan for provider extensibility, OAuth/auth-store validation, MCP reliability, hooks/shell safety, context diagnostics, and import internals
+- [Pending Tasks](project_pending-tasks.md) — Living backlog derived from `CLAUDE_CODE_APPROACHES_FOR_CODEBASE_TRACKING.md`
+- [Alpha Release Readiness](ALPHA_RELEASE_READINESS.md) — Release-prep baseline, accepted versioning decisions, remaining blockers, and cut checklist
+- [Provider Credential Routing Refactor Project Plan](PROVIDER_CREDENTIAL_ROUTING_REFACTOR_PROJECT_PLAN.md) — Historical provider credential routing closure; not authority for new native non-OpenAI model OAuth
+- [Provider Credential Routing Refactor Tracking](PROVIDER_CREDENTIAL_ROUTING_REFACTOR_TRACKING.md) — Historical dispatch and verification ledger for closed provider credential routing work
+- [Multi-Provider OAuth Connection Routing ADR](ADR_MULTI_PROVIDER_OAUTH_CONNECTION_ROUTING.md) — Superseded route-based native OAuth design; current decision is OpenAI/Codex-native-only plus external API providers
+- [Multi-Provider OAuth Donor Unblock Review](audit_session-2026-06-18-oauth-donor-unblock.md) — Senior donor review narrowing blocked OAuth gates using examples from `tmp/` without copying donor auth stacks
+- [OpenAI-Only Provider Policy Cleanup](audit_session-2026-06-19-openai-only-provider-policy.md) — ADR and memory-bank cleanup replacing native multi-provider OAuth plans with OpenAI-native plus external API provider policy
+- [Oh My Pi Row 124 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-124-coverage-closeout.md) — Row 124 MCP connection-manager/error-status mapping closed as already covered by existing `connection_manager_tests.rs`
+- [Oh My Pi Row 81 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-81-coverage-closeout.md) — Row 81 context overflow retry closed as already covered by existing `manual_compact_retries_after_context_window_error`
+- [Oh My Pi Row 82 Remote Compaction Blocker](audit_session-2026-06-19-oh-my-pi-row-82-remote-compaction-blocker.md) — Row 82 blocked because remote pre-turn compaction snapshots currently make zero remote compact requests
+- [Oh My Pi Row 83 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-83-coverage-closeout.md) — Row 83 same-model retry loop guard closed by a focused same-model compact guard test plus the existing switch-to-smaller-model snapshot
+- [Oh My Pi Row 85 Compaction Shape Verification Blocked](audit_session-2026-06-19-oh-my-pi-row-85-compaction-shape-verification-blocked.md) — Row 85 compaction request-shape snapshots are still blocked on remote compact request emission
+- [Oh My Pi Row 86 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-86-coverage-closeout.md) — Row 86 bounded compaction failure event tests closed with existing local pre-turn context-window failure coverage
+- [Oh My Pi Row 88 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-88-coverage-closeout.md) — Row 88 hard cap tests closed by existing context, additional-context, initial-context, tool-output, and image patch cap coverage
+- [Oh My Pi Row 26 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-26-coverage-closeout.md) — Row 26 apply-patch parser ambiguity rejection closed as already covered by existing parser/invocation coverage
+- [Oh My Pi Row 27 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-27-coverage-closeout.md) — Row 27 apply-patch parser malformed-input coverage closed as already covered by existing parser and CLI tests
+- [Oh My Pi Row 31 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-31-coverage-closeout.md) — Row 31 custom apply-patch call coverage closed as already covered by existing shell serialization tests
+- [Oh My Pi Row 32 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-32-coverage-closeout.md) — Row 32 apply-patch failure matrix closed as already covered by existing `apply_patch_cli.rs` tests
+- [Oh My Pi Row 39 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-39-coverage-closeout.md) — Row 39 large apply-patch output truncation coverage closed as already covered by existing custom-tool and shell cap tests
+- [Oh My Pi Row 127 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-127-coverage-closeout.md) — Row 127 MCP/OAuth token redaction closed as already covered by existing `rmcp-client` OAuth redaction tests
+- [Oh My Pi Row 130 Coverage Closeout](audit_session-2026-06-19-oh-my-pi-row-130-coverage-closeout.md) — Row 130 MCP tool schema cycle guard closed with one focused recursive local-ref wrapper test in `ontocode-rs/tools/src/mcp_tool_tests.rs`
+- [Antigravity OAuth And CLIProxyAPI Hub ADR](ADR_ANTIGRAVITY_OAUTH_CLIPROXY_PROVIDER_HUB.md) — Superseded native Antigravity OAuth import decision; external sidecar evidence only
+- [Antigravity Native Runtime Contract ADR](ADR_ANTIGRAVITY_RUNTIME_CONTRACT.md) — Superseded native runtime contract; external sidecar evidence only
+- [Antigravity Native Runtime Approval ADR](ADR_ANTIGRAVITY_NATIVE_RUNTIME_APPROVAL.md) — Superseded native runtime approval gate; external sidecar evidence only
+- [Antigravity Endpoint Compatibility Proof Runbook](ANTIGRAVITY_ENDPOINT_COMPATIBILITY_PROOF_RUNBOOK.md) — Minimal redacted fixture evidence required to unblock A6 runtime approval
+- [Antigravity Redacted OAuth Record Fixture](ANTIGRAVITY_REDACTED_OAUTH_RECORD_FIXTURE.md) — Redacted shape of a user-supplied Antigravity OAuth credential; tokens intentionally omitted
+- [Antigravity OAuth CLIProxyAPI Hub Tracking](ANTIGRAVITY_OAUTH_CLIPROXY_PROVIDER_HUB_TRACKING.md) — Dispatch and verification ledger for the Antigravity OAuth import slice
+- [Antigravity OAuth Import Closure](audit_session-2026-06-17-antigravity-oauth-import-closure.md) — ADR-bounded Antigravity import accepted with focused parser, TUI import, and status tests passing
+- [Kimi OAuth Import And Device Flow ADR](ADR_KIMI_OAUTH_CLIPROXY_IMPORT_AND_DEVICE_FLOW.md) — Reviewed import-first Kimi OAuth path from CLIProxyAPI donor evidence, with device flow and runtime gated
+- [Kimi OAuth Import And Device Flow Tracking](KIMI_OAUTH_CLIPROXY_IMPORT_AND_DEVICE_FLOW_TRACKING.md) — Dispatch and verification ledger for ADR-bounded Kimi OAuth import/status work
+- [Provider Auth Slash Command Menus ADR](ADR_PROVIDER_AUTH_SLASH_COMMAND_MENUS.md) — Superseded for non-OpenAI native OAuth menus; OpenAI/Codex remains native auth owner
+- [Native Gemini OAuth And Sub-Agent Provider Concurrency ADR](ADR_NATIVE_GEMINI_OAUTH_AND_SUBAGENT_PROVIDER_CONCURRENCY.md) — Superseded native Gemini OAuth plan; external sidecar evidence only
+- [OAuth And Model Functionality Plan Audit](audit_session-2026-06-18-oauth-model-plan-audit.md) — Current-state audit of completed, planned, stale, and blocked OAuth/model/provider work
+- [Custom Sub-Agent Models ADR](ADR_CUSTOM_SUBAGENT_MODELS.md) — Accepted contract for exposing configured custom model overrides through `spawn_agent`
+- [Custom Sub-Agent Models Tracking](ADR_CUSTOM_SUBAGENT_MODELS_TRACKING.md) — Dispatch and verification ledger for custom sub-agent model override work
+- [Slash-Command Sub-Agent Management ADR](ADR_AGENT_SLASH_SUBAGENT_MANAGEMENT.md) — Proposed `/agent` and `/subagents` management surface over existing multi-agent tools
+- [MCP Issues Status](MCP_ISSUES_STATUS.md) — Current MCP reliability closure, remaining risks, and owner boundaries
+- [Ontocode Full Legacy Migration Project Plan](ONTOCODE_FULL_LEGACY_MIGRATION_PROJECT_PLAN.md) — Reviewed staged migration from `ontocode-rs` and remaining legacy Codex surfaces to Ontocode identities
+- [Ontocode Full Legacy Migration Tracking](ONTOCODE_FULL_LEGACY_MIGRATION_TRACKING.md) — Active Stage 0 dispatch ledger for full legacy surface inventory and gated implementation
+- [Ontocode Legacy Lefties Todo](ONTOCODE_LEGACY_LEFTIES_TODO.md) — Current actionable queue for remaining `codex` names after the Ontocode rename baseline
+- [Ontocode Full Legacy Migration Stage 0 Review](ONTOCODE_FULL_LEGACY_MIGRATION_STAGE0_REVIEW.md) — Manager no-go review accepting Stage 0 matrices and blocking implementation until worktree and release/versioning gates are cleared
+- [Lean-ctx Pre-Junior Project Plan](LEAN_CTX_PRE_JUNIOR_PROJECT_PLAN.md) — Junior-safe Stage 0 plan for the approved read-only lean-ctx-inspired repository helper script
+- [Lean-ctx Pre-Junior Tracking](LEAN_CTX_PRE_JUNIOR_TRACKING.md) — Dispatch and verification ledger for the repository-only memory helper script
+- [GitNexus Code-Graph Adoption Pre-Junior Project Plan](GITNEXUS_CODE_GRAPH_ADOPTION_PRE_JUNIOR_PROJECT_PLAN.md) — Junior-safe staged plan for the Rust operational evidence backbone
+- [GitNexus Code-Graph Adoption Tracking](GITNEXUS_CODE_GRAPH_ADOPTION_TRACKING.md) — Dispatch and verification ledger for operational evidence backbone implementation
+- [Gemini CLI Donor Pre-Junior Project Plan](GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_PRE_JUNIOR_PROJECT_PLAN.md) — Closed no-dispatch after OntoIndex review found no new core-extension slice
+- [Qwen Donor Dispatch Closeout](audit_session-2026-06-20-qwen-donor-dispatch-closeout.md) — Manager closeout for Qwen donor rows: B9/B10 verified, all 38 kept rows completed/covered/blocked in `tmp/qwen-code-donor-dispatch-tracking.md`
+- [Qwen Donor Blocked Rows Unblock ADR](ADR_QWEN_DONOR_BLOCKED_ROWS_UNBLOCK.md) — Accepted narrow existing-owner unblock plan for the 12 blocked Qwen donor rows; broad API/state surfaces remain blocked
+- [Oh My Pi Donor 200 Solutions Review](OH_MY_PI_DONOR_200_SOLUTIONS_REVIEW.md) — OntoIndex-backed inventory of useful donor ideas mapped to current owners and defer rules
+- [Oh My Pi Donor 200 Solutions Challenge](OH_MY_PI_DONOR_200_SOLUTIONS_CHALLENGE.md) — per-proposal KEEP/NARROW/DEFER/REJECT review mapped to existing Ontocode owners
+- [Oh My Pi Donor Non-Keep Proposals](OH_MY_PI_DONOR_200_SOLUTIONS_NON_KEEP.md) — NARROW/DEFER/REJECT donor ideas split out of the accepted Oh My Pi challenge list
+- [Oh My Pi Donor Keep Refactor Map ADR](ADR_OH_MY_PI_DONOR_KEEP_REFACTOR_MAP.md) — accepted Oh My Pi donor rows mapped one-by-one to concrete refactor/test homes
+- [Oh My Pi Donor Pre-Junior Project Plan](OH_MY_PI_DONOR_KEEP_REFACTOR_MAP_PRE_JUNIOR_PROJECT_PLAN.md) — junior-safe first-slice implementation plan for the accepted Oh My Pi donor refactor map
+- [Claude Code Donor 200 Approaches Review](CLAUDE_CODE_DONOR_200_APPROACHES_REVIEW.md) — 200 candidate donor approaches from `tmp/claude-code-main` mapped to Ontocode owner areas and first checks
+- [Claude Code Donor Parked Rows Pre-Junior Plan](CLAUDE_CODE_DONOR_DEFERRED_NARROW_REJECT_PRE_JUNIOR_PROJECT_PLAN.md) — junior-safe triage-only plan for parked Claude Code donor rows; no direct implementation scope
+- [Claude Parked Row 002 Review](audit_session-2026-06-20-claude-parked-row-002.md) — Row 002 stays parked because a default-only preset abstraction has no concrete existing-owner test gap
+- [Claude Parked Row 004 Review](audit_session-2026-06-20-claude-parked-row-004.md) — Row 004 stays parked because active Claude KEEP row 010 already owns disabled-tool reasons
+- [Claude Parked Row 007 Review](audit_session-2026-06-20-claude-parked-row-007.md) — Row 007 stays parked because registry-bound alias resolution crosses a critical shared `ToolName` surface
+- [Claude Parked Row 008 Review](audit_session-2026-06-20-claude-parked-row-008.md) — Row 008 stays parked because attribution is already KEEP row 072 and donor deny filtering lacks an existing config surface
+- [Claude Parked Row 013 Review](audit_session-2026-06-20-claude-parked-row-013.md) — Row 013 stays parked because no fresh evidence promotes deferred preference/TUI rendering ideas
+- [Claude Parked Row 015 Review](audit_session-2026-06-20-claude-parked-row-015.md) — Row 015 stays parked because notebook scope conflicts with blocked donor scope and embedded-search detection is already covered
+- [Claude Parked Row 016 Review](audit_session-2026-06-20-claude-parked-row-016.md) — Row 016 stays parked because no concrete Windows shell bug evidence promotes the deferred PowerShell capability idea
+- [Claude Parked Row 017 Review](audit_session-2026-06-20-claude-parked-row-017.md) — Row 017 stays parked because shell-adapter and notebook-edit sources mismatch and no deferred evidence promotes notebook tooling
+- [Claude Parked Row 018 Review](audit_session-2026-06-20-claude-parked-row-018.md) — Row 018 stays parked because synthetic-output tooling is a protocol/tool-surface risk without fresh evidence
+- [Claude Parked Row 019 Review](audit_session-2026-06-20-claude-parked-row-019.md) — Row 019 stays parked because typed ask-user choices already exist and the tool-deny path is a separate covered approval surface
+- [Claude Parked Row 020 Review](audit_session-2026-06-20-claude-parked-row-020.md) — Row 020 stays parked because explicit task-output reads require new state/API/tool surface rather than existing planner coverage
+- [Claude Parked Row 022 Review](audit_session-2026-06-20-claude-parked-row-022.md) — Row 022 stays parked because permission and plan-mode behavior is already owned and no single explanation-field gap was proven
+- [Claude Parked Row 027 Review](audit_session-2026-06-20-claude-parked-row-027.md) — Row 027 stays parked because wildcard permission help is documentation work without fresh core evidence
+- [Claude Parked Row 030 Review](audit_session-2026-06-20-claude-parked-row-030.md) — Row 030 stays parked because batch approval plan-mode UX needs product demand and no fresh evidence was found
+- [Claude Parked Row 031 Review](audit_session-2026-06-20-claude-parked-row-031.md) — Row 031 stays parked because `/review` behavior already exists in the review prompt, TUI, and session owners
+- [Claude Parked Row 032 Review](audit_session-2026-06-20-claude-parked-row-032.md) — Row 032 stays parked because security-review plugin commands are non-core workflow surface
+- [Claude Parked Row 038 Review](audit_session-2026-06-20-claude-parked-row-038.md) — Row 038 stays parked because structured review metadata already exists and local-only review would add a second review service
+- [Claude Parked Row 039 Review](audit_session-2026-06-20-claude-parked-row-039.md) — Row 039 stays parked because the parked git-helper idea and donor branch-diff prompt idea are different surfaces
+- [Claude Parked Row 040 Review](audit_session-2026-06-20-claude-parked-row-040.md) — Row 040 stays parked because issue triage remains non-core and donor PR fallback is a different surface
+- [Claude Parked Row 041 Review](audit_session-2026-06-20-claude-parked-row-041.md) — Row 041 stays parked because PR-body automation is a GitHub skill and donor commit automation is a different runtime surface
+- [Claude Parked Row 042 Review](audit_session-2026-06-20-claude-parked-row-042.md) — Row 042 stays parked because CI diagnostics and commit-amend prompt policy are different non-core surfaces
+- [Claude Parked Row 043 Review](audit_session-2026-06-20-claude-parked-row-043.md) — Row 043 stays parked because release-note automation and commit secret warnings are different non-core surfaces
+- [Claude Parked Row 044 Review](audit_session-2026-06-20-claude-parked-row-044.md) — Row 044 stays parked because repo workflow assistant scope and HEREDOC commit prompt rules are different surfaces
+- [Claude Parked Row 045 Review](audit_session-2026-06-20-claude-parked-row-045.md) — Row 045 stays parked because review templates and recent-commit commit prompts are split non-core surfaces
+- [Claude Parked Row 046 Review](audit_session-2026-06-20-claude-parked-row-046.md) — Row 046 stays parked because changelog workflows and PR creation skills are non-core workflow/plugin territory
+- [Claude Parked Row 047 Review](audit_session-2026-06-20-claude-parked-row-047.md) — Row 047 stays parked because duplicate issue triage is already external automation and no fresh evidence exists
+- [Claude Parked Row 048 Review](audit_session-2026-06-20-claude-parked-row-048.md) — Row 048 stays parked because reviewer/issue lifecycle automation belongs outside core and no fresh evidence was found
+- [Claude Parked Row 049 Review](audit_session-2026-06-20-claude-parked-row-049.md) — Row 049 stays parked because merge babysitting and workflow-permission checks are external automation without fresh DEFER evidence
+- [Claude Parked Row 050 Review](audit_session-2026-06-20-claude-parked-row-050.md) — Row 050 stays parked because duplicate issue auto-close and branch hygiene are repo automation without fresh DEFER evidence
+- [Claude Parked Row 057 Review](audit_session-2026-06-20-claude-parked-row-057.md) — Row 057 stays parked because agent job list/status/cancel behavior already has an owner and tests, while a kill interface would add surface area
+- [Claude Parked Row 058 Review](audit_session-2026-06-20-claude-parked-row-058.md) — Row 058 stays parked because parent-child lineage and source metadata already exist, while a task-type enum would add protocol/state surface
+- [Claude Parked Row 059 Review](audit_session-2026-06-20-claude-parked-row-059.md) — Row 059 stays parked because scheduler and background-monitor task types lack fresh requirements and existing agent-job/MCP status owners already cover adjacent behavior
+- [Claude Parked Row 066 Review](audit_session-2026-06-20-claude-parked-row-066.md) — Row 066 stays parked because autonomous memory extraction already has a bounded write pipeline and the donor idea is duplicate-blocked
+- [Claude Parked Row 067 Review](audit_session-2026-06-20-claude-parked-row-067.md) — Row 067 stays parked because strict memory-file permissions need explicit cross-platform policy and security evidence rather than memory-bank docs discipline
+- [Claude Parked Row 068 Review](audit_session-2026-06-20-claude-parked-row-068.md) — Row 068 stays parked because current memory reads already use existing memory-read and context-fragment owners without a single promotable test gap
+- [Claude Parked Row 070 Review](audit_session-2026-06-20-claude-parked-row-070.md) — Row 070 stays parked because custom memory templates need a product boundary and no fresh DEFER promotion evidence was found
+- [Claude Parked Row 071 Review](audit_session-2026-06-20-claude-parked-row-071.md) — Row 071 stays parked because cross-project memory sharing and custom memory update prompts are mismatched DEFER surfaces without fresh evidence
+- [Claude Parked Row 073 Review](audit_session-2026-06-20-claude-parked-row-073.md) — Row 073 stays parked because memory/context token caps already span existing owners and central context assembly is CRITICAL impact
+- [Claude Parked Row 075 Review](audit_session-2026-06-20-claude-parked-row-075.md) — Row 075 stays parked because exact-output memory key-results are memory-bank docs/process hygiene rather than core implementation scope
+- [Claude Parked Row 076 Review](audit_session-2026-06-20-claude-parked-row-076.md) — Row 076 stays parked because failed-approach tracking already belongs to memory templates and repo-only docs/process hygiene
+- [Claude Parked Row 077 Review](audit_session-2026-06-20-claude-parked-row-077.md) — Row 077 stays parked because current-state memory already lives in memory-bank project status and pending-task tracking
+- [Claude Parked Row 078 Review](audit_session-2026-06-20-claude-parked-row-078.md) — Row 078 stays parked because workflow-command memory is docs/process guidance already covered by memory templates and repo-only helper scripts
+- [Claude Parked Row 081 Review](audit_session-2026-06-20-claude-parked-row-081.md) — Row 081 stays parked because read-only prompt speculation lacks fresh product evidence and no current owner-local failing test exists
+- [Claude Parked Row 082 Review](audit_session-2026-06-20-claude-parked-row-082.md) — Row 082 stays parked because no background-speculation owner or measured latency evidence exists for a max-turn bound
+- [Claude Parked Row 083 Review](audit_session-2026-06-20-claude-parked-row-083.md) — Row 083 stays parked because no prediction-cache telemetry or max-message speculation owner exists
+- [Claude Parked Row 084 Review](audit_session-2026-06-20-claude-parked-row-084.md) — Row 084 stays parked because generic tool-router tests already cover exposure ordering and no speculation-specific owner gap exists
+- [Claude Parked Row 085 Review](audit_session-2026-06-20-claude-parked-row-085.md) — Row 085 stays parked because exec-server has only generic copy/env-overlay plumbing, not speculative write adoption
+- [Claude Parked Row 086 Review](audit_session-2026-06-20-claude-parked-row-086.md) — Row 086 stays parked because exec-server cleanup owners are generic process/tempdir cleanup, not speculative overlay cleanup
+- [Claude Parked Row 089 Review](audit_session-2026-06-20-claude-parked-row-089.md) — Row 089 stays parked because OTEL has generic redaction coverage but no speculation-boundary runtime or lint owner to harden
+- [Claude Parked Row 090 Review](audit_session-2026-06-20-claude-parked-row-090.md) — Row 090 stays parked because shell parser and execpolicy already cover cd/path context without a speculation suppression owner
+- [Claude Parked Row 094 Review](audit_session-2026-06-20-claude-parked-row-094.md) — Row 094 stays parked because subagent owners have usage-hint defaults but no token-budget diagnostic owner to harden
+- [Claude Parked Row 095 Review](audit_session-2026-06-20-claude-parked-row-095.md) — Row 095 stays parked because goal continuation and budget-limit prompt fixtures already cover the stable prompt path
+- [Claude Parked Row 097 Review](audit_session-2026-06-20-claude-parked-row-097.md) — Row 097 stays parked because agent-job state classification and hook-output bounding are separate already-covered owners
+- [Claude Parked Row 101 Review](audit_session-2026-06-20-claude-parked-row-101.md) — Row 101 stays parked because teammate-idle would add a new hook/protocol surface rather than extend the existing hook registry
+- [Claude Parked Row 102 Review](audit_session-2026-06-20-claude-parked-row-102.md) — Row 102 stays parked because task-completed would require a new hook event rather than matcher-test-only coverage
+- [Claude Parked Row 103 Review](audit_session-2026-06-20-claude-parked-row-103.md) — Row 103 stays parked because stop-hook feedback is already bounded in hooks and a session summary would add new semantics
+- [Claude Parked Row 104 Review](audit_session-2026-06-20-claude-parked-row-104.md) — Row 104 stays parked because structured hook runs already exist and progress events would add protocol/rendering semantics
+- [Claude Parked Row 106 Review](audit_session-2026-06-20-claude-parked-row-106.md) — Row 106 stays parked because remote bridge feature gates are non-core platform work without an accepted owner or fresh evidence
+- [Claude Parked Row 107 Review](audit_session-2026-06-20-claude-parked-row-107.md) — Row 107 stays parked because no disabled bridge owner or fresh app-server demand exists for a no-op bridge handle
+- [Claude Parked Row 108 Review](audit_session-2026-06-20-claude-parked-row-108.md) — Row 108 stays parked because remote-control status already exposes connection state and bridge auth/state still lacks ADR demand
+- [Claude Parked Row 109 Review](audit_session-2026-06-20-claude-parked-row-109.md) — Row 109 stays parked because bridge session-spawn modes would add transport/config surface without a proven owner gap
+- [Claude Parked Row 110 Review](audit_session-2026-06-20-claude-parked-row-110.md) — Row 110 stays parked because existing remote-control/auth refresh owners already cover expiry refresh without bridge protocol proof
+- [Claude Parked Row 111 Review](audit_session-2026-06-20-claude-parked-row-111.md) — Row 111 stays parked because trusted-device auth would overlap external-agent ADR boundaries without fresh evidence
+- [Claude Parked Row 112 Review](audit_session-2026-06-20-claude-parked-row-112.md) — Row 112 stays parked because workspace-scoped work secrets would add parallel bridge/resource state without a proven owner gap
+- [Claude Parked Row 113 Review](audit_session-2026-06-20-claude-parked-row-113.md) — Row 113 stays parked because bridge message UUID dedupe would add remote-execution state before security review
+- [Claude Parked Row 114 Review](audit_session-2026-06-20-claude-parked-row-114.md) — Row 114 stays parked because existing outbound buffering/acks do not justify new bridge batching or flush-gate surface
+- [Claude Parked Row 115 Review](audit_session-2026-06-20-claude-parked-row-115.md) — Row 115 stays parked because app-server v2 already owns permission request delegation without donor bridge protocol
+- [Claude Parked Row 116 Review](audit_session-2026-06-20-claude-parked-row-116.md) — Row 116 stays parked because existing typed input and feedback attachments do not prove a bridge attachment protocol
+- [Claude Parked Row 117 Review](audit_session-2026-06-20-claude-parked-row-117.md) — Row 117 stays parked because existing remote-control status surfaces do not justify bridge/browser-extension TUI UI
+- [Claude Parked Row 118 Review](audit_session-2026-06-20-claude-parked-row-118.md) — Row 118 stays parked because current diagnostics surfaces do not justify a bridge-specific diagnostics command
+- [Claude Parked Row 119 Review](audit_session-2026-06-20-claude-parked-row-119.md) — Row 119 stays parked because existing transport owners do not justify env-less bridge abstraction
+- [Claude Parked Row 120 Review](audit_session-2026-06-20-claude-parked-row-120.md) — Row 120 stays parked because current shutdown/write-complete coverage does not justify bridge teardown flush
+- [Claude Parked Row 122 Review](audit_session-2026-06-20-claude-parked-row-122.md) — Row 122 stays parked because MCP tool metadata exists and source metadata would add a new API surface
+- [Claude Parked Row 123 Review](audit_session-2026-06-20-claude-parked-row-123.md) — Row 123 stays parked because slash commands are already UI-owned and MCP command listing would add source-browsing API surface
+- [Claude Parked Row 128 Review](audit_session-2026-06-20-claude-parked-row-128.md) — Row 128 stays parked because architecture docs already exist and an MCP prompt would add new docs/MCP API surface
+- [Claude Parked Row 129 Review](audit_session-2026-06-20-claude-parked-row-129.md) — Row 129 stays parked because compare-tools prompts would add MCP teaching/demo surface without a current owner gap
+- [Claude Parked Row 130 Review](audit_session-2026-06-20-claude-parked-row-130.md) — Row 130 stays parked because custom source-root env is disallowed and no current-manager cap/redaction gap was proven
+- [Claude Parked Row 131 Review](audit_session-2026-06-20-claude-parked-row-131.md) — Row 131 stays parked because slash-command metadata already exists and prompt/local/local-UI would add a new taxonomy
+- [Claude Parked Row 133 Review](audit_session-2026-06-20-claude-parked-row-133.md) — Row 133 stays parked because command progress messaging is already per-command and no generic field gap was proven
+- [Claude Parked Row 135 Review](audit_session-2026-06-20-claude-parked-row-135.md) — Row 135 stays parked because command metadata already feeds the popup and plugin wrappers are outside the narrow docs path
+- [jscpd Donor 40 Proposals Review](JSCPD_DONOR_40_PROPOSALS_REVIEW.md) — 40 duplication-detection, reporting, CI, and refactor-process ideas from `tmp/jscpd-main` mapped to Ontocode owner areas
+- [Onto Memory Tools](../scripts/onto_memory_tools.py) — Read-only stdlib helper for memory status, task counts, and local markdown link checks
+
+## References
+
+- [Agent Rules](reference_agent-rules.md) — Binding implementation rules for GitNexus, lean-ctx, Rust tests, architecture reuse, and Ontocode rename work
+- [Project Plan Source](CLAUDE_CODE_APPROACHES_FOR_CODEBASE.md) — Core-natural approaches retained after Claude Code repository review
+- [Project Plan Tracking](CLAUDE_CODE_APPROACHES_FOR_CODEBASE_TRACKING.md) — Manager dispatch queue and current status
+- [Lefties](CLAUDE_CODE_APPROACHES_LEFTIES.md) — Non-core or deferred ideas intentionally removed from the core plan
+
+## ADRs And Tracking
+
+- [Claude OAuth Provider Refactor](ADR_CLAUDE_OAUTH_PROVIDER_REFACTOR.md) — Original Claude OAuth provider integration/refactor decision record
+- [Provider Extensibility Remaining Implementation](ADR_PROVIDER_EXTENSIBILITY_REMAINING_IMPLEMENTATION.md) — Remaining extensibility slices after provider selector/OAuth work
+- [Native Heterogeneous Provider Engines](ADR_NATIVE_HETEROGENEOUS_PROVIDER_ENGINES.md) — Native Claude/Gemini/Copilot provider engine strategy
+- [Claude Code Donor Core Extension Review](ADR_CLAUDE_CODE_DONOR_CORE_EXTENSION_REVIEW.md) — ADR gate for the 200 Claude Code donor ideas, classifying newness, core-extension value, and keep/narrow/defer/reject outcomes
+- [Claude Code Donor Deferred/Narrow/Rejected](ADR_CLAUDE_CODE_DONOR_CORE_EXTENSION_REVIEW_DEFERRED_NARROW_REJECT.md) — parked Claude Code donor rows that are not active core-extension work
+- [jscpd Donor Core Extension Review](ADR_JSCPD_DONOR_CORE_EXTENSION_REVIEW.md) — ADR gate for jscpd donor ideas, keeping only new core-extension candidates for generated code/text quality
+- [Gemini CLI Donor Context/Tools/Agents/Evals](ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS.md) — accepted planning inventory for context/memory, file/search/tools, MCP/hooks/extensions, agents/subagents, and automation/evals donor ideas
+- [Gemini CLI Donor Deferred TODO](ADR_GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_DEFERRED_TODO.md) — deferred, narrowed, and rejected donor ideas parked outside the active Gemini CLI donor ADR
+- [Native Heterogeneous Provider Engines](ADR_NATIVE_HETEROGENEOUS_PROVIDER_ENGINES.md) — Superseded for new non-OpenAI native model engines; external API provider sidecars are the current path
+- [Public Adapter SDK And Schema Migrations](ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS.md) — Next-phase compatibility ADR for public adapter config, schema generation, SDK exposure, and migrations
+- [Public Adapter SDK And Schema Migrations Tracking](ADR_PUBLIC_ADAPTER_SDK_SCHEMA_MIGRATIONS_TRACKING.md) — Active Stage 0 tracker for adapter public schema proposal, owner map, and compatibility tests
+- [External-Agent Interop Detector Consolidation](ADR_EXTERNAL_AGENT_INTEROP_DETECTORS_CONSOLIDATION.md) — Dispatch authority for consolidated Gemini CLI, Hermes Agent, and GBrain redacted Stage 0 detectors
+- [Gemini CLI Tool Extensions](ADR_GEMINI_CLI_TOOL_EXTENSIONS.md) — Historical source evidence; Gemini requirements consolidated into external-agent interop detector ADR
+- [Hermes Agent Tool Extensions](ADR_HERMES_AGENT_TOOL_EXTENSIONS.md) — Historical source evidence; Hermes requirements consolidated into external-agent interop detector ADR
+- [GBrain Tool Extensions](ADR_GBRAIN_TOOL_EXTENSIONS.md) — Historical source evidence; GBrain requirements consolidated into external-agent interop detector ADR
+- [Lean-ctx Project Tool Extensions](ADR_LEAN_CTX_PROJECT_TOOL_EXTENSIONS.md) — Inlined into GitNexus dependency consolidation; Stage 0 scripts remain bootstrap only
+- [Native Context Tools Core Engine ADR](ADR_NATIVE_CONTEXT_TOOLS_CORE_ENGINE.md) — Proposed 4+2 path for bounded read/search/shell compression inside existing Ontocode core owners
+- [Native Context Tools Core Engine Project Plan](NATIVE_CONTEXT_TOOLS_CORE_ENGINE_PROJECT_PLAN.md) — Pre-junior C0 plan for shell output reducers through existing core formatting
+- [Native Context Tools Core Engine Tracking](NATIVE_CONTEXT_TOOLS_CORE_ENGINE_TRACKING.md) — Dispatch and verification ledger for the reviewed C0 shell-output reducer slice
+- [Native Context Tools C0 Closure](audit_session-2026-06-15-native-context-tools-c0-closure.md) — C0 shell-output reducers accepted with focused tests passing; broad core tests blocked by existing test-binary-support alias collision
+- [Native Context Tools Core Verification Unblock](audit_session-2026-06-15-native-context-tools-core-unblock.md) — arg0 duplicate execve-wrapper alias fixed; broad `ontocode-core` tests pass with a fresh isolated `TMPDIR`
+- [OpenCode Tool Extensions](ADR_OPENCODE_TOOL_EXTENSIONS.md) — Challenged OpenCode review retaining only the redacted Stage 0 interop detector
+- [CliRelay Tool Extensions](ADR_CLIRELAY_TOOL_EXTENSIONS.md) — Challenged CliRelay review retaining only the redacted Stage 0 interop detector
+- [OpenClaw Tool Extensions](ADR_OPENCLAW_TOOL_EXTENSIONS.md) — Challenged OpenClaw review retaining only the redacted Stage 0 interop detector
+- [GitNexus Code-Graph Adoption](ADR_GITNEXUS_CODE_GRAPH_ADOPTION.md) — Canonical consolidation ADR for GitNexus/lean-ctx third-party boundaries and operational evidence backbone
+- [GitNexus Operational Evidence Closure](audit_session-2026-06-16-gitnexus-operational-evidence-closure.md) — S0-S9 accepted for the Rust operational evidence ledger; S10 context fragment remains ADR-blocked
+- [Gemini OAuth Donor Transfer Closure](audit_session-2026-06-16-gemini-oauth-donor-transfer-closure.md) — S2-D/S2-E/S3-A/S5-A accepted; remaining Gemini OAuth work is blocked on external runtime/login/API gates
+- [Gemini OAuth S7 Unblock](audit_session-2026-06-16-gemini-oauth-s7-unblock.md) — official Gemini API OAuth docs unblock S7 normal Gemini bearer-auth work; Cloud Code Assist and bundled login stay blocked
+- [Gemini OAuth S6/S7 Closure](audit_session-2026-06-16-gemini-oauth-s6-s7-closure.md) — S6-A user-supplied OAuth import and S7-A normal Gemini bearer auth accepted; only external-gated Gemini work remains
+- [Ontocode Rename Tracking](ONTOCODE_RENAME_TRACKING.md) — Project identity migration tracker
+- [Ontocode Binary Rename Proposal](ONTOCODE_BINARY_RENAME_PROPOSAL.md) — GitNexus-backed staged proposal for making `ontocode` canonical while preserving `codex`
+- [R5BP OTEL Rename Worker Verification](audit_session-2026-06-12-r5bp-otel-rename-worker-verification.md) — exact OTEL package/lib/Bazel/import rename verification on `gpt-5.4-mini`; OTEL package tests passed, exact old-name refs were removed, and the restored baseline reports 119 remaining `codex-*` packages.
+- [R5BP OTEL Stale Baseline Blocker](audit_session-2026-06-12-r5bp-otel-stale-baseline-blocker.md) — manager rejected R5BP because metadata regressed to 119 `codex-*` packages; R5BP-U1 recovery must restore accepted Ontocode identities before further dispatch.
+- [R5BP OTEL Recovery Closure](audit_session-2026-06-12-r5bp-otel-recovery-closure.md) — R5BP accepted after controlled recovery; exactly five `codex-*` Cargo packages remain.
+- [R5BQ Extension API Rename Risk Review](audit_session-2026-06-12-r5bq-extension-api-rename-risk-review.md) — dispatch guardrails for the extension-api identity-only rename.
+- [R5BQ Extension API Rename Worker Verification](audit_session-2026-06-12-r5bq-extension-api-rename-worker-verification.md) — worker verification for the extension-api identity-only rename; confirms the new `ontocode-extension-api` / `ontocode_extension_api` identity and the residual four `codex-*` package set.
+- [R5BQ Extension API Rename Closure](audit_session-2026-06-12-r5bq-extension-api-rename-closure.md) — extension-api identity-only rename accepted; exactly four `codex-*` Cargo packages remain.
+- [R5BR State Rename Risk Review](audit_session-2026-06-12-r5br-state-rename-risk-review.md) — dispatch guardrails for the state identity-only rename with CRITICAL SQLite telemetry impact.
+- [R5BR State Rename Closure](audit_session-2026-06-12-r5br-state-rename-closure.md) — state identity-only rename accepted; exactly three `codex-*` Cargo packages remain.
+- [R5BS Tools Rename Risk Review](audit_session-2026-06-13-r5bs-tools-rename-risk-review.md) — dispatch guardrails for the tools identity-only rename with CRITICAL tool-surface impact.
+- [R5BS Tools Rename Closure](audit_session-2026-06-13-r5bs-tools-rename-closure.md) — tools identity-only rename accepted; exactly two protocol-gated `codex-*` Cargo packages remain.
+- [R5BT App-Server Protocol Rename Risk Review](audit_session-2026-06-13-r5bt-app-server-protocol-rename-risk-review.md) — dispatch guardrails for the user-approved protocol-sensitive app-server protocol identity rename.
+- [R5BT App-Server Protocol Rename Closure](audit_session-2026-06-13-r5bt-app-server-protocol-rename-closure.md) — manager verification accepted the app-server protocol identity rename; only `codex-protocol` remains.
+- [R5BU Protocol Rename Closure](audit_session-2026-06-13-r5bu-protocol-rename-closure.md) — manager verification accepted the final protocol identity rename; zero `codex-*` Cargo packages remain.
+- [Claude Parked Row 136 Review](audit_session-2026-06-20-claude-parked-row-136.md) — row 136 stays parked because skill frontmatter and plugin manifests already have owners/tests; markdown command parsing would add a new command/plugin runtime surface.
+- [Claude Parked Row 137 Review](audit_session-2026-06-20-claude-parked-row-137.md) — row 137 stays parked because shell execution and policy owners already cover command safety; prompt-command substitutions would add a speculative command runtime surface.
+- [Claude Parked Row 138 Review](audit_session-2026-06-20-claude-parked-row-138.md) — row 138 stays parked because CLI/TUI/app-server diagnostics already have separate owners and no single failing `/doctor` screen gap was found.
+- [Claude Parked Row 139 Review](audit_session-2026-06-20-claude-parked-row-139.md) — row 139 stays parked because current TUI `/status` already owns compact operational state with tests and snapshots.
+- [Claude Parked Row 140 Review](audit_session-2026-06-20-claude-parked-row-140.md) — row 140 stays parked because `/status` already owns token usage, credits, and limits visibility; `/cost` would add a new command surface.
+- [Claude Parked Row 141 Review](audit_session-2026-06-20-claude-parked-row-141.md) — row 141 stays parked because existing mention, IDE context, status, debug-config, and approval owners cover adjacent context/file inspection without a single `/files` gap.
+- [Claude Parked Row 143 Review](audit_session-2026-06-20-claude-parked-row-143.md) — row 143 stays parked because `/sandbox-add-read-dir`, workspace-root config, and permission-root tests already cover scoped root behavior.
+- [Claude Parked Row 144 Review](audit_session-2026-06-20-claude-parked-row-144.md) — row 144 stays parked because existing personality/style prompt-fragment owners already cover output style and `/output-style` would add duplicate runtime surface.
+- [Claude Parked Row 145 Review](audit_session-2026-06-20-claude-parked-row-145.md) — row 145 stays parked because fast/low-latency behavior is already owned by service-tier config and catalog-driven `/fast` slash commands.
+- [Claude Parked Row 146 Review](audit_session-2026-06-20-claude-parked-row-146.md) — row 146 stays parked because `/model`, reasoning popups, shortcuts, config edits, and app-server effort settings already own reasoning changes.
+- [Claude Parked Row 147 Review](audit_session-2026-06-20-claude-parked-row-147.md) — row 147 stays parked because `/model` command wiring, grouped provider picker, filtering, and picker snapshots already exist.
+- [Claude Parked Row 148 Review](audit_session-2026-06-20-claude-parked-row-148.md) — row 148 stays parked because `/permissions`, status, debug-config, and config persistence already own permission inspection/editing.
+- [Claude Parked Row 149 Review](audit_session-2026-06-20-claude-parked-row-149.md) — row 149 stays parked because `/hooks`, hooks/list, hooks browser, hook trust, and debug visibility already own hook state.
+- [Claude Parked Row 150 Review](audit_session-2026-06-20-claude-parked-row-150.md) — row 150 stays parked because `/skills`, skills/list, skills/changed, core-skills rendering, and skill management already own skill availability.
+- [Claude Parked Row 151 Review](audit_session-2026-06-20-claude-parked-row-151.md) — row 151 stays parked because `/plugins`, plugin marketplace UI, app-server plugin RPCs, and plugin install tests already cover the flow.
+- [Claude Parked Row 152 Review](audit_session-2026-06-20-claude-parked-row-152.md) — row 152 stays parked because plugin cache refresh, marketplace upgrade, TUI list refresh, and cleanup tests already cover reload behavior.
+- [Claude Parked Row 153 Review](audit_session-2026-06-20-claude-parked-row-153.md) — row 153 stays parked because terminal setup would add new installer/shell-integration surface without fresh promotion evidence.
+- [Claude Parked Row 154 Review](audit_session-2026-06-20-claude-parked-row-154.md) — row 154 stays parked because environment/add, thread/turn environment selection, and remote-env tests already own remote execution setup.
+- [Claude Parked Row 155 Review](audit_session-2026-06-20-claude-parked-row-155.md) — row 155 stays parked because `/permissions` and permission-profile selection already own controlled sandbox/approval changes.
+- [Claude Parked Row 156 Review](audit_session-2026-06-20-claude-parked-row-156.md) — row 156 stays parked because `/rename` and thread metadata propagation already have owners/tests, while tags would add new command surface.
+- [Claude Parked Row 157 Review](audit_session-2026-06-20-claude-parked-row-157.md) — row 157 stays parked because session export has no existing command/API fixture gap and would add new artifact/export surface.
+- [Claude Parked Row 158 Review](audit_session-2026-06-20-claude-parked-row-158.md) — row 158 stays parked because adjacent app-server consent/security surfaces are covered and share would add collaboration/API/upload surface.
+- [Claude Parked Row 159 Review](audit_session-2026-06-20-claude-parked-row-159.md) — row 159 stays parked because resume picker and thread-store search already exist with snapshots/tests, while a new dialog would add UI surface.
+- [Claude Parked Row 160 Review](audit_session-2026-06-20-claude-parked-row-160.md) — row 160 stays parked because command popup and file search already have separate covered owners and a combined global dialog would add navigation surface.
+- [Claude Parked Row 161 Review](audit_session-2026-06-20-claude-parked-row-161.md) — row 161 stays parked because plugin install/detail errors already route through covered TUI error states and no typed-state gap was found.
+- [Claude Parked Row 162 Review](audit_session-2026-06-20-claude-parked-row-162.md) — row 162 stays parked because MCP approval copy variants and elicitation snapshots already cover the trust prompt.
+- [Claude Parked Row 163 Review](audit_session-2026-06-20-claude-parked-row-163.md) — row 163 stays parked because MCP import already has service tests and no TUI multiselect product/snapshot gap was found.
+- [Claude Parked Row 164 Review](audit_session-2026-06-20-claude-parked-row-164.md) — row 164 stays parked because app-server external-agent import already covers MCP config migration and no desktop-import fixture gap was found.
+- [Claude Parked Row 165 Review](audit_session-2026-06-20-claude-parked-row-165.md) — row 165 stays parked because onboarding, IDE context, and remote-control pairing surfaces already exist and no bridge onboarding snapshot gap was found.
+- [Claude Parked Row 166 Review](audit_session-2026-06-20-claude-parked-row-166.md) — row 166 stays parked because `/ide` context, active selection prompt rendering, footer indicator snapshots, and transcript hiding tests already cover adjacent behavior.
+- [Claude Parked Row 167 Review](audit_session-2026-06-20-claude-parked-row-167.md) — row 167 stays parked because local file-link rendering and snapshots already exist, while clickable file refs would add new terminal/open-file navigation semantics.
+- [Claude Parked Row 168 Review](audit_session-2026-06-20-claude-parked-row-168.md) — row 168 stays parked because `diff_render.rs` already owns structured diff rendering and broad snapshots, while a new component would add a second renderer.
+- [Claude Parked Row 169 Review](audit_session-2026-06-20-claude-parked-row-169.md) — row 169 stays parked because transcript overlay, resize reflow, row caps, streaming chunking, and regression tests already cover long-session rendering behavior.
+- [Claude Parked Row 170 Review](audit_session-2026-06-20-claude-parked-row-170.md) — row 170 stays parked because cached live-tail rendering, reflow row caps, adaptive chunking, table holdback, and regression tests already cover adjacent render-cost paths.
+- [Claude Parked Row 171 Review](audit_session-2026-06-20-claude-parked-row-171.md) — row 171 stays parked because existing debug-config, runtime metrics, OTEL tests, schema coverage, and frame-rate limiter tests already cover adjacent diagnostics.
+- [Claude Parked Row 172 Review](audit_session-2026-06-20-claude-parked-row-172.md) — row 172 stays parked because existing token-pressure, context-window, status display, and compaction tests already cover adjacent behavior.
+- [Claude Parked Row 173 Review](audit_session-2026-06-20-claude-parked-row-173.md) — row 173 stays parked because status, rate-limit warnings, credits, spend-control snapshots, and usage-limit runtime behavior already cover adjacent spend visibility.
+- [Claude Parked Row 174 Review](audit_session-2026-06-20-claude-parked-row-174.md) — row 174 stays parked because backend rate-limit fixtures, status refresh snapshots, warning prompts, retry parsing, and debug-config tests already cover adjacent diagnostics.
+- [Claude Parked Row 178 Review](audit_session-2026-06-20-claude-parked-row-178.md) — row 178 stays parked because OTEL resource attributes and hook status rendering already have scoped owners/tests, while container ID logging would add telemetry surface.
+- [Claude Parked Row 179 Review](audit_session-2026-06-20-claude-parked-row-179.md) — row 179 stays parked because update actions, update notices/prompts, doctor checks, and platform installer scripts already cover adjacent update UX.
+- [Claude Parked Row 180 Review](audit_session-2026-06-20-claude-parked-row-180.md) — row 180 stays parked because install-context, update actions, doctor update checks, `codex update`, and channel-layout tests already cover update ownership.
+- [Claude Parked Row 181 Review](audit_session-2026-06-20-claude-parked-row-181.md) — row 181 stays parked because the secure devcontainer firewall config, post-start script, firewall script, and README already cover the requested network controls.
+- [Claude Parked Row 182 Review](audit_session-2026-06-20-claude-parked-row-182.md) — row 182 stays parked because permission-profile examples and doc-link-check tooling already exist, and docs generation remains process scope.
+- [Claude Parked Row 183 Review](audit_session-2026-06-20-claude-parked-row-183.md) — row 183 stays parked because enterprise-managed config validation, schema fixture checks, loader docs, and app-server config docs already exist.
+- [Claude Parked Row 184 Review](audit_session-2026-06-20-claude-parked-row-184.md) — row 184 stays parked because issue templates, contributing guidance, model-behavior labeling, and duplicate triage already exist.
+- [Claude Parked Row 185 Review](audit_session-2026-06-20-claude-parked-row-185.md) — row 185 closed with a senior docs-only README security link while broader funding/security docs separation stays parked.
+- [Claude Parked Row 186 Review](audit_session-2026-06-20-claude-parked-row-186.md) — row 186 stays parked because GitHub Releases, release-note generation, installer resolution, and update notices already cover release consumption.
+- [Claude Parked Row 187 Review](audit_session-2026-06-20-claude-parked-row-187.md) — row 187 closed one existing package-builder duplicate Windows-helper bug while broader build-bundle/shim scope stays parked.
+- [Claude Parked Row 188 Review](audit_session-2026-06-20-claude-parked-row-188.md) — row 188 stays parked because Bun/NPM shim detection, install-context methods/tests, installer conflict handling, and package-layout tests already cover the requested audit surface.
+- [Claude Parked Row 189 Review](audit_session-2026-06-20-claude-parked-row-189.md) — row 189 stays parked because npm staging, pack-output checks, CI staging, and release tarball checks already cover package artifact validation.
+- [Claude Parked Row 190 Review](audit_session-2026-06-20-claude-parked-row-190.md) — row 190 stays parked because package, npm, Bazel, CI, local just, and dependency-audit wrappers already cover the requested alignment surface.
+- [Claude Parked Row 191 Review](audit_session-2026-06-20-claude-parked-row-191.md) — row 191 stays parked because existing TUI slash-command tests and snapshots already cover command regression behavior.
+- [Claude Parked Row 192 Review](audit_session-2026-06-20-claude-parked-row-192.md) — row 192 stays parked because existing MCP permission, plugin MCP policy, and MCP smoke tests already cover the narrow path.
+- [Claude Parked Row 193 Review](audit_session-2026-06-20-claude-parked-row-193.md) — row 193 stays parked because existing auth tests and core-skills diagnostics tests already cover the requested smoke path.
+- [Claude Parked Row 194 Review](audit_session-2026-06-20-claude-parked-row-194.md) — row 194 stays parked because plugin-cache and app-server plugin cache wiring tests already cover the service-smoke path.
+- [Claude Parked Row 195 Review](audit_session-2026-06-20-claude-parked-row-195.md) — row 195 stays parked because plugin-creator docs/validation and runtime plugin marketplace/discovery tests already cover the authoring-guide surface.
+- [Claude Parked Row 196 Review](audit_session-2026-06-20-claude-parked-row-196.md) — row 196 stays parked because README templates are marketplace/docs process surface while plugin scaffold, validation, manifest, and bundle-root checks already exist.
+- [Claude Parked Row 197 Review](audit_session-2026-06-20-claude-parked-row-197.md) — row 197 stays parked because code-review skills and plugin/skill namespacing, injection, rendering, and config tests already cover the extension-owner surface.
+- [Claude Parked Row 198 Review](audit_session-2026-06-20-claude-parked-row-198.md) — row 198 stays parked because skill-creator and plugin-creator already cover reusable workflow scaffolding while skill/plugin loading tests cover fixture behavior.
+- [Claude Parked Row 199 Review](audit_session-2026-06-20-claude-parked-row-199.md) — row 199 stays parked because frontend/TUI guidance, skill UI metadata, embedded samples, and skill loading tests already cover adjacent workflow surfaces.
+- [Claude Parked Row 200 Review](audit_session-2026-06-20-claude-parked-row-200.md) — row 200 stays parked because code-review skills and Ponytail simplification review already cover the senior-review process outside core.
+- [Claude Parked Row 121 Review](audit_session-2026-06-20-claude-parked-row-121.md) — row 121 stays rejected because OntoIndex already owns source exploration and MCP tool/resource discovery paths already exist.
+- [Claude Parked Row 124 Review](audit_session-2026-06-20-claude-parked-row-124.md) — row 124 stays rejected because raw-source MCP exposure would duplicate existing discovery/resource paths and add leakage risk.
+- [Claude Parked Row 125 Review](audit_session-2026-06-20-claude-parked-row-125.md) — row 125 stays rejected because slash-command discovery already has a TUI owner and source search belongs to OntoIndex.
+- [Claude Parked Row 126 Review](audit_session-2026-06-20-claude-parked-row-126.md) — row 126 stays rejected because file exploration already has MCP resource, file-search, shell search, and OntoIndex owners.
+- [Claude Parked Row 127 Review](audit_session-2026-06-20-claude-parked-row-127.md) — row 127 stays rejected because bounded search already has tool-search, file-search, shell rg, and OntoIndex owners.
+
+## Audits
+
+- [Memory Bank Initialization](audit_session-2026-06-07-memory-bank-initialization.md) — Initial Ontocode memory-bank bootstrap from GitNexus definition
+- [OAuth/Auth-Store Validation Completion](audit_session-2026-06-07-oauth-validation-completion.md) — Verification and closure of the OAuth/auth-store validation epic
+- [MCP Reliability Epic Completion](audit_session-2026-06-07-mcp-reliability-completion.md) — Verification and closure of the MCP reliability epic
+- [Hook and Shell Safety Epic Completion](audit_session-2026-06-07-hook-shell-safety-completion.md) — Verification and closure of the hook/shell safety epic
+- [External Adapter Protocol Safety Epic Completion](audit_session-2026-06-07-adapter-protocol-safety-completion.md) — Verification and closure of the external adapter protocol safety epic
+- [Session and Context Bounded Diagnostics Epic Completion](audit_session-2026-06-07-session-diagnostics-completion.md) — Verification and closure of the session/context diagnostics epic
+- [External-Agent Import Internals Epic Completion](audit_session-2026-06-07-external-agent-import-completion.md) — Verification and closure of the external-agent import internals epic
+- [GitNexus Deinstall](audit_session-2026-06-08-gitnexus-deinstall.md) — Removal of active GitNexus repo integration, local index, and agent enforcement rules
+- [GitNexus Reinstall](audit_session-2026-06-08-gitnexus-reinstall.md) — Restoration of GitNexus CLI, MCP config, skills, and codebase index
+- [Lean-ctx Core Backbone Challenge](audit_session-2026-06-08-lean-ctx-core-backbone-challenge.md) — ADR challenge accepting only a narrow operational backbone contract for core
+- [GitNexus Wrapper Path And Analyze Fix](audit_session-2026-06-08-gitnexus-wrapper-path-and-analyze-fix.md) — Local wrapper restored as `gitnexus`; analyzer schema gap fixed and repo-specific skills generated
+- [OntoIndex SummaryNode Import Fix](audit_session-2026-06-13-ontoindex-summarynode-import-fix.md) — Local OntoIndex import repair after `SummaryNode` schema drift broke `ontoindex analyze` for the ontocode repo
+- [Alpha Release Readiness Baseline](audit_session-2026-06-13-alpha-release-readiness-baseline.md) — Release-prep baseline accepted without breaking the `0.0.0` source-build sentinel; native Copilot version headers now derive from crate version
+- [Alpha Release Prep Update](audit_session-2026-06-13-alpha-release-prep-update.md) — Confirmed npm/Python version injection owners, set `0.1.0-alpha.1` as the default first-alpha candidate, and narrowed remaining release gates
+- [Ontocode Binary Launcher Fix](audit_session-2026-06-13-ontocode-binary-launcher-fix.md) — Replaced the fragile `ontocode` wrapper with the real CLI entrypoint and kept alias coverage without duplicate bin-unit test failures
+- [Ontocode Dev Binary Verification](audit_session-2026-06-13-ontocode-dev-binary-verification.md) — Fresh source-built `ontocode` now runs directly and brands itself correctly after the launcher fix
+- [Ontocode Release Verification And Help Copy](audit_session-2026-06-13-ontocode-release-verification-and-help-copy.md) — Clean release-profile `ontocode` verification passed; main CLI help text now uses `Ontocode`, and `ontocode-rs/` is recorded as layout debt rather than a runtime blocker
+- [Provider Refresh Orchestrator S3-A](audit_session-2026-06-13-provider-refresh-orchestrator-s3a.md) — Shared refresh-orchestrator contract accepted in `ontocode-provider-auth`; existing login and RMCP owners now expose thin adapters without moving refresh authority
+- [Provider Scheduler S4 Closure](audit_session-2026-06-13-provider-scheduler-s4-closure.md) — Private scheduler core accepted in `model-provider` with round-robin, priority, failover, and sticky-session behavior over normalized credential and refresh state
+- [Provider Auth Contract S5 Closure](audit_session-2026-06-13-provider-auth-contract-s5-closure.md) — Senior review accepted the existing private `ModelProvider` auth seam as the correct S5 contract and rejected adding a parallel provider-auth trait family
+- [Provider Canonical OAuth F1-A](audit_session-2026-06-13-provider-canonical-oauth-f1a.md) — Additive canonical secret-bearing OAuth credential type landed in `ontocode-provider-auth` with redacted debug behavior and routing-view projection
+- [Provider Canonical OAuth F1-B](audit_session-2026-06-13-provider-canonical-oauth-f1b.md) — Existing OpenAI/login, RMCP OAuth, and Claude import owners now project into the canonical internal OAuth credential type without changing persistence authority
+- [Provider Canonical OAuth F1-C F1-E Closure](audit_session-2026-06-13-provider-canonical-oauth-f1c-f1e-closure.md) — Copilot canonical-source/runtime split and canonical-to-routing redaction coverage are verified complete; Gemini OAuth ownership remains the next gap
+- [Provider Gemini F1-D Closure](audit_session-2026-06-13-provider-gemini-f1d-closure.md) — Senior design closure keeps Gemini explicitly API-key-only until a real OAuth source owner exists; compatibility coverage now guards that boundary
+- [Claude OAuth ADR Codebase Review](audit_session-2026-06-08-claude-oauth-adr-codebase-review.md) — GitNexus-backed review with addendum: runtime wiring exists, live validation remains blocked
+- [Third-Party Dependency Consolidation](audit_session-2026-06-08-third-party-dependency-consolidation.md) — GitNexus and lean-ctx dependency boundaries consolidated into one operational evidence backbone
+- [External-Agent Interop ADR Consolidation](audit_session-2026-06-08-external-agent-interop-adr-consolidation.md) — Gemini CLI, Hermes Agent, and GBrain interop ADRs consolidated into one detector contract

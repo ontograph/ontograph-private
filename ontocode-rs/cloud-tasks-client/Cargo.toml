@@ -1,0 +1,25 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-cloud-tasks-client"
+version.workspace = true
+
+[lib]
+name = "ontocode_cloud_tasks_client"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+ontocode-api = { workspace = true }
+ontocode-backend-client = { workspace = true }
+ontocode-git-utils = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

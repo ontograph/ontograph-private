@@ -1,0 +1,104 @@
+[package]
+name = "ontocode-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "ontocode"
+path = "src/main.rs"
+test = false
+
+[lib]
+name = "ontocode_cli"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+clap_complete = { workspace = true }
+ontocode-app-server = { workspace = true }
+ontocode-app-server-daemon = { workspace = true }
+ontocode-app-server-protocol = { workspace = true }
+ontocode-app-server-test-client = { workspace = true }
+ontocode-arg0 = { workspace = true }
+ontocode-api = { workspace = true }
+ontocode-chatgpt = { workspace = true }
+ontocode-cloud-tasks = { path = "../cloud-tasks" }
+ontocode-utils-cli = { workspace = true }
+ontocode-config = { workspace = true }
+ontocode-core = { workspace = true }
+ontocode-core-plugins = { workspace = true }
+ontocode-exec = { workspace = true }
+ontocode-exec-server = { workspace = true }
+ontocode-execpolicy = { workspace = true }
+ontocode-features = { workspace = true }
+ontocode-git-utils = { workspace = true }
+ontocode-install-context = { workspace = true }
+ontocode-login = { workspace = true }
+ontocode-memories-write = { workspace = true }
+ontocode-mcp = { workspace = true }
+ontocode-mcp-server = { workspace = true }
+ontocode-model-provider = { workspace = true }
+ontocode-models-manager = { workspace = true }
+ontocode-plugin = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-responses-api-proxy = { workspace = true }
+ontocode-rmcp-client = { workspace = true }
+ontocode-rollout = { workspace = true }
+ontocode-rollout-trace = { workspace = true }
+ontocode-sandboxing = { workspace = true }
+ontocode-state = { workspace = true }
+ontocode-stdio-to-uds = { workspace = true }
+ontocode-terminal-detection = { workspace = true }
+ontocode-tui = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+ontocode-utils-path = { workspace = true }
+crossterm = { workspace = true }
+http = { workspace = true }
+libc = { workspace = true }
+os_info = { workspace = true }
+owo-colors = { workspace = true }
+regex-lite = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+supports-color = { workspace = true }
+sys-locale = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "macros",
+    "net",
+    "process",
+    "rt-multi-thread",
+    "signal",
+    "time",
+] }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+unicode-segmentation = { workspace = true }
+url = { workspace = true }
+which = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+ontocode_windows_sandbox = { package = "ontocode-windows-sandbox", path = "../windows-sandbox-rs" }
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+] }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+assert_matches = { workspace = true }
+ontocode-utils-cargo-bin = { workspace = true }
+insta = { workspace = true }
+predicates = { workspace = true }
+pretty_assertions = { workspace = true }
+sqlx = { workspace = true }

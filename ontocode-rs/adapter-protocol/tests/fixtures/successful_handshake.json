@@ -1,0 +1,27 @@
+[
+  {
+    "type": "handshake",
+    "protocol_version": "provider-adapter.v1",
+    "codex_version": "0.1.0",
+    "requested_capabilities": ["model_list", "execute_stream", "cancel"]
+  },
+  {
+    "type": "handshake_result",
+    "protocol_version": "provider-adapter.v1",
+    "adapter_name": "example-provider",
+    "adapter_version": "1.0.0",
+    "provider_id": "example",
+    "capabilities": {
+      "model_list": true,
+      "execute_stream": true,
+      "cancel": true,
+      "tool_calls": true,
+      "multimodal_input": false
+    },
+    "limits": {
+      "max_request_bytes": 1048576,
+      "max_event_bytes": 65536,
+      "max_stderr_bytes": 65536
+    }
+  }
+]
