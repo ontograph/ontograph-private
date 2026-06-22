@@ -1,0 +1,60 @@
+name: private-alpha-release
+
+on:
+  push:
+    tags:
+      - "rust-v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: private-alpha-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    name: Build unsigned Linux binary
+    runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_JOBS: "8"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build ontocode
+        working-directory: ontocode-rs
+        run: cargo build --release -p ontocode-cli --bin ontocode
+
+      - name: Stage artifact
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' ontocode-rs/Cargo.toml | head -1)"
+          mkdir -p dist
+          cp ontocode-rs/target/release/ontocode "dist/ontocode-${version}-x86_64-unknown-linux-gnu"
+          (cd dist && sha256sum * > SHA256SUMS)
+
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: private-alpha-linux
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish GitHub prerelease
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' ontocode-rs/Cargo.toml | head -1)"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$version" \
+              --notes "Unsigned private-fork alpha build for $version." \
+              --prerelease
+          fi
