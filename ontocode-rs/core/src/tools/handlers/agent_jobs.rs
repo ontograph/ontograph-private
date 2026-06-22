@@ -69,6 +69,7 @@ struct SpawnAgentsOnCsvResult {
     total_items: usize,
     completed_items: usize,
     failed_items: usize,
+    final_summary: Option<String>,
     job_error: Option<String>,
     failed_item_errors: Option<Vec<AgentJobFailureSummary>>,
 }

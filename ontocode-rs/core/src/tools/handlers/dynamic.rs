@@ -83,6 +83,8 @@ impl ToolExecutor<ToolInvocation> for DynamicToolHandler {
                 name: "Dynamic tools".to_string(),
                 description: Some("Tools provided by the current Codex thread.".to_string()),
             }),
+            None,
+            None,
         )
     }
 
