@@ -3,7 +3,7 @@
 set -eu
 
 REPO="${ONTOCODE_RELEASE_REPO:-ontograph/ontograph-private}"
-RELEASE="${ONTOCODE_RELEASE:-${CODEX_RELEASE:-latest}}"
+RELEASE="${ONTOCODE_RELEASE:-${CODEX_RELEASE:-0.1.0-alpha.1}}"
 BIN_DIR="${ONTOCODE_INSTALL_DIR:-${CODEX_INSTALL_DIR:-$HOME/.local/bin}}"
 BIN_PATH="$BIN_DIR/ontocode"
 GITHUB_AUTH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
@@ -16,8 +16,7 @@ Environment:
   ONTOCODE_RELEASE       Version to install; overridden by --release.
   ONTOCODE_RELEASE_REPO  GitHub repo to download from. Default: $REPO
   ONTOCODE_INSTALL_DIR   Install directory. Default: $BIN_DIR
-  gh                  Preferred for private repository downloads.
-  GH_TOKEN/GITHUB_TOKEN  Used by curl fallback for private repositories.
+  GH_TOKEN/GITHUB_TOKEN  Optional GitHub token for private release downloads.
 EOF
 }
 
@@ -155,12 +154,8 @@ archive="$tmp_dir/$asset"
 checksums="$tmp_dir/SHA256SUMS"
 
 echo "==> Downloading Ontocode CLI $version for $target"
-if command -v gh >/dev/null 2>&1; then
-  gh release download "$tag" --repo "$REPO" --pattern "$asset" --pattern SHA256SUMS --dir "$tmp_dir"
-else
-  curl_file "$asset_url" "$archive"
-  curl_file "$checksums_url" "$checksums"
-fi
+curl_file "$asset_url" "$archive"
+curl_file "$checksums_url" "$checksums"
 need_asset "$archive"
 need_asset "$checksums"
 
