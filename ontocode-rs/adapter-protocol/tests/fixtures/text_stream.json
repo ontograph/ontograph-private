@@ -1,0 +1,8 @@
+[
+  {"type":"stream_started","request_id":"turn-1"},
+  {"type":"text_delta","request_id":"turn-1","delta":"Hello"},
+  {"type":"text_delta","request_id":"turn-1","delta":", "},
+  {"type":"text_delta","request_id":"turn-1","delta":"world!"},
+  {"type":"usage","request_id":"turn-1","input_tokens":5,"output_tokens":3},
+  {"type":"completed","request_id":"turn-1","finish_reason":"stop"}
+]

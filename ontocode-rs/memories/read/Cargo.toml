@@ -1,0 +1,21 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-memories-read"
+version.workspace = true
+
+[lib]
+name = "ontocode_memories_read"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-protocol = { workspace = true }
+ontocode-shell-command = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

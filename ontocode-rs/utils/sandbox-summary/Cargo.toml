@@ -1,0 +1,21 @@
+[package]
+name = "ontocode-utils-sandbox-summary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-core = { workspace = true }
+ontocode-model-provider-info = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+
+[dev-dependencies]
+ontocode-utils-absolute-path = { workspace = true }
+pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false

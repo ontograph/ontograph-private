@@ -1,0 +1,20 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-extension-api"
+version.workspace = true
+
+[lib]
+name = "ontocode_extension_api"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+ontocode-context-fragments = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-tools = { workspace = true }

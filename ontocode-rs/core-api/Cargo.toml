@@ -1,0 +1,29 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-core-api"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "ontocode_core_api"
+path = "src/lib.rs"
+test = false
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-app-server-protocol = { workspace = true }
+ontocode-arg0 = { workspace = true }
+ontocode-analytics = { workspace = true }
+ontocode-config = { workspace = true }
+ontocode-core = { workspace = true }
+ontocode-extension-api = { workspace = true }
+ontocode-exec-server = { workspace = true }
+ontocode-features = { workspace = true }
+ontocode-login = { workspace = true }
+ontocode-model-provider-info = { workspace = true }
+ontocode-models-manager = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }

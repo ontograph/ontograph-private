@@ -1,0 +1,17 @@
+---
+source: tui/src/chatwidget/tests/popups_and_settings.rs
+expression: popup.clone()
+---
+  Select Model
+  Choose a model from a configured provider. Global model/provider selection is the default route;
+
+
+  OpenAI                     openai
+› gpt-5.4 (current)          OpenAI model
+  Claude                     claude
+  claude-sonnet-4-5          Claude model
+  Gemini CLI (disabled)      gemini-cli (disabled: Gemini CLI runtime is not available yet.)
+  gemini-2.5-pro (disabled)  Google Gemini model through the native GenerateContent API.
+                             (disabled: Gemini CLI runtime is not available yet.)
+
+  Press enter to confirm or esc to go back

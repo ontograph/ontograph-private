@@ -1,0 +1,32 @@
+[package]
+name = "ontocode-chatgpt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+ontocode-app-server-protocol = { workspace = true }
+ontocode-connectors = { workspace = true }
+ontocode-core = { workspace = true }
+ontocode-core-plugins = { workspace = true }
+ontocode-git-utils = { workspace = true }
+ontocode-login = { workspace = true }
+ontocode-model-provider = { workspace = true }
+ontocode-plugin = { workspace = true }
+ontocode-utils-cli = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+
+[dev-dependencies]
+ontocode-utils-cargo-bin = { workspace = true }
+pretty_assertions = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+
+[lib]
+doctest = false

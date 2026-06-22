@@ -1,0 +1,32 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-web-search-extension"
+version.workspace = true
+
+[lib]
+name = "ontocode_web_search_extension"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+ontocode-api = { workspace = true }
+ontocode-core = { workspace = true }
+ontocode-extension-api = { workspace = true }
+ontocode-features = { workspace = true }
+ontocode-login = { workspace = true }
+ontocode-model-provider = { workspace = true }
+ontocode-model-provider-info = { workspace = true }
+ontocode-protocol = { workspace = true }
+ontocode-tools = { workspace = true }
+http = { workspace = true }
+schemars = { workspace = true }
+serde_json = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

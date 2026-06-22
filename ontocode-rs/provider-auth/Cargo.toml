@@ -1,0 +1,22 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-provider-auth"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "ontocode_provider_auth"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-model-provider-info = { workspace = true }
+ontocode-protocol = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

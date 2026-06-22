@@ -1,0 +1,21 @@
+[package]
+name = "ontocode-install-context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "ontocode_install_context"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-utils-absolute-path = { workspace = true }
+ontocode-utils-home-dir = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

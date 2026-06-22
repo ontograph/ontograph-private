@@ -1,0 +1,30 @@
+[package]
+name = "ontocode-arg0"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "ontocode_arg0"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+ontocode-apply-patch = { workspace = true }
+ontocode-exec-server = { workspace = true }
+ontocode-install-context = { workspace = true }
+ontocode-linux-sandbox = { workspace = true }
+ontocode-sandboxing = { workspace = true }
+ontocode-shell-escalation = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+ontocode-utils-home-dir = { workspace = true }
+dotenvy = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

@@ -1,0 +1,13 @@
+--- AGENTS.md
++++ AGENTS.md
+@@ -101,5 +101,6 @@
+ - For sub-agent coding tasks in this repository, request models in this order:
+   `gemini-3.5-flash-low`, `gemini-3-flash-agent`, `gemini-pro-agent`,
+   `claude-sonnet-4-6`, `gpt-5.3-codex-spark`, `gpt-5.4-mini`.
+-  Use the first available model. If a model fails today, do not retry that
+-  same model again until tomorrow; use the next available model in the order
+-  for today's next attempt.
++  You must use the exact model names listed above; do not truncate them (e.g. do not ask for `gemini-3-flash`).
++  Use the first available model. If an exact model fails today, do not retry that
++  same exact model again until tomorrow; use the next available model in the order
++  for today's next attempt.

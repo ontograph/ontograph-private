@@ -1,0 +1,19 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-plugin"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "ontocode_plugin"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+ontocode-config = { workspace = true }
+ontocode-utils-absolute-path = { workspace = true }
+ontocode-utils-plugins = { workspace = true }
+thiserror = { workspace = true }
