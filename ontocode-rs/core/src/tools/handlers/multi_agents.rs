@@ -76,6 +76,8 @@ fn multi_agent_tool_search_info(
             name: MULTI_AGENT_TOOL_SEARCH_SOURCE_NAME.to_string(),
             description: Some(MULTI_AGENT_TOOL_SEARCH_SOURCE_DESCRIPTION.to_string()),
         }),
+        None,
+        None,
     )
 }
 

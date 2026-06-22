@@ -134,6 +134,7 @@ WHERE id = ?
         job_id: &str,
         status: Option<AgentJobItemStatus>,
         limit: Option<usize>,
+        offset: Option<usize>,
     ) -> anyhow::Result<Vec<AgentJobItem>> {
         let mut builder = QueryBuilder::<Sqlite>::new(
             r#"
@@ -165,6 +166,10 @@ WHERE job_id =
         if let Some(limit) = limit {
             builder.push(" LIMIT ");
             builder.push_bind(limit as i64);
+        }
+        if let Some(offset) = offset {
+            builder.push(" OFFSET ");
+            builder.push_bind(offset as i64);
         }
         let rows: Vec<AgentJobItemRow> = builder
             .build_query_as::<AgentJobItemRow>()
@@ -690,6 +695,30 @@ mod tests {
         assert_eq!(item.status, AgentJobItemStatus::Failed);
         assert_eq!(item.result_json, None);
         assert_eq!(item.last_error, Some("missing report".to_string()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mark_agent_job_completed_preserves_final_summary_on_resume() -> anyhow::Result<()> {
+        let codex_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
+        let (job_id, _item_id, _thread_id) =
+            create_running_single_item_job(runtime.as_ref()).await?;
+
+        runtime
+            .mark_agent_job_completed(job_id.as_str(), Some("done before resume"))
+            .await?;
+        runtime.mark_agent_job_running(job_id.as_str()).await?;
+        runtime
+            .mark_agent_job_completed(job_id.as_str(), /*final_summary*/ None)
+            .await?;
+
+        let job = runtime
+            .get_agent_job(job_id.as_str())
+            .await?
+            .expect("job should exist");
+        assert_eq!(job.status, AgentJobStatus::Completed);
+        assert_eq!(job.final_summary, Some("done before resume".to_string()));
         Ok(())
     }
 }

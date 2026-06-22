@@ -143,6 +143,9 @@ pub(super) async fn spawn_review_thread(
         dynamic_tools: parent_turn_context.dynamic_tools.clone(),
         truncation_policy: model_info.truncation_policy.into(),
         turn_metadata_state,
+        file_read_evidence: Arc::new(std::sync::Mutex::new(
+            ontocode_protocol::read_evidence::FileReadEvidence::default(),
+        )),
         extension_data: Arc::new(ontocode_extension_api::ExtensionData::new(review_turn_id)),
         turn_skills: TurnSkillsContext::new(parent_turn_context.turn_skills.outcome.clone()),
         turn_timing_state: Arc::new(TurnTimingState::default()),
