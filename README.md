@@ -24,7 +24,8 @@ Current private alpha scope:
 Install the current private Linux x64 alpha release:
 
 ```bash
-GITHUB_TOKEN=<token> scripts/install/install.sh --release 0.1.0-alpha.1
+gh auth login
+scripts/install/install.sh --release 0.1.0-alpha.1
 ```
 
 Run from the repository root:
