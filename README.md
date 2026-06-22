@@ -24,7 +24,7 @@ Current private alpha scope:
 Install the current private Linux x64 alpha release:
 
 ```bash
-curl -fsSL https://github.com/ontograph/ontograph-private/releases/download/rust-v0.1.0-alpha.1/install-ontocode-linux-x64-v0.1.0-alpha.1.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ontograph/ontograph-private/main/scripts/install/install.sh | sh
 ```
 
 ## Build From Source

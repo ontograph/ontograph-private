@@ -3,7 +3,7 @@
 set -eu
 
 REPO="${ONTOCODE_RELEASE_REPO:-ontograph/ontograph-private}"
-RELEASE="${ONTOCODE_RELEASE:-${CODEX_RELEASE:-0.1.0-alpha.1}}"
+RELEASE="${ONTOCODE_RELEASE:-${CODEX_RELEASE:-}}"
 BIN_DIR="${ONTOCODE_INSTALL_DIR:-${CODEX_INSTALL_DIR:-$HOME/.local/bin}}"
 BIN_PATH="$BIN_DIR/ontocode"
 GITHUB_AUTH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
@@ -60,19 +60,21 @@ normalize_version() {
   esac
 }
 
+CURL_COMMON_OPTS="--http1.1 --retry 3 --retry-delay 1 --connect-timeout 15 --max-time 600"
+
 curl_json() {
   if [ -n "$GITHUB_AUTH_TOKEN" ]; then
-    curl --http1.1 --retry 3 --retry-delay 1 -fsSL -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" -H "Accept: application/vnd.github+json" "$1"
+    curl $CURL_COMMON_OPTS -fsSL -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" -H "Accept: application/vnd.github+json" "$1"
   else
-    curl --http1.1 --retry 3 --retry-delay 1 -fsSL -H "Accept: application/vnd.github+json" "$1"
+    curl $CURL_COMMON_OPTS -fsSL -H "Accept: application/vnd.github+json" "$1"
   fi
 }
 
 curl_file() {
   if [ -n "$GITHUB_AUTH_TOKEN" ]; then
-    curl --http1.1 --retry 3 --retry-delay 1 -fsSL -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" -L "$1" -o "$2"
+    curl $CURL_COMMON_OPTS -fL# -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" "$1" -o "$2"
   else
-    curl --http1.1 --retry 3 --retry-delay 1 -fsSL -L "$1" -o "$2"
+    curl $CURL_COMMON_OPTS -fL# "$1" -o "$2"
   fi
 }
 
@@ -92,60 +94,17 @@ need_asset() {
 }
 
 if [ "$RELEASE" = "latest" ] || [ -z "$RELEASE" ]; then
-  tag="$(curl_json "https://api.github.com/repos/$REPO/releases/latest" | json_value tag_name)"
+  tag="$(curl_json "https://api.github.com/repos/$REPO/releases?per_page=1" | json_value tag_name)"
 else
   tag="rust-v$(normalize_version "$RELEASE")"
 fi
 
 version="$(normalize_version "$tag")"
-release_json="$(curl_json "https://api.github.com/repos/$REPO/releases/tags/$tag")"
 asset="ontocode-$version-$target"
-asset_url="$(printf '%s\n' "$release_json" | awk -v asset="$asset" '
-  /"name":[[:space:]]*"/ {
-    name = $0
-    sub(/^.*"name":[[:space:]]*"/, "", name)
-    sub(/".*$/, "", name)
-  }
-  /"browser_download_url":[[:space:]]*"/ && name == asset {
-    url = $0
-    sub(/^.*"browser_download_url":[[:space:]]*"/, "", url)
-    sub(/".*$/, "", url)
-    print url
-    exit
-  }
-')"
-
-if [ -z "$asset_url" ]; then
-  asset="ontocode-$target"
-  asset_url="$(printf '%s\n' "$release_json" | awk -v asset="$asset" '
-    /"name":[[:space:]]*"/ {
-      name = $0
-      sub(/^.*"name":[[:space:]]*"/, "", name)
-      sub(/".*$/, "", name)
-    }
-    /"browser_download_url":[[:space:]]*"/ && name == asset {
-      url = $0
-      sub(/^.*"browser_download_url":[[:space:]]*"/, "", url)
-      sub(/".*$/, "", url)
-      print url
-      exit
-    }
-  ')"
-fi
-
-checksums_url="$(printf '%s\n' "$release_json" | awk '
-  /"name":[[:space:]]*"SHA256SUMS"/ { want = 1 }
-  /"browser_download_url":[[:space:]]*"/ && want {
-    url = $0
-    sub(/^.*"browser_download_url":[[:space:]]*"/, "", url)
-    sub(/".*$/, "", url)
-    print url
-    exit
-  }
-')"
-
-[ -n "$asset_url" ] || { echo "Release $tag does not contain $asset." >&2; exit 1; }
-[ -n "$checksums_url" ] || { echo "Release $tag does not contain SHA256SUMS." >&2; exit 1; }
+asset_url="https://github.com/$REPO/releases/download/$tag/$asset"
+legacy_asset="ontocode-$target"
+legacy_asset_url="https://github.com/$REPO/releases/download/$tag/$legacy_asset"
+checksums_url="https://github.com/$REPO/releases/download/$tag/SHA256SUMS"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT INT TERM
@@ -154,7 +113,12 @@ archive="$tmp_dir/$asset"
 checksums="$tmp_dir/SHA256SUMS"
 
 echo "==> Downloading Ontocode CLI $version for $target"
-curl_file "$asset_url" "$archive"
+if ! curl_file "$asset_url" "$archive"; then
+  asset="$legacy_asset"
+  archive="$tmp_dir/$asset"
+  echo "==> Falling back to legacy release asset name $asset"
+  curl_file "$legacy_asset_url" "$archive"
+fi
 curl_file "$checksums_url" "$checksums"
 need_asset "$archive"
 need_asset "$checksums"

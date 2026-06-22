@@ -1,11 +1,15 @@
 [package]
+edition.workspace = true
+license.workspace = true
 name = "ontocode-adapter-protocol"
-version = "0.0.0"
-edition = "2021"
+version.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-thiserror = "2"
-anyhow = "1"
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

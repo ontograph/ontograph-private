@@ -23,7 +23,7 @@ TOP_LEVEL_NAME_EXCEPTIONS = {
     "windows-sandbox-rs": "ontocode-windows-sandbox",
 }
 UTILITY_NAME_EXCEPTIONS = {
-    "path-utils": "codex-utils-path",
+    "path-utils": "ontocode-utils-path",
 }
 MANIFEST_FEATURE_EXCEPTIONS = {
     "ontocode-rs/code-mode/Cargo.toml": {"sandbox": ("v8/v8_enable_sandbox",)},
@@ -210,13 +210,15 @@ def expected_package_name(path: Path) -> str | None:
     parts = path.relative_to(CARGO_RS_ROOT).parts
     if len(parts) == 2 and parts[1] == "Cargo.toml":
         directory = parts[0]
+        if directory.startswith("codex-"):
+            return f"ontocode-{directory.removeprefix('codex-')}"
         return TOP_LEVEL_NAME_EXCEPTIONS.get(
             directory,
-            directory if directory.startswith("codex-") else f"codex-{directory}",
+            directory if directory.startswith("ontocode-") else f"ontocode-{directory}",
         )
     if len(parts) == 3 and parts[0] == "utils" and parts[2] == "Cargo.toml":
         directory = parts[1]
-        return UTILITY_NAME_EXCEPTIONS.get(directory, f"codex-utils-{directory}")
+        return UTILITY_NAME_EXCEPTIONS.get(directory, f"ontocode-utils-{directory}")
     return None
 
 
