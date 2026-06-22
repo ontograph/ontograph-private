@@ -16,7 +16,8 @@ Environment:
   ONTOCODE_RELEASE       Version to install; overridden by --release.
   ONTOCODE_RELEASE_REPO  GitHub repo to download from. Default: $REPO
   ONTOCODE_INSTALL_DIR   Install directory. Default: $BIN_DIR
-  GH_TOKEN/GITHUB_TOKEN  Required when downloading from a private repository.
+  gh                  Preferred for private repository downloads.
+  GH_TOKEN/GITHUB_TOKEN  Used by curl fallback for private repositories.
 EOF
 }
 
@@ -87,6 +88,9 @@ need mktemp
 need chmod
 need install
 need sha256sum
+need_asset() {
+  [ -s "$1" ] || { echo "Missing downloaded asset: $1" >&2; exit 1; }
+}
 
 if [ "$RELEASE" = "latest" ] || [ -z "$RELEASE" ]; then
   tag="$(curl_json "https://api.github.com/repos/$REPO/releases/latest" | json_value tag_name)"
@@ -151,8 +155,14 @@ archive="$tmp_dir/$asset"
 checksums="$tmp_dir/SHA256SUMS"
 
 echo "==> Downloading Ontocode CLI $version for $target"
-curl_file "$asset_url" "$archive"
-curl_file "$checksums_url" "$checksums"
+if command -v gh >/dev/null 2>&1; then
+  gh release download "$tag" --repo "$REPO" --pattern "$asset" --pattern SHA256SUMS --dir "$tmp_dir"
+else
+  curl_file "$asset_url" "$archive"
+  curl_file "$checksums_url" "$checksums"
+fi
+need_asset "$archive"
+need_asset "$checksums"
 
 expected="$(awk -v asset="$asset" '$2 == asset { print $1; exit }' "$checksums")"
 [ -n "$expected" ] || { echo "SHA256SUMS does not list $asset." >&2; exit 1; }
