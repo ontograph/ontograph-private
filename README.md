@@ -1,72 +1,71 @@
-<p align="center"><strong>Ontocode CLI</strong> is a coding agent from OpenAI that runs locally on your computer.
-<p align="center">
-  <img src="https://github.com/openai/codex/blob/main/.github/codex-cli-splash.png" alt="Ontocode CLI splash" width="80%" />
-</p>
-</br>
-If you want Ontocode in your code editor (VS Code, Cursor, Windsurf), <a href="https://developers.openai.com/codex/ide">install in your IDE.</a>
-</br>If you want the desktop app experience, run <code>ontocode app</code> or visit <a href="https://chatgpt.com/codex?app-landing-page=true">the Ontocode app page</a>. The command remains available as <code>codex</code> for compatibility for compatibility.
-</br>If you are looking for the <em>cloud-based agent</em> from OpenAI, <strong>Ontocode Web</strong>, go to <a href="https://chatgpt.com/codex">chatgpt.com/codex</a>.</p>
+# Ontocode CLI
 
----
+Ontocode CLI is an independent private fork of the Codex CLI codebase. It is
+published from `ontograph/ontograph-private` and is not an official OpenAI,
+Azure, ChatGPT, npm, Homebrew, or IDE distribution.
 
-## Quickstart
+The canonical private binary is `ontocode`. The legacy `codex` command may
+still exist in source and compatibility paths while the rename is completed.
 
-### Installing and running Ontocode CLI
+## Alpha Status
 
-Run the following on Mac or Linux to install Ontocode CLI:
+This repository is in private alpha. Treat public OpenAI Codex installers,
+package-manager commands, release workflows, and hosted documentation as
+upstream references only; they do not publish this fork.
 
-```shell
-curl -fsSL https://chatgpt.com/codex/install.sh | sh
+Current private alpha scope:
+
+- unsigned Linux release binary first
+- macOS, Windows, and platform npm packages later when needed
+- release builds run in single-build mode with `CARGO_BUILD_JOBS=8`
+
+## Build From Source
+
+Install the current private Linux x64 alpha release:
+
+```bash
+GITHUB_TOKEN=<token> scripts/install/install.sh --release 0.1.0-alpha.1
 ```
 
-Run the following on Windows to install Ontocode CLI:
+Run from the repository root:
 
-```
-powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
-```
-
-Ontocode CLI can also be installed via the following package managers:
-
-```shell
-# Install using npm
-npm install -g @openai/codex
+```bash
+cd ontocode-rs
+CARGO_BUILD_JOBS=8 cargo build --release -p ontocode-cli --bin ontocode
 ```
 
-```shell
-# Install using Homebrew
-brew install --cask codex
+Expected binary:
+
+```text
+ontocode-rs/target/release/ontocode
 ```
 
-Then simply run `codex` to get started. The executable name remains `codex` for compatibility.
+Run it with:
 
-<details>
-<summary>You can also go to the <a href="https://github.com/openai/codex/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>
+```bash
+./target/release/ontocode --help
+```
 
-Each GitHub Release contains many executables, but in practice, you likely want one of these:
+## Private Alpha Release
 
-- macOS
-  - Apple Silicon/arm64: `codex-aarch64-apple-darwin.tar.gz`
-  - x86_64 (older Mac hardware): `codex-x86_64-apple-darwin.tar.gz`
-- Linux
-  - x86_64: `codex-x86_64-unknown-linux-musl.tar.gz`
-  - arm64: `codex-aarch64-unknown-linux-musl.tar.gz`
+The private alpha workflow is `.github/workflows/private-alpha-release.yml`.
+It builds an unsigned Linux `ontocode` binary on GitHub-hosted runners and
+uploads workflow artifacts. Tag-triggered runs can upload assets to the private
+GitHub prerelease.
 
-Each archive contains a single entry with the platform baked into the name (e.g., `codex-x86_64-unknown-linux-musl`), so you likely want to rename it to `codex` after extracting it.
+## Development
 
-</details>
+Rust workspace:
 
-### Using Ontocode with your ChatGPT plan
+```bash
+cd ontocode-rs
+CARGO_BUILD_JOBS=8 just fmt
+CARGO_BUILD_JOBS=8 just test -p <crate-you-touched>
+```
 
-Run `codex` and select **Sign in with ChatGPT**. We recommend signing into your ChatGPT account to use Ontocode as part of your Plus, Pro, Business, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
+Do not use broad OpenAI/Azure release workflows for this private fork unless a
+dedicated compatibility task explicitly re-enables them.
 
-You can also use Ontocode with an API key, but this requires [additional setup](https://developers.openai.com/codex/auth#sign-in-with-an-api-key).
-
-## Docs
-
-- [**Ontocode Documentation**](https://developers.openai.com/codex)
-- [**Contributing**](./docs/contributing.md)
-- [**Installing & building**](./docs/install.md)
-- [**Open source fund**](./docs/open-source-fund.md)
-- [**Security**](./SECURITY.md)
+## License
 
 This repository is licensed under the [Apache-2.0 License](LICENSE).
