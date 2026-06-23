@@ -42,6 +42,11 @@ Expected binary:
 ontocode-rs/target/release/ontocode
 ```
 
+Source builds inherit `[workspace.package].version` from
+`ontocode-rs/Cargo.toml`. On `main`, that is intentionally kept at `0.0.0`
+as a dev sentinel. Versioned alpha banners come from the private release
+workflow, which stamps the release version before compiling.
+
 Run it with:
 
 ```bash

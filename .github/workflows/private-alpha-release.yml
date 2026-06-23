@@ -5,6 +5,11 @@ on:
     tags:
       - "rust-v*.*.*"
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version for manual runs, e.g. 0.1.0-alpha.3."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -37,26 +42,45 @@ jobs:
           restore-keys: |
             private-alpha-linux-${{ runner.os }}-
 
-      - name: Build ontocode
+      - name: Resolve release version
+        id: release_version
+        env:
+          REQUESTED_RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
             version="${GITHUB_REF_NAME#rust-v}"
+          elif [ -n "${REQUESTED_RELEASE_VERSION:-}" ]; then
+            version="${REQUESTED_RELEASE_VERSION#rust-v}"
+            version="${version#v}"
           else
-            version="$(sed -n 's/^version = "\(.*\)"/\1/p' ontocode-rs/Cargo.toml | head -1)"
+            version="$(sed -n '/^\[workspace.package\]/,/^\[/ s/^version = "\(.*\)"/\1/p' ontocode-rs/Cargo.toml | head -1)"
           fi
-          sed -i "s/^version = \"0\\.0\\.0\"$/version = \"$version\"/" ontocode-rs/Cargo.toml
-          cd ontocode-rs
-          cargo build --release -p ontocode-cli --bin ontocode
+
+          if [ "$version" = "0.0.0" ]; then
+            echo "private-alpha-release needs a real release version. Push a rust-v* tag or set workflow_dispatch input release_version." >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp workspace version for release build
+        env:
+          RELEASE_VERSION: ${{ steps.release_version.outputs.version }}
+        run: |
+          set -euo pipefail
+          sed -i '/^\[workspace.package\]/,/^\[/ s/^version = ".*"$/version = "'"$RELEASE_VERSION"'"/' ontocode-rs/Cargo.toml
+
+      - name: Build ontocode
+        working-directory: ontocode-rs
+        run: cargo build --release -p ontocode-cli --bin ontocode
 
       - name: Stage artifact
+        env:
+          RELEASE_VERSION: ${{ steps.release_version.outputs.version }}
         run: |
           set -euo pipefail
-          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
-            version="${GITHUB_REF_NAME#rust-v}"
-          else
-            version="$(sed -n 's/^version = "\(.*\)"/\1/p' ontocode-rs/Cargo.toml | head -1)"
-          fi
+          version="$RELEASE_VERSION"
           mkdir -p dist
           cp ontocode-rs/target/release/ontocode "dist/ontocode-${version}-x86_64-unknown-linux-gnu"
           cp scripts/install/install.sh dist/install-ontocode-linux-x64.sh
