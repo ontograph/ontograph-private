@@ -1,5 +1,6 @@
 use super::*;
 use crate::app_event::HistoryLookupResponse;
+use ontocode_app_server_protocol::McpToolCallError;
 use ontocode_app_server_protocol::NetworkAccess;
 use ontocode_app_server_protocol::SandboxPolicy;
 use ontocode_protocol::models::ManagedFileSystemPermissions;
@@ -987,6 +988,116 @@ async fn replayed_in_progress_mcp_tool_call_stays_active() {
     let active = active_blob(&chat);
     assert!(active.contains("Calling"));
     assert!(!active.contains("MCP tool call completed without a result"));
+}
+
+#[tokio::test]
+async fn repeated_failed_mcp_tool_calls_emit_bounded_hint_once() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    let _ = drain_insert_history(&mut rx);
+
+    let failed_call = |id: &str, tool: &str| AppServerThreadItem::McpToolCall {
+        id: id.to_string(),
+        server: "search".to_string(),
+        tool: tool.to_string(),
+        status: ontocode_app_server_protocol::McpToolCallStatus::Failed,
+        arguments: json!({
+            "query": "ratatui styling",
+            "limit": 3,
+        }),
+        mcp_app_resource_uri: None,
+        plugin_id: None,
+        result: None,
+        error: Some(McpToolCallError {
+            message: "network timeout".to_string(),
+        }),
+        duration_ms: Some(8),
+    };
+
+    chat.replay_thread_item(
+        failed_call("mcp-1", "find_docs"),
+        "turn-1".to_string(),
+        ReplayKind::ThreadSnapshot,
+    );
+
+    let first = drain_insert_history(&mut rx);
+    assert_eq!(first.len(), 1);
+    assert!(
+        lines_to_single_string(&first[0]).contains("Error: network timeout"),
+        "expected the first failed MCP call to render its error output"
+    );
+
+    chat.replay_thread_item(
+        failed_call("mcp-2", "find_docs"),
+        "turn-1".to_string(),
+        ReplayKind::ThreadSnapshot,
+    );
+
+    let second = drain_insert_history(&mut rx);
+    assert_eq!(second.len(), 2);
+
+    let rendered = second
+        .iter()
+        .map(|cell| lines_to_single_string(cell))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        rendered.contains("Repeated MCP failures for search.find_docs"),
+        "expected a bounded repeated-failure hint after the second failed call"
+    );
+    assert!(
+        rendered.contains("2+ in a row"),
+        "expected the repeated-failure hint to stay capped"
+    );
+
+    chat.replay_thread_item(
+        failed_call("mcp-3", "find_docs"),
+        "turn-1".to_string(),
+        ReplayKind::ThreadSnapshot,
+    );
+
+    let third = drain_insert_history(&mut rx);
+    let rendered = third
+        .iter()
+        .map(|cell| lines_to_single_string(cell))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        !rendered.contains("Repeated MCP failures for search.find_docs"),
+        "expected the bounded repeated-failure hint to render once"
+    );
+
+    let long_tool_name =
+        "tool_with_a_label_long_enough_to_exceed_the_bounded_repeated_failure_hint_width";
+    chat.replay_thread_item(
+        failed_call("mcp-4", long_tool_name),
+        "turn-1".to_string(),
+        ReplayKind::ThreadSnapshot,
+    );
+    let _ = drain_insert_history(&mut rx);
+
+    chat.replay_thread_item(
+        failed_call("mcp-5", long_tool_name),
+        "turn-1".to_string(),
+        ReplayKind::ThreadSnapshot,
+    );
+
+    let long_label = drain_insert_history(&mut rx)
+        .iter()
+        .map(|cell| lines_to_single_string(cell))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        long_label.contains("Repeated MCP failures for search.tool_with_a_label"),
+        "expected long repeated-failure labels to include the capped hint"
+    );
+    assert!(
+        long_label.contains("..."),
+        "expected long repeated-failure labels to be capped"
+    );
+    assert!(
+        !long_label.contains(long_tool_name),
+        "expected the full long tool name to stay out of the bounded hint"
+    );
 }
 
 #[tokio::test]

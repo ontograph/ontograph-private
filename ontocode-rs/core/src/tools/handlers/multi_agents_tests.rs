@@ -29,6 +29,7 @@ use ontocode_protocol::AgentPath;
 use ontocode_protocol::ThreadId;
 use ontocode_protocol::config_types::ServiceTier;
 use ontocode_protocol::config_types::ShellEnvironmentPolicy;
+use ontocode_protocol::error::CodexErr;
 use ontocode_protocol::models::BaseInstructions;
 use ontocode_protocol::models::ContentItem;
 use ontocode_protocol::models::FunctionCallOutputBody;
@@ -179,6 +180,8 @@ struct ListAgentsResult {
 struct ListedAgentResult {
     agent_name: String,
     agent_status: serde_json::Value,
+    agent_role: Option<String>,
+    model: String,
     last_task_message: Option<String>,
 }
 
@@ -1619,6 +1622,8 @@ async fn multi_agent_v2_list_agents_returns_completed_status_and_last_task_messa
             "spawn_agent",
             function_payload(json!({
                 "message": "inspect this repo",
+                "agent_type": "explorer",
+                "fork_turns": "none",
                 "task_name": "worker"
             })),
         ))
@@ -1677,12 +1682,16 @@ async fn multi_agent_v2_list_agents_returns_completed_status_and_last_task_messa
         .find(|agent| agent.agent_name == "/root")
         .expect("root agent should be listed");
     assert_eq!(root_agent.last_task_message.as_deref(), Some("Main thread"));
+    assert_eq!(root_agent.agent_role.as_deref(), Some("default"));
+    assert_eq!(root_agent.model, "gpt-5.5");
     let worker = result
         .agents
         .iter()
         .find(|agent| agent.agent_name == "/root/worker")
         .expect("worker agent should be listed");
     assert_eq!(worker.agent_status, json!({"completed": "done"}));
+    assert_eq!(worker.agent_role.as_deref(), Some("explorer"));
+    assert_eq!(worker.model, "gpt-5.5");
     assert_eq!(
         worker.last_task_message.as_deref(),
         Some("inspect this repo")
@@ -2436,6 +2445,130 @@ async fn spawn_agent_rejects_when_depth_limit_exceeded() {
         FunctionCallError::RespondToModel(
             "Agent depth limit reached. Solve the task yourself.".to_string()
         )
+    );
+}
+
+#[test]
+fn collab_spawn_error_reports_cap_and_slot_release_guidance() {
+    let err = collab_spawn_error(CodexErr::AgentLimitReached { max_threads: 5 });
+    assert_eq!(
+        err,
+        FunctionCallError::RespondToModel(
+            "collab spawn failed: configured cap was reached (max 5 child agents). Close completed, failed, or cancelled agents to free slots."
+                .to_string()
+        )
+    );
+}
+
+#[tokio::test]
+async fn spawn_agent_refuses_sixth_child_after_five_open_children() {
+    let (mut session, mut turn) = make_session_and_context().await;
+    let manager = thread_manager();
+    let root = manager
+        .start_thread((*turn.config).clone())
+        .await
+        .expect("root thread should start");
+    session.services.agent_control = manager.agent_control();
+    session.thread_id = root.thread_id;
+
+    let mut config = (*turn.config).clone();
+    let _ = config.features.enable(Feature::MultiAgentV2);
+    config.multi_agent_v2.max_concurrent_threads_per_session = 6;
+    set_turn_config(&mut turn, config);
+
+    let session = Arc::new(session);
+    let turn = Arc::new(turn);
+
+    let mut first_child_task_name = None;
+    for idx in 0..5 {
+        let output = SpawnAgentHandlerV2::default()
+            .handle(invocation(
+                session.clone(),
+                turn.clone(),
+                "spawn_agent",
+                function_payload(json!({
+                    "message": format!("child {idx}"),
+                    "task_name": format!("child_{idx}")
+                })),
+            ))
+            .await
+            .expect("spawn_agent should succeed");
+        let (content, success) = expect_text_output(output);
+        assert_eq!(success, Some(true));
+        let result: serde_json::Value =
+            serde_json::from_str(&content).expect("spawn_agent result should be json");
+        let task_name = result
+            .get("task_name")
+            .and_then(serde_json::Value::as_str)
+            .expect("spawn_agent result should include task_name");
+        if idx == 0 {
+            first_child_task_name = Some(task_name.to_string());
+        }
+    }
+
+    let Err(err) = SpawnAgentHandlerV2::default()
+        .handle(invocation(
+            session.clone(),
+            turn.clone(),
+            "spawn_agent",
+            function_payload(json!({
+                "message": "child 5",
+                "task_name": "child_5"
+            })),
+        ))
+        .await
+    else {
+        panic!("sixth spawn should fail");
+    };
+    assert_eq!(
+        err,
+        FunctionCallError::RespondToModel(
+            "collab spawn failed: configured cap was reached (max 5 child agents). Close completed, failed, or cancelled agents to free slots."
+                .to_string()
+        )
+    );
+
+    let first_child_task_name =
+        first_child_task_name.expect("first child task name should be recorded");
+    let first_child_id = session
+        .services
+        .agent_control
+        .resolve_agent_reference(
+            session.thread_id,
+            &turn.session_source,
+            &first_child_task_name,
+        )
+        .await
+        .expect("first child task name should resolve");
+    session
+        .services
+        .agent_control
+        .close_agent(first_child_id)
+        .await
+        .expect("closing a child should free a slot");
+
+    let reopened_output = SpawnAgentHandlerV2::default()
+        .handle(invocation(
+            session,
+            turn,
+            "spawn_agent",
+            function_payload(json!({
+                "message": "child 5 retry",
+                "task_name": "child_5_retry"
+            })),
+        ))
+        .await
+        .expect("spawn_agent should succeed after closing a child");
+    let (content, success) = expect_text_output(reopened_output);
+    assert_eq!(success, Some(true));
+    let result: serde_json::Value =
+        serde_json::from_str(&content).expect("spawn_agent result should be json");
+    assert!(
+        result
+            .get("task_name")
+            .and_then(serde_json::Value::as_str)
+            .is_some(),
+        "reopened spawn should include task_name"
     );
 }
 

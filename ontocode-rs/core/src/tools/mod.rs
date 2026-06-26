@@ -1,5 +1,7 @@
 pub(crate) mod code_mode;
 pub(crate) mod context;
+pub(crate) mod context_exec_output;
+pub(crate) mod context_mcp_output;
 pub(crate) mod events;
 pub(crate) mod handlers;
 pub(crate) mod hook_names;
@@ -9,6 +11,7 @@ pub(crate) mod network_approval;
 pub(crate) mod orchestrator;
 pub(crate) mod output_reducer;
 pub(crate) mod parallel;
+pub(crate) mod planning;
 pub(crate) mod registry;
 pub(crate) mod router;
 pub(crate) mod runtimes;

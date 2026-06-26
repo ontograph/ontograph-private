@@ -1,6 +1,6 @@
 ---
 source: tui/src/multi_agents.rs
-assertion_line: 732
+assertion_line: 774
 expression: snapshot
 ---
 • Spawned Robie [explorer] (gpt-5 high)

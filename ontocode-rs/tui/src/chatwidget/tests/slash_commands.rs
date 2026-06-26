@@ -1154,6 +1154,101 @@ async fn slash_rename_without_existing_thread_name_starts_empty() {
 }
 
 #[tokio::test]
+async fn bare_agent_commands_open_agent_picker() {
+    for command in [SlashCommand::Agent, SlashCommand::MultiAgents] {
+        let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+
+        chat.dispatch_command(command);
+
+        assert_matches!(rx.try_recv(), Ok(AppEvent::OpenAgentPicker));
+        assert!(op_rx.try_recv().is_err(), "expected no submit op");
+    }
+}
+
+#[tokio::test]
+async fn slash_agent_list_submits_manager_instruction() {
+    let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    chat.thread_id = Some(ThreadId::new());
+
+    submit_composer_text(&mut chat, "/agent list");
+
+    match next_submit_op(&mut op_rx) {
+        Op::UserTurn { items, .. } => assert_eq!(
+            items,
+            vec![UserInput::Text {
+                text: "Interpret the following `/agent list` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `list_agents`.\n- Do not invent a new runtime, registry, or dispatch path.".to_string(),
+                text_elements: Vec::new(),
+            }]
+        ),
+        other => panic!("expected Op::UserTurn for /agent list, got {other:?}"),
+    }
+    assert_eq!(chat.bottom_pane.composer_text(), "");
+}
+
+#[tokio::test]
+async fn slash_subagents_list_submits_manager_instruction() {
+    let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    chat.thread_id = Some(ThreadId::new());
+
+    submit_composer_text(&mut chat, "/subagents list");
+
+    match next_submit_op(&mut op_rx) {
+        Op::UserTurn { items, .. } => assert_eq!(
+            items,
+            vec![UserInput::Text {
+                text: "Interpret the following `/subagents list` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `list_agents`.\n- Do not invent a new runtime, registry, or dispatch path.".to_string(),
+                text_elements: Vec::new(),
+            }]
+        ),
+        other => panic!("expected Op::UserTurn for /subagents list, got {other:?}"),
+    }
+    assert_eq!(chat.bottom_pane.composer_text(), "");
+}
+
+#[tokio::test]
+async fn queued_subagents_list_dispatches_after_active_turn() {
+    let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    chat.thread_id = Some(ThreadId::new());
+    handle_turn_started(&mut chat, "turn-1");
+
+    queue_composer_text_with_tab(&mut chat, "/subagents list");
+
+    complete_turn_with_message(&mut chat, "turn-1", Some("done"));
+
+    match next_submit_op(&mut op_rx) {
+        Op::UserTurn { items, .. } => assert_eq!(
+            items,
+            vec![UserInput::Text {
+                text: "Interpret the following `/subagents list` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `list_agents`.\n- Do not invent a new runtime, registry, or dispatch path.".to_string(),
+                text_elements: Vec::new(),
+            }]
+        ),
+        other => panic!("expected Op::UserTurn for queued /subagents list, got {other:?}"),
+    }
+    assert!(chat.input_queue.queued_user_messages.is_empty());
+}
+
+#[tokio::test]
+async fn slash_agent_invalid_args_show_usage() {
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+
+    submit_composer_text(&mut chat, "/agent nope");
+
+    let cells = drain_insert_history(&mut rx);
+    let rendered = cells
+        .iter()
+        .map(|cell| lines_to_single_string(cell))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        rendered.contains("Usage: /agent <create|send|wait|list|close> ..."),
+        "expected usage message, got: {rendered:?}"
+    );
+    assert_eq!(recall_latest_after_clearing(&mut chat), "/agent nope");
+    assert!(op_rx.try_recv().is_err(), "expected no submit op");
+}
+
+#[tokio::test]
 async fn usage_error_slash_command_is_available_from_local_recall() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
 

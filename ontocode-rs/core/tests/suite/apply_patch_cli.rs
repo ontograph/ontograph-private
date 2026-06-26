@@ -1797,3 +1797,288 @@ async fn apply_patch_change_context_disambiguates_target() -> Result<()> {
     assert_eq!(contents, "fn a\nx=10\ny=2\nfn b\nx=11\ny=20\n");
     Ok(())
 }
+
+// --- JSC-31: Regression coverage for duplicated / non-repeated diagnostic text ---
+
+/// JSC-31: A single verification failure must produce exactly one copy of the
+/// "apply_patch verification failed" sentinel.  Duplicated sentinel text would
+/// wastefully repeat the error context that the model receives and can mask
+/// which file actually triggered the failure.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_failure_diagnostic_appears_exactly_once() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+    harness.write_file("target.txt", "alpha\nbeta\n").await?;
+
+    // Context line does not match the file, so verification will fail.
+    let patch =
+        "*** Begin Patch\n*** Update File: target.txt\n@@\n-missing_line\n+replaced\n*** End Patch";
+    let call_id = "apply-dedup-diagnostic";
+    mount_apply_patch(&harness, call_id, patch, "fail").await;
+
+    harness.submit("apply patch that fails").await?;
+
+    let out = harness.apply_patch_output(call_id).await;
+
+    let sentinel = "apply_patch verification failed";
+    let count = out.matches(sentinel).count();
+    assert_eq!(
+        count, 1,
+        "sentinel '{sentinel}' should appear exactly once in output, found {count} times: {out:?}"
+    );
+    // File must be unchanged after the failure.
+    assert_eq!(harness.read_file_text("target.txt").await?, "alpha\nbeta\n");
+    Ok(())
+}
+
+/// JSC-31: Two consecutive patches where both fail must each produce an
+/// independent diagnostic.  Neither failure output should bleed into or repeat
+/// the other, and the sentinel count per output must remain one.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_two_consecutive_failures_produce_independent_diagnostics() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+    harness.write_file("file_a.txt", "a1\na2\n").await?;
+    harness.write_file("file_b.txt", "b1\nb2\n").await?;
+
+    let call_a = "apply-dedup-a";
+    let call_b = "apply-dedup-b";
+    let patch_a =
+        "*** Begin Patch\n*** Update File: file_a.txt\n@@\n-no_such_line\n+x\n*** End Patch";
+    let patch_b =
+        "*** Begin Patch\n*** Update File: file_b.txt\n@@\n-also_missing\n+y\n*** End Patch";
+
+    let responses = vec![
+        sse(vec![
+            ev_response_created("resp-1"),
+            ev_apply_patch_custom_tool_call(call_a, patch_a),
+            ev_completed("resp-1"),
+        ]),
+        sse(vec![
+            ev_response_created("resp-2"),
+            ev_apply_patch_custom_tool_call(call_b, patch_b),
+            ev_completed("resp-2"),
+        ]),
+        sse(vec![
+            ev_assistant_message("msg-1", "both failed"),
+            ev_completed("resp-3"),
+        ]),
+    ];
+    mount_sse_sequence(harness.server(), responses).await;
+
+    harness.submit("apply two failing patches").await?;
+
+    let sentinel = "apply_patch verification failed";
+    let out_a = harness.custom_tool_call_output(call_a).await;
+    let out_b = harness.custom_tool_call_output(call_b).await;
+
+    let count_a = out_a.matches(sentinel).count();
+    let count_b = out_b.matches(sentinel).count();
+    assert_eq!(
+        count_a, 1,
+        "first failure sentinel should appear exactly once: {out_a:?}"
+    );
+    assert_eq!(
+        count_b, 1,
+        "second failure sentinel should appear exactly once: {out_b:?}"
+    );
+    // Each output should reference only its own target file.
+    assert!(
+        out_a.contains("file_a.txt"),
+        "first output should name file_a.txt: {out_a:?}"
+    );
+    assert!(
+        out_b.contains("file_b.txt"),
+        "second output should name file_b.txt: {out_b:?}"
+    );
+    assert!(
+        !out_a.contains("file_b.txt"),
+        "first output should not mention file_b.txt: {out_a:?}"
+    );
+    assert!(
+        !out_b.contains("file_a.txt"),
+        "second output should not mention file_a.txt: {out_b:?}"
+    );
+
+    // Files must be unchanged.
+    assert_eq!(harness.read_file_text("file_a.txt").await?, "a1\na2\n");
+    assert_eq!(harness.read_file_text("file_b.txt").await?, "b1\nb2\n");
+    Ok(())
+}
+
+// --- JSC-39: Adversarial / malformed generated-patch fixtures ---
+
+/// JSC-39: A patch where the same file is listed twice — once as Add and once
+/// as Update — is an adversarial but plausible model-generation mistake.
+/// The parser must not crash or silently corrupt state; it must either succeed
+/// with the last-wins semantics or reject with a clear diagnostic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_duplicate_file_header_in_single_patch() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+
+    // Two operations on the same target path in a single patch.
+    let patch = "*** Begin Patch\n*** Add File: dup.txt\n+first\n*** Add File: dup.txt\n+second\n*** End Patch";
+    let call_id = "apply-dup-header";
+    mount_apply_patch(&harness, call_id, patch, "done").await;
+
+    harness
+        .submit("apply patch with duplicate file header")
+        .await?;
+
+    let out = harness.apply_patch_output(call_id).await;
+    // The outcome (success or controlled failure) must be deterministic: either
+    // a success path that creates the file, or a clear verification-failure
+    // message.  What we must never see is a panic, partial write, or silent
+    // empty output.
+    assert!(
+        !out.is_empty(),
+        "output must not be empty for a duplicate-header patch"
+    );
+    // If it succeeded, the file must exist and contain something.
+    // If it failed, the sentinel must be present and no file should exist.
+    let succeeded = out.contains("Success. Updated the following files:");
+    let failed = out.contains("apply_patch verification failed");
+    assert!(
+        succeeded || failed,
+        "output must either confirm success or report a verification failure: {out:?}"
+    );
+    Ok(())
+}
+
+/// JSC-39: A patch whose hunk header is present but whose diff body is entirely
+/// empty (no `-`, `+`, or context lines) is adversarial input.  The parser
+/// must return a clear failure rather than silently creating or modifying files.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_hunk_with_no_diff_lines_is_rejected() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+    harness.write_file("nodiff.txt", "unchanged\n").await?;
+
+    // Valid header and hunk marker, but zero diff lines follow.
+    let patch = "*** Begin Patch\n*** Update File: nodiff.txt\n@@\n*** End Patch";
+    let call_id = "apply-empty-hunk";
+    mount_apply_patch(&harness, call_id, patch, "fail").await;
+
+    harness.submit("apply patch with empty hunk body").await?;
+
+    let out = harness.apply_patch_output(call_id).await;
+    assert!(
+        !out.is_empty(),
+        "output must not be empty for an empty-hunk patch"
+    );
+    // File must be unchanged regardless of outcome.
+    assert_eq!(
+        harness.read_file_text("nodiff.txt").await?,
+        "unchanged\n",
+        "empty-hunk patch must not modify the target file"
+    );
+    Ok(())
+}
+
+/// JSC-39: A patch that targets a file path with path-separator sequences that
+/// look like they could traverse but stay within the workspace tests the
+/// parser's path normalisation.  The patch should either apply cleanly or
+/// reject with a clear message; it must not panic or silently write outside
+/// the workspace.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_path_with_embedded_dot_segments_is_handled() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+
+    // A path like `./sub/../sub/file.txt` is odd but resolves inside the workspace.
+    let patch =
+        "*** Begin Patch\n*** Add File: ./sub/../sub/adversarial.txt\n+content\n*** End Patch";
+    let call_id = "apply-dot-segment";
+    mount_apply_patch(&harness, call_id, patch, "done").await;
+
+    harness.submit("apply patch with dot-segment path").await?;
+
+    let out = harness.apply_patch_output(call_id).await;
+    // Must produce either a success or a controlled failure — never silent or empty.
+    assert!(
+        !out.is_empty(),
+        "output must not be empty for a dot-segment path patch"
+    );
+    let succeeded = out.contains("Success. Updated the following files:");
+    let failed = out.contains("apply_patch verification failed");
+    assert!(
+        succeeded || failed,
+        "patch with dot-segment path must produce success or verification failure: {out:?}"
+    );
+    Ok(())
+}
+
+/// JSC-39: A very long filename (near filesystem limits) should not crash the
+/// parser or the apply-patch binary.  The outcome may be success or a
+/// controlled OS-level error, but it must never be a panic or silent hang.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_very_long_filename_does_not_panic() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+
+    // 200-character filename — well below PATH_MAX but above common filename limits
+    // on some filesystems, exercising the code path without targeting a specific OS.
+    let long_name = "a".repeat(200) + ".txt";
+    let patch = format!("*** Begin Patch\n*** Add File: {long_name}\n+hello\n*** End Patch");
+    let call_id = "apply-long-name";
+    mount_apply_patch(&harness, call_id, &patch, "done").await;
+
+    harness
+        .submit("apply patch with very long filename")
+        .await?;
+
+    let out = harness.apply_patch_output(call_id).await;
+    assert!(
+        !out.is_empty(),
+        "output must not be empty for a very-long-filename patch"
+    );
+    // Success or controlled failure; no panic / timeout / empty output.
+    let succeeded = out.contains("Success. Updated the following files:");
+    let failed = out.contains("apply_patch verification failed")
+        || out.contains("Exit code:")
+        || out.contains("error");
+    assert!(
+        succeeded || failed,
+        "long-filename patch must produce a deterministic outcome: {out:?}"
+    );
+    Ok(())
+}
+
+/// JSC-39: A patch that begins with content lines before the `*** Begin Patch`
+/// sentinel (e.g., a model that prepended commentary) must be handled
+/// gracefully.  If the implementation strips leading noise, it should succeed;
+/// if it rejects the preamble, it must produce a clear diagnostic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn apply_patch_with_leading_commentary_before_begin_patch() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = apply_patch_harness().await?;
+
+    let patch = "Here is the patch you requested:\n\n*** Begin Patch\n*** Add File: commentary.txt\n+generated\n*** End Patch";
+    let call_id = "apply-leading-commentary";
+    mount_apply_patch(&harness, call_id, patch, "done").await;
+
+    harness
+        .submit("apply patch with leading commentary")
+        .await?;
+
+    let out = harness.apply_patch_output(call_id).await;
+    assert!(
+        !out.is_empty(),
+        "output must not be empty for a patch with leading commentary"
+    );
+    let succeeded = out.contains("Success. Updated the following files:");
+    let failed = out.contains("apply_patch verification failed");
+    assert!(
+        succeeded || failed,
+        "patch with leading commentary must produce a deterministic outcome: {out:?}"
+    );
+    Ok(())
+}

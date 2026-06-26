@@ -35,6 +35,7 @@ mod environment_selection;
 pub mod exec;
 pub mod exec_env;
 mod exec_policy;
+mod final_answer_verifier;
 #[cfg(test)]
 mod git_info_tests;
 mod goals;
@@ -48,6 +49,8 @@ pub use landlock::spawn_command_under_linux_sandbox;
 pub(crate) mod mcp;
 mod mcp_skill_dependencies;
 mod mcp_tool_approval_templates;
+mod mcp_tool_call_result_shape;
+mod mcp_tool_call_telemetry;
 mod mcp_tool_exposure;
 mod native_provider;
 mod network_policy_decision;

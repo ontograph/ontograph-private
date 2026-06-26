@@ -1,8 +1,11 @@
 use std::collections::HashMap;
+use std::fs;
+use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
 use pretty_assertions::assert_eq;
+use tempfile::tempdir;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -312,6 +315,69 @@ async fn output_and_exit_are_retained_after_notification_receiver_closes() {
     handler.shutdown().await;
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn detached_session_keeps_long_running_process_alive_then_cleans_it_up() {
+    let session_registry = SessionRegistry::new();
+    let (first_tx, _first_rx) = mpsc::channel(16);
+    let first_handler = Arc::new(ExecServerHandler::new(
+        Arc::clone(&session_registry),
+        RpcNotificationSender::new(first_tx),
+        test_runtime_paths(),
+    ));
+    let initialize_response = first_handler
+        .initialize(InitializeParams {
+            client_name: "exec-server-test".to_string(),
+            resume_session_id: None,
+        })
+        .await
+        .expect("initialize");
+    first_handler.initialized().expect("initialized");
+
+    let tempdir = tempdir().expect("tempdir");
+    let pid_file = tempdir.path().join("long-running.pid");
+    let process_id = ProcessId::from("proc-cleanup-status");
+
+    first_handler
+        .exec(exec_params_with_argv(
+            process_id.as_str(),
+            pid_file_argv(&pid_file),
+        ))
+        .await
+        .expect("start process");
+
+    let pid = wait_for_pid_file(&pid_file).await;
+    assert!(process_is_alive(&pid));
+    assert!(first_handler.is_session_attached());
+
+    first_handler.shutdown().await;
+    assert!(!first_handler.is_session_attached());
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(process_is_alive(&pid));
+
+    let (second_tx, _second_rx) = mpsc::channel(16);
+    let second_handler = Arc::new(ExecServerHandler::new(
+        session_registry,
+        RpcNotificationSender::new(second_tx),
+        test_runtime_paths(),
+    ));
+    second_handler
+        .initialize(InitializeParams {
+            client_name: "exec-server-test".to_string(),
+            resume_session_id: Some(initialize_response.session_id),
+        })
+        .await
+        .expect("resume");
+    second_handler
+        .initialized()
+        .expect("initialized second connection");
+    assert!(second_handler.is_session_attached());
+
+    second_handler.shutdown().await;
+    wait_for_process_exit(&pid).await;
+}
+
 async fn read_process_until_closed(
     handler: &ExecServerHandler,
     process_id: ProcessId,
@@ -347,5 +413,58 @@ async fn read_process_until_closed(
             tokio::time::Instant::now() < deadline,
             "process should close within 5s"
         );
+    }
+}
+
+#[cfg(unix)]
+fn pid_file_argv(pid_file: &std::path::Path) -> Vec<String> {
+    vec![
+        "/bin/sh".to_string(),
+        "-c".to_string(),
+        "printf '%s\\n' $$ > \"$1\"; sleep 5".to_string(),
+        "sh".to_string(),
+        pid_file.display().to_string(),
+    ]
+}
+
+#[cfg(unix)]
+fn process_is_alive(pid: &str) -> bool {
+    Command::new("kill")
+        .args(["-0", pid])
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+#[cfg(unix)]
+async fn wait_for_pid_file(path: &std::path::Path) -> String {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        if let Ok(contents) = fs::read_to_string(path) {
+            let pid = contents.trim().to_string();
+            if !pid.is_empty() {
+                return pid;
+            }
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "timed out waiting for pid file {}",
+            path.display()
+        );
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+}
+
+#[cfg(unix)]
+async fn wait_for_process_exit(pid: &str) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        if !process_is_alive(pid) {
+            return;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "timed out waiting for process {pid} to exit"
+        );
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
 }

@@ -1,4 +1,7 @@
 use super::*;
+use chrono::Utc;
+use ontocode_state::AgentJobItem;
+use ontocode_state::AgentJobItemStatus;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -21,6 +24,35 @@ fn csv_escape_quotes_when_needed() {
     assert_eq!(csv_escape("simple"), "simple");
     assert_eq!(csv_escape("a,b"), "\"a,b\"");
     assert_eq!(csv_escape("a\"b"), "\"a\"\"b\"");
+}
+
+#[test]
+fn render_job_csv_includes_job_status_columns() {
+    let now = Utc::now();
+    let item = AgentJobItem {
+        job_id: "job-1".to_string(),
+        item_id: "item-1".to_string(),
+        row_index: 7,
+        source_id: Some("source-1".to_string()),
+        row_json: json!({ "path": "src/lib.rs" }),
+        status: AgentJobItemStatus::Completed,
+        assigned_thread_id: Some("thread-1".to_string()),
+        attempt_count: 2,
+        result_json: Some(json!({ "ok": true })),
+        last_error: Some("last error".to_string()),
+        created_at: now,
+        updated_at: now,
+        completed_at: Some(now),
+        reported_at: Some(now),
+    };
+
+    let csv = render_job_csv(&["path".to_string()], &[item]).expect("csv renders");
+
+    assert!(csv.starts_with(
+        "path,job_id,item_id,row_index,source_id,status,attempt_count,last_error,result_json,reported_at,completed_at\n"
+    ));
+    assert!(csv.contains("src/lib.rs,job-1,item-1,7,source-1,completed,2,last error"));
+    assert!(csv.contains("{\"\"ok\"\":true}"));
 }
 
 #[test]

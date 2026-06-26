@@ -103,13 +103,15 @@ Before implementing provider, auth, MCP, hooks, shell, session/context, diagnost
   `gemini-3.5-flash-low`, `gemini-3-flash-agent`, `gemini-pro-agent`,
   `claude-sonnet-4-6`, `gpt-5.3-codex-spark`, `gpt-5.4-mini`.
   You must use the exact model names listed above; do not truncate them (e.g. do not ask for `gemini-3-flash`).
+  When requesting `gemini-3.5-flash-low`, omit `reasoning_effort` unless the active spawn tool explicitly advertises supported effort values for that model.
   Use the first available model. If an exact model fails today, do not retry that
   same model again until tomorrow; use the next available model in the order
   for today's next attempt.
-- Treat every proposed change or refactor as rejected by default until it passes both checks:
+- Treat every proposed change or refactor as invalid until it passes both checks:
   - it adds real new functionality, behavior, safety, compatibility, or operational value rather than cosmetic churn or duplicate plumbing
   - it extends the existing core solution and stays inline with the current architecture instead of introducing a parallel owner or side stack
-- If a proposal fails either check, do not implement it as-is; narrow it, inline it into the existing owner, or drop it.
+- If a proposal fails either check, do not implement it as-is; inline it into the existing owner, redesign it to fit the current architecture, or drop it.
+- If a request passes both checks, implement the full user-requested scope inside the existing owner when reasonably possible. Do not shrink a valid request to a narrower slice solely to reduce change size, review effort, or local verification scope.
 - Reuse existing architecture first. Do not create a second provider factory, provider registry, model catalog, runtime stream abstraction, capability resolver, OAuth token parser, credential persistence layer, redactor, MCP status pipeline, hook matcher, hook registry, policy evaluator, shell permission parser, shell launcher, context injection path, or external-agent import service.
 - Use GitNexus `context` on the target symbol/module and record the existing caller/callee surface before implementation. If editing a symbol, run GitNexus impact first and report the blast radius.
 - Extend the existing owner when it exists: provider work belongs in `model-provider`; OAuth persistence belongs in auth/login or provider auth boundaries; MCP work belongs in `rmcp-client`, `codex-mcp`, or existing MCP processors; hook work belongs in `hooks`; shell/sandbox work belongs beside the existing runtime and sandbox modules; context work belongs in session/context modules; external-agent import work belongs in the existing migration/import services.
@@ -164,11 +166,11 @@ Check whether there are existing helpers to make tests more streamlined and read
 
 ### Change size guidance (800 lines)
 
-Unless the change is mechanical the total number of changed lines should not exceed 800 lines.
-For complex logic changes the size should be under 500 lines.
+Unless the change is mechanical, prefer changes under 800 lines when that still satisfies the requested scope cleanly.
+For complex logic changes, prefer changes under 500 lines when that still satisfies the requested scope cleanly.
 
-If the change is larger, explore whether it can be split into reviewable stages and identify the smallest coherent stage to land first.
-Base the staging suggestion on the actual diff, dependencies, and affected call sites.
+If the change is larger, first check whether the full requested scope can still land safely as one coherent change. Split into stages only when staging is required by correctness, risk, dependency order, or reviewability, and make the stages map to the real requested end state rather than an arbitrarily smaller subset.
+Base any staging suggestion on the actual diff, dependencies, affected call sites, and the user's requested outcome.
 
 ## TUI style conventions
 
@@ -383,7 +385,7 @@ This project is indexed by GitNexus as **codex** (72144 symbols, 164215 relation
 <!-- ontoindex:start -->
 # OntoIndex — Code Intelligence
 
-This project is indexed by OntoIndex as **codex** (79507 symbols, 208791 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by OntoIndex as **codex** (79861 symbols, 209267 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
 
 > If any OntoIndex tool warns the index is stale, coordinate first; exactly one process should run `ontoindex analyze`.
 

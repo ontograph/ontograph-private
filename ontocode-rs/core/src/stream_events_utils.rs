@@ -12,6 +12,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::context::ContextualUserFragment;
 use crate::context::ImageGenerationInstructions;
+use crate::final_answer_verifier::final_answer_verification_warning;
 use crate::function_tool::FunctionCallError;
 use crate::parse_turn_item;
 use crate::session::session::Session;
@@ -29,6 +30,8 @@ use ontocode_protocol::models::FunctionCallOutputPayload;
 use ontocode_protocol::models::MessagePhase;
 use ontocode_protocol::models::ResponseInputItem;
 use ontocode_protocol::models::ResponseItem;
+use ontocode_protocol::protocol::EventMsg;
+use ontocode_protocol::protocol::WarningEvent;
 use ontocode_rollout::state_db;
 use ontocode_utils_absolute_path::AbsolutePathBuf;
 use ontocode_utils_stream_parser::strip_proposed_plan_blocks;
@@ -239,6 +242,22 @@ pub(crate) async fn record_completed_response_item_with_finalized_facts(
     if has_memory_citation {
         sess.record_memory_citation_for_turn(&turn_context.sub_id)
             .await;
+    }
+    if defers_mailbox_delivery
+        && let Some(answer) = last_assistant_message_from_item(
+            item,
+            turn_context.collaboration_mode.mode == ModeKind::Plan,
+        )
+    {
+        let warning = turn_context
+            .file_read_evidence
+            .lock()
+            .ok()
+            .and_then(|evidence| final_answer_verification_warning(&answer, &evidence));
+        if let Some(message) = warning {
+            sess.send_event(turn_context, EventMsg::Warning(WarningEvent { message }))
+                .await;
+        }
     }
 }
 

@@ -1,0 +1,17 @@
+---
+source: tui/src/app/tests.rs
+assertion_line: 2442
+expression: "lines.join(\"\\n\")"
+---
+  Subagents
+  Select an agent to watch. ⌥ + ← previous, ⌥ + → next.
+
+› 1. Create from proposal        Write a repo-local scaffold from one freeform role proposal.
+  2. Create agent definition     Write a repo-local .codex/agents/<slug>.toml scaffold.
+     Available role definitions
+     researcher [role]           Focused codebase investigation.
+  3. Rename researcher [role]    Move this repo-local role definition to a new name.
+  4. Copy researcher [role]      Duplicate this repo-local role definition into a new file.
+  5. Delete researcher [role]    Remove this repo-local role definition file.
+
+  Press enter to confirm or esc to go back

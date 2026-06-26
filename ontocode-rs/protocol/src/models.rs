@@ -3046,3 +3046,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "models_prompt_tests.rs"]
+mod prompt_tests;

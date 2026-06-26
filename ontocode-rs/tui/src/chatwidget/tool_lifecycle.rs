@@ -208,7 +208,17 @@ impl ChatWidget {
             tool,
             arguments: Some(arguments),
         };
+        let tool_label = {
+            let label = format!("{}.{}", invocation.server, invocation.tool);
+            const MAX_TOOL_LABEL_CHARS: usize = 80;
+            if let Some((idx, _)) = label.char_indices().nth(MAX_TOOL_LABEL_CHARS) {
+                format!("{}...", &label[..idx])
+            } else {
+                label
+            }
+        };
         let duration = Duration::from_millis(duration_ms.unwrap_or_default().max(0) as u64);
+        let is_failure = error.is_some();
         let result = match (result, error) {
             (_, Some(error)) => Err(error.message),
             (Some(result), None) => {
@@ -243,6 +253,28 @@ impl ChatWidget {
         self.flush_active_cell();
         if let Some(extra) = extra_cell {
             self.add_boxed_history(extra);
+        }
+        if is_failure {
+            if self
+                .mcp_tool_failure_streak_key
+                .as_deref()
+                .is_some_and(|key| key == tool_label.as_str())
+            {
+                self.mcp_tool_failure_streak_count =
+                    self.mcp_tool_failure_streak_count.saturating_add(1).min(3);
+            } else {
+                self.mcp_tool_failure_streak_key = Some(tool_label.clone());
+                self.mcp_tool_failure_streak_count = 1;
+            }
+            if self.mcp_tool_failure_streak_count == 2 {
+                self.add_to_history(history_cell::new_info_event(
+                    format!("Repeated MCP failures for {tool_label}"),
+                    Some("2+ in a row".to_string()),
+                ));
+            }
+        } else {
+            self.mcp_tool_failure_streak_key = None;
+            self.mcp_tool_failure_streak_count = 0;
         }
         // Mark that actual work was done (MCP tool call)
         self.transcript.had_work_activity = true;

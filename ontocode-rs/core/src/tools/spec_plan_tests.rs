@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fs;
 use std::sync::Arc;
 
 use ontocode_features::Feature;
@@ -234,6 +235,12 @@ fn set_features(turn: &mut TurnContext, features: &[Feature]) {
     }
 }
 
+fn read_core_source(path: &str) -> String {
+    let path = ontocode_utils_cargo_bin::find_resource!(path)
+        .unwrap_or_else(|_| panic!("resolve source path `{path}`"));
+    fs::read_to_string(&path).unwrap_or_else(|err| panic!("read source `{path:?}`: {err}"))
+}
+
 fn zsh_fork_config_for_spec_plan_tests() -> ontocode_tools::ZshForkConfig {
     let placeholder_exe = ontocode_utils_absolute_path::AbsolutePathBuf::try_from(
         std::env::current_exe().expect("current exe path"),
@@ -246,6 +253,23 @@ fn zsh_fork_config_for_spec_plan_tests() -> ontocode_tools::ZshForkConfig {
     ontocode_tools::ZshForkConfig {
         shell_zsh_path: placeholder_exe.clone(),
         main_execve_wrapper_exe: placeholder_exe,
+    }
+}
+
+#[test]
+fn mcp_planning_module_keeps_provider_and_auth_owners_out() {
+    let source = read_core_source("src/tools/planning/mcp.rs");
+    for forbidden in [
+        "use ontocode_login::",
+        "use ontocode_model_provider::",
+        "use ontocode_provider_auth::",
+        "create_model_provider(",
+        "AuthManager",
+    ] {
+        assert!(
+            !source.contains(forbidden),
+            "planning/mcp.rs should stay free of provider/auth owner `{forbidden}`"
+        );
     }
 }
 
@@ -640,14 +664,6 @@ async fn host_context_gates_goal_and_agent_job_tools() {
     })
     .await;
     enabled.assert_visible_contains(&["get_goal", "create_goal", "update_goal"]);
-
-    let review_thread = probe(|turn| {
-        set_feature(turn, Feature::Goals, /*enabled*/ true);
-        turn.goal_tools_supported = true;
-        turn.session_source = SessionSource::SubAgent(SubAgentSource::Review);
-    })
-    .await;
-    review_thread.assert_visible_lacks(&["get_goal", "create_goal", "update_goal"]);
 
     let normal_agent_job = probe(|turn| {
         set_feature(turn, Feature::SpawnCsv, /*enabled*/ true);

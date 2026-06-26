@@ -123,6 +123,7 @@ use ontocode_protocol::config_types::ModeKind;
 use ontocode_protocol::config_types::Settings;
 use ontocode_protocol::models::BaseInstructions;
 use ontocode_protocol::models::ContentItem;
+use ontocode_protocol::models::MessagePhase;
 use ontocode_protocol::models::ResponseItem;
 use ontocode_protocol::protocol::AskForApproval;
 use ontocode_protocol::protocol::CodexErrorInfo;
@@ -160,6 +161,11 @@ use ontocode_protocol::protocol::W3cTraceContext;
 use ontocode_protocol::request_user_input::RequestUserInputAnswer;
 use ontocode_protocol::request_user_input::RequestUserInputResponse;
 use ontocode_rmcp_client::ElicitationAction;
+use ontocode_state::EvidenceDomain;
+use ontocode_state::EvidenceRisk;
+use ontocode_state::EvidenceStatus;
+use ontocode_state::OperationalEvidenceRecord;
+use ontocode_state::RedactionStatus;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::trace::TraceId;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
@@ -202,13 +208,17 @@ fn user_message(text: &str) -> ResponseItem {
 }
 
 fn assistant_message(text: &str) -> ResponseItem {
+    assistant_message_with_phase(text, None)
+}
+
+fn assistant_message_with_phase(text: &str, phase: Option<MessagePhase>) -> ResponseItem {
     ResponseItem::Message {
         id: None,
         role: "assistant".to_string(),
         content: vec![ContentItem::OutputText {
             text: text.to_string(),
         }],
-        phase: None,
+        phase,
     }
 }
 
@@ -501,6 +511,45 @@ fn user_input_texts(items: &[ResponseItem]) -> Vec<&str> {
             _ => None,
         })
         .collect()
+}
+
+fn operational_evidence_record(
+    thread_id: &str,
+    status: EvidenceStatus,
+    redaction_status: RedactionStatus,
+    summary: &str,
+) -> OperationalEvidenceRecord {
+    OperationalEvidenceRecord {
+        id: Uuid::new_v4().to_string(),
+        evidence_domain: EvidenceDomain::Workflow,
+        source_tool: "test-operational-evidence".to_string(),
+        source_version: Some("1.0.0".to_string()),
+        schema_version: 1,
+        source_ref: Some("session-tests".to_string()),
+        repo: Some("/repo".to_string()),
+        task_key: Some("task-a".to_string()),
+        thread_id: Some(thread_id.to_string()),
+        parent_thread_id: None,
+        child_thread_id: None,
+        symbol_uid: None,
+        symbol_name: None,
+        file_path: None,
+        process_label: None,
+        gate_name: None,
+        risk: Some(EvidenceRisk::Low),
+        status,
+        summary: summary.to_string(),
+        source_links: Vec::new(),
+        metadata: json!({"kind": "context"}),
+        provenance_hash: Uuid::new_v4().to_string(),
+        redaction_status,
+        target_head: Some("head-a".to_string()),
+        graph_index_id: Some("graph-a".to_string()),
+        plan_hash: None,
+        tracking_hash: None,
+        created_at: Utc::now(),
+        expires_at: None,
+    }
 }
 
 fn write_project_hooks(dot_codex: &Path) -> std::io::Result<()> {
@@ -2583,6 +2632,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         permission_profile: None,
         network: None,
         file_system_sandbox_policy: None,
+        file_read_evidence: None,
         model: previous_model.to_string(),
         personality: turn_context.personality,
         collaboration_mode: Some(turn_context.collaboration_mode.clone()),
@@ -7419,16 +7469,25 @@ impl ontocode_extension_api::ContextContributor for PromptExtensionTestContribut
         >,
     > {
         Box::pin(async move {
-            thread_store
-                .get::<PromptExtensionTestState>()
-                .is_some()
-                .then(|| {
+            if thread_store.get::<PromptExtensionTestState>().is_some() {
+                vec![
                     ontocode_extension_api::PromptFragment::developer_policy(
                         "prompt extension enabled",
-                    )
-                })
-                .into_iter()
-                .collect()
+                    ),
+                    ontocode_extension_api::PromptFragment::developer_capability(
+                        "prompt extension capability",
+                    ),
+                    ontocode_extension_api::PromptFragment::new(
+                        ontocode_extension_api::PromptSlot::ContextualUser,
+                        "prompt extension contextual user",
+                    ),
+                    ontocode_extension_api::PromptFragment::separate_developer(
+                        "prompt extension separate developer",
+                    ),
+                ]
+            } else {
+                Vec::new()
+            }
         })
     }
 }
@@ -7458,6 +7517,154 @@ async fn build_initial_context_includes_prompt_fragments_from_extensions() {
             .flatten()
             .any(|text| *text == "prompt extension enabled"),
         "expected prompt extension developer text, got {developer_messages:?}"
+    );
+}
+
+#[tokio::test]
+async fn build_initial_context_preserves_prompt_section_boundaries() {
+    let (mut session, mut turn_context) = make_session_and_context().await;
+    let mut outcome = SkillLoadOutcome::default();
+    outcome.skills = vec![SkillMetadata {
+        name: "lazy-skill".to_string(),
+        description: "metadata-only description".to_string(),
+        short_description: None,
+        interface: None,
+        dependencies: None,
+        policy: None,
+        path_to_skills_md: test_path_buf("/tmp/lazy-skill/SKILL.md").abs(),
+        scope: SkillScope::Repo,
+        plugin_id: None,
+    }];
+    turn_context.turn_skills = TurnSkillsContext::new(Arc::new(outcome));
+    session.services.extensions = prompt_extension_test_registry();
+    session
+        .services
+        .thread_extension_data
+        .insert(PromptExtensionTestState);
+
+    let initial_context = session.build_initial_context(&turn_context).await;
+    let developer_messages = developer_message_texts(&initial_context);
+    let first_developer_message = developer_messages
+        .first()
+        .expect("developer bundle should exist");
+    let skill_index = first_developer_message
+        .iter()
+        .position(|text| text.contains("lazy-skill") && text.contains("metadata-only description"))
+        .expect("skill metadata should render in the aggregated developer bundle");
+    let policy_index = first_developer_message
+        .iter()
+        .position(|text| *text == "prompt extension enabled")
+        .expect("developer policy prompt fragment should render in the aggregated bundle");
+    let capability_index = first_developer_message
+        .iter()
+        .position(|text| *text == "prompt extension capability")
+        .expect("developer capability prompt fragment should render in the aggregated bundle");
+
+    assert!(
+        skill_index < policy_index && policy_index < capability_index,
+        "expected skills before extension developer fragments in first developer message, got {first_developer_message:?}"
+    );
+    assert!(
+        developer_messages
+            .iter()
+            .any(|message| message.as_slice() == ["prompt extension separate developer"]),
+        "expected separate developer prompt fragment to stay in its own developer message, got {developer_messages:?}"
+    );
+    assert!(
+        developer_messages
+            .iter()
+            .flatten()
+            .all(|text| *text != "prompt extension contextual user"),
+        "developer messages should not include contextual-user fragments, got {developer_messages:?}"
+    );
+
+    let user_texts = user_input_texts(&initial_context);
+    assert!(
+        user_texts
+            .iter()
+            .any(|text| *text == "prompt extension contextual user"),
+        "expected contextual-user prompt fragment in contextual user message, got {user_texts:?}"
+    );
+}
+
+#[tokio::test]
+async fn build_initial_context_includes_thread_scoped_operational_evidence_context() {
+    let (session, turn_context, _rx, _codex_home) = make_goal_session_and_context_with_rx().await;
+    let state_db = session
+        .state_db()
+        .expect("goal test session should have a state db");
+    let thread_id = session.thread_id.to_string();
+    let other_thread_id = Uuid::new_v4().to_string();
+
+    state_db
+        .insert_operational_evidence(&operational_evidence_record(
+            &thread_id,
+            EvidenceStatus::Verified,
+            RedactionStatus::Clean,
+            "thread-scoped operational evidence",
+        ))
+        .await
+        .expect("insert accepted operational evidence");
+    state_db
+        .insert_operational_evidence(&operational_evidence_record(
+            &thread_id,
+            EvidenceStatus::Rejected,
+            RedactionStatus::Clean,
+            "rejected operational evidence",
+        ))
+        .await
+        .expect("insert rejected operational evidence");
+    state_db
+        .insert_operational_evidence(&operational_evidence_record(
+            &thread_id,
+            EvidenceStatus::Done,
+            RedactionStatus::Rejected,
+            "redacted operational evidence",
+        ))
+        .await
+        .expect("insert redacted operational evidence");
+    state_db
+        .insert_operational_evidence(&operational_evidence_record(
+            &other_thread_id,
+            EvidenceStatus::Verified,
+            RedactionStatus::Clean,
+            "other-thread operational evidence",
+        ))
+        .await
+        .expect("insert other-thread operational evidence");
+
+    let initial_context = session.build_initial_context(turn_context.as_ref()).await;
+    let user_messages = user_input_texts(&initial_context);
+
+    assert!(
+        user_messages
+            .iter()
+            .any(|text| text.contains("<operational_evidence_context>")),
+        "expected operational evidence context fragment, got {user_messages:?}"
+    );
+    assert!(
+        user_messages
+            .iter()
+            .any(|text| text.contains("thread-scoped operational evidence")),
+        "expected accepted thread-scoped operational evidence, got {user_messages:?}"
+    );
+    assert!(
+        !user_messages
+            .iter()
+            .any(|text| text.contains("rejected operational evidence")),
+        "did not expect rejected operational evidence, got {user_messages:?}"
+    );
+    assert!(
+        !user_messages
+            .iter()
+            .any(|text| text.contains("redacted operational evidence")),
+        "did not expect redacted operational evidence, got {user_messages:?}"
+    );
+    assert!(
+        !user_messages
+            .iter()
+            .any(|text| text.contains("other-thread operational evidence")),
+        "did not expect other-thread operational evidence, got {user_messages:?}"
     );
 }
 
@@ -8707,6 +8914,112 @@ async fn task_finish_emits_turn_item_lifecycle_for_leftover_pending_user_input()
             turn_id,
             last_agent_message: None,
             time_to_first_token_ms: None,
+            ..
+        }) if turn_id == tc.sub_id
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn task_finish_recovers_last_agent_message_before_subagent_notification() {
+    let (sess, tc, rx) = make_session_and_context_with_rx().await;
+    let input = vec![TurnInput::UserInput {
+        content: vec![UserInput::Text {
+            text: "start work".to_string(),
+            text_elements: Vec::new(),
+        }],
+        client_id: None,
+    }];
+    sess.spawn_task(
+        Arc::clone(&tc),
+        input,
+        NeverEndingTask {
+            kind: TaskKind::Regular,
+            listen_to_cancellation_token: false,
+        },
+    )
+    .await;
+
+    let assistant_item = assistant_message_with_phase(
+        "visible progress before worker result",
+        Some(MessagePhase::Commentary),
+    );
+    let notification_text = crate::session_prefix::format_subagent_notification_message(
+        "agent-1",
+        &ontocode_protocol::protocol::AgentStatus::Completed(Some("child done".to_string())),
+    );
+    let notification_item = ResponseItem::Message {
+        id: None,
+        role: "user".to_string(),
+        content: vec![ContentItem::InputText {
+            text: notification_text,
+        }],
+        phase: None,
+    };
+    sess.record_conversation_items(tc.as_ref(), &[assistant_item, notification_item])
+        .await;
+
+    while rx.try_recv().is_ok() {}
+
+    sess.on_task_finished(Arc::clone(&tc), /*last_agent_message*/ None)
+        .await;
+
+    let evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
+        .await
+        .expect("expected turn complete event")
+        .expect("channel open");
+    assert!(matches!(
+        evt.msg,
+        EventMsg::TurnComplete(TurnCompleteEvent {
+            turn_id,
+            last_agent_message: Some(message),
+            ..
+        }) if turn_id == tc.sub_id && message == "visible progress before worker result"
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn task_finish_does_not_recover_last_agent_message_across_user_turn() {
+    let (sess, tc, rx) = make_session_and_context_with_rx().await;
+    sess.record_conversation_items(
+        tc.as_ref(),
+        &[
+            user_message("previous user turn"),
+            assistant_message("previous final answer"),
+        ],
+    )
+    .await;
+
+    let input = vec![TurnInput::UserInput {
+        content: vec![UserInput::Text {
+            text: "current user turn".to_string(),
+            text_elements: Vec::new(),
+        }],
+        client_id: None,
+    }];
+    sess.spawn_task(
+        Arc::clone(&tc),
+        input,
+        NeverEndingTask {
+            kind: TaskKind::Regular,
+            listen_to_cancellation_token: false,
+        },
+    )
+    .await;
+
+    while rx.try_recv().is_ok() {}
+
+    sess.on_task_finished(Arc::clone(&tc), /*last_agent_message*/ None)
+        .await;
+
+    let evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
+        .await
+        .expect("expected turn complete event")
+        .expect("channel open");
+    assert!(matches!(
+        evt.msg,
+        EventMsg::TurnComplete(TurnCompleteEvent {
+            turn_id,
+            last_agent_message: None,
             ..
         }) if turn_id == tc.sub_id
     ));

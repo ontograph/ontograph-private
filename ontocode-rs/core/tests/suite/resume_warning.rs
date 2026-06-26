@@ -36,6 +36,7 @@ fn resume_history(
         permission_profile: None,
         network: None,
         file_system_sandbox_policy: None,
+        file_read_evidence: None,
         model: previous_model.to_string(),
         personality: None,
         collaboration_mode: None,

@@ -250,7 +250,7 @@ impl ModelsEndpointClient for TestFallibleModelsEndpoint {
 }
 
 async fn chatgpt_auth_tokens_for_tests(codex_home: &Path) -> CodexAuth {
-    let auth_dot_json = ontocode_login::AuthDotJson {
+    let auth_dot_json = ontocode_login::AuthDotJson { provider_oauth_credentials: Default::default(),
         auth_mode: Some(AuthMode::ChatgptAuthTokens),
         openai_api_key: None,
         tokens: Some(TokenData {

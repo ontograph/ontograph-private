@@ -1,0 +1,12 @@
+---
+source: tui/src/app/tests.rs
+assertion_line: 2624
+expression: "lines.join(\"\\n\")"
+---
+  Subagents
+  Select an agent to watch. ⌥ + ← previous, ⌥ + → next.
+
+› 1. Create from proposal     Write a repo-local scaffold from one freeform role proposal.
+  2. Create agent definition  Write a repo-local .codex/agents/<slug>.toml scaffold.
+
+  Press enter to confirm or esc to go back

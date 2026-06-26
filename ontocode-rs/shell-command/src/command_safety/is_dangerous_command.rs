@@ -148,6 +148,11 @@ fn is_dangerous_to_call_with_exec(command: &[String]) -> bool {
     match cmd0 {
         Some("rm") => matches!(command.get(1).map(String::as_str), Some("-f" | "-rf")),
 
+        Some("chmod") => command
+            .iter()
+            .skip(1)
+            .any(|arg| arg == "-R" || arg == "--recursive"),
+
         // for sudo <cmd> simply do the check for <cmd>
         Some("sudo") => is_dangerous_to_call_with_exec(&command[1..]),
 
@@ -172,6 +177,22 @@ mod tests {
     #[test]
     fn rm_f_is_dangerous() {
         assert!(command_might_be_dangerous(&vec_str(&["rm", "-f", "/"])));
+    }
+
+    #[test]
+    fn chmod_recursive_is_dangerous() {
+        assert!(command_might_be_dangerous(&vec_str(&[
+            "chmod", "-R", "u+w", "src",
+        ])));
+    }
+
+    #[test]
+    fn chmod_single_file_is_not_flagged() {
+        assert!(!command_might_be_dangerous(&vec_str(&[
+            "chmod",
+            "u+w",
+            "README.md",
+        ])));
     }
 
     #[test]

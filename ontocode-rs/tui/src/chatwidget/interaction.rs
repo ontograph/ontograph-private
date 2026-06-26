@@ -301,6 +301,193 @@ impl ChatWidget {
         self.bottom_pane.show_view(Box::new(view));
     }
 
+    pub(crate) fn show_create_agent_definition_prompt(&mut self, target_root: &Path) {
+        let tx = self.app_event_tx.clone();
+        let context_label = Some(format!(
+            "Creates {}/.codex/agents/<slug>.toml",
+            target_root.display()
+        ));
+        let view = CustomPromptView::new(
+            "Create agent definition".to_string(),
+            "Type a role name and press Enter".to_string(),
+            String::new(),
+            context_label,
+            Box::new(move |name: String| {
+                tx.send(AppEvent::OpenCreateAgentDefinitionOptionsPrompt { name });
+            }),
+        );
+
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn show_create_agent_definition_proposal_prompt(&mut self, target_root: &Path) {
+        let tx = self.app_event_tx.clone();
+        let context_label = Some(format!(
+            "First line: role name. Remaining lines: purpose, style, constraints. A single line is also used as instructions. Writes {}/.codex/agents/<slug>.toml",
+            target_root.display()
+        ));
+        let view = CustomPromptView::new(
+            "Create agent definition from proposal".to_string(),
+            "Describe the role and press Enter.".to_string(),
+            String::new(),
+            context_label,
+            Box::new(move |proposal: String| {
+                tx.send(AppEvent::CreateAgentDefinitionFromProposalScaffold { proposal });
+            }),
+        );
+
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn show_create_agent_definition_options_prompt(
+        &mut self,
+        name: &str,
+        target_root: &Path,
+    ) {
+        let tx = self.app_event_tx.clone();
+        let name = name.to_string();
+        let context_label = Some(format!(
+            "Optional fields for {} in {}/.codex/agents/<slug>.toml",
+            name,
+            target_root.display()
+        ));
+        let initial_text = [
+            "# Leave these commented to keep defaults.",
+            "# model = \"gpt-5.4-mini\"",
+            "# model_reasoning_effort = \"medium\"",
+            "# service_tier = \"priority\"",
+            "# nickname_candidates = [\"Atlas\", \"Sagan\"]",
+        ]
+        .join("\n");
+        let view = CustomPromptView::new(
+            "Agent definition options".to_string(),
+            "Press Enter to keep defaults.".to_string(),
+            initial_text,
+            context_label,
+            Box::new(move |optional_fields_toml: String| {
+                tx.send(AppEvent::CreateAgentDefinitionScaffold {
+                    name: name.clone(),
+                    optional_fields_toml,
+                });
+            }),
+        );
+
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn show_copy_agent_definition_prompt(
+        &mut self,
+        source_path: &Path,
+        role_name: &str,
+        target_root: &Path,
+    ) {
+        let tx = self.app_event_tx.clone();
+        let source_path = source_path.to_path_buf();
+        let context_label = Some(format!(
+            "Copies {} to {}/.codex/agents/<slug>.toml",
+            source_path.display(),
+            target_root.display()
+        ));
+        let view = CustomPromptView::new(
+            "Copy agent definition".to_string(),
+            "Type a new role name and press Enter".to_string(),
+            role_name.to_string(),
+            context_label,
+            Box::new(move |name: String| {
+                tx.send(AppEvent::CopyAgentDefinitionScaffold {
+                    source_path: source_path.clone(),
+                    name,
+                });
+            }),
+        );
+
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn show_rename_agent_definition_prompt(
+        &mut self,
+        source_path: &Path,
+        role_name: &str,
+        target_root: &Path,
+    ) {
+        let tx = self.app_event_tx.clone();
+        let source_path = source_path.to_path_buf();
+        let context_label = Some(format!(
+            "Renames {} under {}/.codex/agents",
+            source_path.display(),
+            target_root.display()
+        ));
+        let view = CustomPromptView::new(
+            "Rename agent definition".to_string(),
+            "Type a new role name and press Enter".to_string(),
+            role_name.to_string(),
+            context_label,
+            Box::new(move |name: String| {
+                tx.send(AppEvent::RenameAgentDefinitionScaffold {
+                    source_path: source_path.clone(),
+                    name,
+                });
+            }),
+        );
+
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn show_delete_agent_definition_prompt(
+        &mut self,
+        source_path: &Path,
+        role_name: &str,
+        target_root: &Path,
+    ) {
+        let tx = self.app_event_tx.clone();
+        let source_path = source_path.to_path_buf();
+        let context_label = Some(format!(
+            "Deletes {} from {}/.codex/agents. Type DELETE to confirm.",
+            source_path.display(),
+            target_root.display()
+        ));
+        let view = CustomPromptView::new(
+            "Delete agent definition".to_string(),
+            format!("Type DELETE to remove {role_name}"),
+            String::new(),
+            context_label,
+            Box::new(move |confirmation: String| {
+                tx.send(AppEvent::DeleteAgentDefinitionScaffold {
+                    source_path: source_path.clone(),
+                    confirmation,
+                });
+            }),
+        );
+
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn show_rename_agent_thread_prompt(
+        &mut self,
+        thread_id: ThreadId,
+        existing_name: Option<&str>,
+        existing_role: Option<&str>,
+    ) {
+        let tx = self.app_event_tx.clone();
+        let context_label = Some(
+            match existing_role.map(str::trim).filter(|role| !role.is_empty()) {
+                Some(role) => format!("Visible label only for this session. Role stays [{role}]."),
+                None => "Visible label only for this session.".to_string(),
+            },
+        );
+        let view = CustomPromptView::new(
+            "Rename agent".to_string(),
+            "Type a visible label and press Enter".to_string(),
+            existing_name.unwrap_or_default().to_string(),
+            context_label,
+            Box::new(move |name: String| {
+                tx.send(AppEvent::RenameAgentThreadLabel { thread_id, name });
+            }),
+        );
+
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
     pub(super) fn ensure_thread_rename_allowed(&mut self) -> bool {
         match self.thread_rename_block_message.clone() {
             Some(message) => {

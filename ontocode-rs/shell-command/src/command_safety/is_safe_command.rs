@@ -397,6 +397,22 @@ mod tests {
     }
 
     #[test]
+    fn git_mutating_commands_require_approval() {
+        for args in [
+            vec_str(&["git", "commit", "-m", "hello"]),
+            vec_str(&["git", "push", "origin", "main"]),
+            vec_str(&["git", "merge", "feature"]),
+            vec_str(&["git", "rebase", "main"]),
+            vec_str(&["gh", "pr", "create", "--title", "my pr"]),
+        ] {
+            assert!(
+                !is_known_safe_command(&args),
+                "expected {args:?} to require approval (not auto-approved)"
+            );
+        }
+    }
+
+    #[test]
     fn git_branch_mutating_flags_are_not_safe() {
         assert!(!is_known_safe_command(&vec_str(&[
             "git", "branch", "-d", "feature"
@@ -549,6 +565,34 @@ mod tests {
     #[test]
     fn cargo_check_is_not_safe() {
         assert!(!is_known_safe_command(&vec_str(&["cargo", "check"])));
+    }
+
+    #[test]
+    fn package_manager_commands_are_not_safe() {
+        for args in [
+            vec_str(&["npm", "install", "leftpad"]),
+            vec_str(&["pnpm", "add", "leftpad"]),
+            vec_str(&["pip", "install", "requests"]),
+            vec_str(&["cargo", "install", "cargo-insta"]),
+        ] {
+            assert!(
+                !is_known_safe_command(&args),
+                "expected {args:?} to require approval"
+            );
+        }
+    }
+
+    #[test]
+    fn network_fetch_commands_are_not_safe() {
+        for args in [
+            vec_str(&["curl", "-fsSL", "https://example.com/setup.sh"]),
+            vec_str(&["wget", "https://example.com/setup.sh"]),
+        ] {
+            assert!(
+                !is_known_safe_command(&args),
+                "expected {args:?} to require approval"
+            );
+        }
     }
 
     #[test]

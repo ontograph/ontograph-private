@@ -20,6 +20,15 @@ use tempfile::TempDir;
 use toml::Value as TomlValue;
 
 const REPO_ROOT_CONFIG_DIR_NAME: &str = ".codex";
+const SIMPLIFY_SKILL_DESCRIPTION: &str = "Review recent code changes for small safe cleanup opportunities, then apply only local low-risk improvements with focused validation.";
+const SIMPLIFY_SKILL_BODY: &str = r#"# Simplify Recent Changes
+
+Prefer no change over speculative cleanup.
+
+Skip uncertain, cross-owner, architectural, or broad refactor findings. Do not add new dependencies, configuration keys, public APIs, command runtimes, schedulers, or loader/schema fields.
+
+After edits, run the smallest focused check that covers the changed path.
+"#;
 
 struct TestConfig {
     cwd: AbsolutePathBuf,
@@ -363,6 +372,21 @@ fn write_skill_at(root: &Path, dir: &str, name: &str, description: &str) -> Path
     path
 }
 
+fn write_skill_with_body_at(
+    root: &Path,
+    dir: &str,
+    name: &str,
+    description: &str,
+    body: &str,
+) -> PathBuf {
+    let skill_dir = root.join(dir);
+    fs::create_dir_all(&skill_dir).unwrap();
+    let content = format!("---\nname: {name}\ndescription: {description}\n---\n\n{body}");
+    let path = skill_dir.join(SKILLS_FILENAME);
+    fs::write(&path, content).unwrap();
+    path
+}
+
 fn write_raw_skill_at(root: &Path, dir: &str, frontmatter: &str) -> PathBuf {
     let skill_dir = root.join(dir);
     fs::create_dir_all(&skill_dir).unwrap();
@@ -421,6 +445,7 @@ async fn loads_skill_dependencies_metadata_from_yaml() {
     ]
   }
 }
+
 "#,
     );
 
@@ -473,6 +498,68 @@ async fn loads_skill_dependencies_metadata_from_yaml() {
             plugin_id: None,
         }]
     );
+}
+
+#[tokio::test]
+async fn loads_repo_simplify_skill_without_loader_schema_extension() -> anyhow::Result<()> {
+    let tmp = tempfile::tempdir()?;
+    let repo = tmp.path().join("repo");
+    fs::create_dir_all(&repo)?;
+    mark_as_git_repo(&repo);
+
+    let skill_path = write_skill_with_body_at(
+        &repo.join(REPO_ROOT_CONFIG_DIR_NAME).join(SKILLS_DIR_NAME),
+        "simplify",
+        "simplify",
+        SIMPLIFY_SKILL_DESCRIPTION,
+        SIMPLIFY_SKILL_BODY,
+    );
+
+    let cfg = make_config_for_cwd(&tmp, repo.clone()).await;
+    let outcome = load_skills_for_test(&cfg).await;
+
+    assert!(
+        outcome.errors.is_empty(),
+        "unexpected errors: {:?}",
+        outcome.errors
+    );
+    assert_eq!(
+        outcome.skills,
+        vec![SkillMetadata {
+            name: "simplify".to_string(),
+            description: SIMPLIFY_SKILL_DESCRIPTION.to_string(),
+            short_description: None,
+            interface: None,
+            dependencies: None,
+            policy: None,
+            path_to_skills_md: normalized(&skill_path),
+            scope: SkillScope::Repo,
+            plugin_id: None,
+        }]
+    );
+
+    let rendered = crate::render::build_available_skills(
+        &outcome,
+        crate::render::SkillMetadataBudget::Characters(usize::MAX),
+        crate::render::SkillRenderSideEffects::None,
+    )
+    .expect("simplify skill should render");
+    assert_eq!(rendered.report.included_count, 1);
+    assert_eq!(rendered.report.omitted_count, 0);
+    assert_eq!(rendered.skill_lines.len(), 1);
+    assert!(rendered.skill_lines[0].contains("simplify"));
+    assert!(rendered.skill_lines[0].contains(SIMPLIFY_SKILL_DESCRIPTION));
+
+    let body = fs::read_to_string(&skill_path)?;
+    assert!(body.contains("Prefer no change over speculative cleanup."));
+    assert!(
+        body.contains("Skip uncertain, cross-owner, architectural, or broad refactor findings.")
+    );
+    assert!(body.contains("run the smallest focused check"));
+    assert!(!body.contains("argument-hint"));
+    assert!(!body.contains("allowedTools"));
+
+    Ok(())
 }
 
 #[tokio::test]

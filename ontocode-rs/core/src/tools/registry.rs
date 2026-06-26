@@ -583,16 +583,16 @@ impl ToolRegistry {
         } else {
             None
         };
-        let post_tool_use_outcome = if let Some(post_tool_use_payload) = post_tool_use_payload {
+        let post_tool_use_outcome = if let Some(post_tool_use_payload) = &post_tool_use_payload {
             Some(
                 run_post_tool_use_hooks(
                     &invocation.session,
                     &invocation.turn,
-                    post_tool_use_payload.tool_use_id,
+                    post_tool_use_payload.tool_use_id.clone(),
                     post_tool_use_payload.tool_name.name().to_string(),
                     post_tool_use_payload.tool_name.matcher_aliases().to_vec(),
-                    post_tool_use_payload.tool_input,
-                    post_tool_use_payload.tool_response,
+                    post_tool_use_payload.tool_input.clone(),
+                    post_tool_use_payload.tool_response.clone(),
                 )
                 .await,
             )
@@ -600,13 +600,20 @@ impl ToolRegistry {
             None
         };
 
-        if let Some(outcome) = &post_tool_use_outcome {
+        if let (Some(outcome), Some(post_tool_use_payload)) =
+            (&post_tool_use_outcome, &post_tool_use_payload)
+        {
             record_additional_contexts(
                 &invocation.session,
                 &invocation.turn,
                 outcome.additional_contexts.clone(),
             )
             .await;
+            invocation.turn.record_tool_result_evidence(
+                post_tool_use_payload.tool_name.name(),
+                Some(&post_tool_use_payload.tool_input),
+                Some(&post_tool_use_payload.tool_response),
+            );
             let replacement_text = if outcome.should_stop {
                 Some(
                     outcome

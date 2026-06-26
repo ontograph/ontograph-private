@@ -421,6 +421,55 @@ async fn build_guardian_prompt_includes_parent_turn_denied_reads() -> anyhow::Re
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn build_guardian_prompt_includes_apply_patch_read_evidence_and_generated_warning()
+-> anyhow::Result<()> {
+    let (mut session, turn) = crate::session::tests::make_session_and_context().await;
+    session.thread_id = fixed_guardian_parent_session_id();
+    let read_path = test_path_buf("/repo/workspace/src/input.txt").abs();
+    let generated_path = test_path_buf("/repo/workspace/dist/output.min.js").abs();
+    turn.record_file_read(&read_path);
+    turn.record_symbol_touch("shell_command");
+    turn.record_test_run("CARGO_BUILD_JOBS=8 just test -p ontocode-core");
+    turn.record_policy_check("CARGO_BUILD_JOBS=8 just fmt");
+    turn.record_source_reference("src/input.txt:12");
+    let session = Arc::new(session);
+    let turn = Arc::new(turn);
+    seed_guardian_parent_history(&session, &turn).await;
+
+    let prompt = build_guardian_prompt_items_with_parent_turn(
+        session.as_ref(),
+        Some(turn.as_ref()),
+        None,
+        GuardianApprovalRequest::ApplyPatch {
+            id: "apply-patch-1".to_string(),
+            cwd: test_path_buf("/repo/workspace").abs(),
+            files: vec![read_path.clone(), generated_path.clone()],
+            patch: "*** Begin Patch\n*** End Patch".to_string(),
+        },
+        GuardianPromptMode::Full,
+    )
+    .await?;
+
+    let text = guardian_prompt_text(&prompt.items);
+    assert!(text.contains(">>> APPLY PATCH EVIDENCE START"));
+    assert!(text.contains(&format!(
+        "Read evidence recorded for: {}",
+        read_path.to_string_lossy()
+    )));
+    assert!(text.contains("Symbols touched recorded for: shell_command"));
+    assert!(text.contains("Tests run recorded for: CARGO_BUILD_JOBS=8 just test -p ontocode-core"));
+    assert!(text.contains("Policy checks recorded for: CARGO_BUILD_JOBS=8 just fmt"));
+    assert!(text.contains("Source references recorded for: src/input.txt:12"));
+    assert!(text.contains(&format!(
+        "Generated-file warning for: {}",
+        generated_path.to_string_lossy()
+    )));
+    assert!(text.contains(">>> APPLY PATCH EVIDENCE END"));
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn build_guardian_prompt_delta_mode_preserves_original_numbering() -> anyhow::Result<()> {
     let (session, turn) = guardian_test_session_and_turn_with_base_url("http://localhost").await;
     seed_guardian_parent_history(&session, &turn).await;

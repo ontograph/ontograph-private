@@ -114,6 +114,9 @@ pub(crate) fn collab_spawn_error(err: CodexErr) -> FunctionCallError {
         CodexErr::UnsupportedOperation(message) if message == "thread manager dropped" => {
             FunctionCallError::RespondToModel("collab manager unavailable".to_string())
         }
+        CodexErr::AgentLimitReached { max_threads } => FunctionCallError::RespondToModel(format!(
+            "collab spawn failed: configured cap was reached (max {max_threads} child agents). Close completed, failed, or cancelled agents to free slots."
+        )),
         CodexErr::UnsupportedOperation(message) => FunctionCallError::RespondToModel(message),
         err => FunctionCallError::RespondToModel(format!("collab spawn failed: {err}")),
     }

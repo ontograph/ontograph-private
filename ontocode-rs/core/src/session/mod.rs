@@ -26,6 +26,7 @@ use crate::context::AvailableSkillsInstructions;
 use crate::context::CollaborationModeInstructions;
 use crate::context::ContextualUserFragment;
 use crate::context::NetworkRuleSaved;
+use crate::context::OperationalEvidenceContextFragment;
 use crate::context::PermissionsInstructions;
 use crate::context::PersonalitySpecInstructions;
 use crate::default_skill_metadata_budget;
@@ -2728,6 +2729,7 @@ impl Session {
         let mut developer_sections = Vec::<String>::with_capacity(8);
         let mut contextual_user_sections = Vec::<String>::with_capacity(2);
         let mut separate_developer_sections = Vec::<String>::new();
+        let state_db = self.state_db();
         let (
             reference_context_item,
             previous_turn_settings,
@@ -2903,6 +2905,13 @@ impl Session {
                     .with_subagents(subagents)
                     .render(),
             );
+        }
+        let thread_id = self.thread_id.to_string();
+        if let Some(operational_evidence_context) =
+            OperationalEvidenceContextFragment::from_state_db(state_db.as_ref(), thread_id.as_str())
+                .await
+        {
+            contextual_user_sections.push(operational_evidence_context.render());
         }
 
         let multi_agent_v2_usage_hint_text =

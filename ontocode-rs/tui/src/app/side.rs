@@ -377,6 +377,24 @@ impl App {
         self.discard_thread_local_state(thread_id).await;
     }
 
+    pub(super) async fn delete_agent_picker_thread(
+        &mut self,
+        tui: &mut tui::Tui,
+        app_server: &mut AppServerSession,
+        thread_id: ThreadId,
+    ) -> color_eyre::Result<()> {
+        self.can_manage_agent_picker_thread(thread_id)?;
+        let switch_target = (self.current_displayed_thread_id() == Some(thread_id))
+            .then_some(self.primary_thread_id)
+            .flatten();
+        if let Some(primary_thread_id) = switch_target {
+            self.select_agent_thread(tui, app_server, primary_thread_id)
+                .await?;
+        }
+        self.discard_thread_local_state(thread_id).await;
+        Ok(())
+    }
+
     pub(super) async fn discard_thread_local_state(&mut self, thread_id: ThreadId) {
         self.abort_thread_event_listener(thread_id);
         self.thread_event_channels.remove(&thread_id);

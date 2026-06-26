@@ -75,6 +75,8 @@ pub(crate) struct LiveAgent {
 pub(crate) struct ListedAgent {
     pub(crate) agent_name: String,
     pub(crate) agent_status: AgentStatus,
+    pub(crate) agent_role: Option<String>,
+    pub(crate) model: String,
     pub(crate) last_task_message: Option<String>,
 }
 
@@ -992,9 +994,12 @@ impl AgentControl {
             && let Some(root_thread_id) = self.state.agent_id_for_path(&root_path)
             && let Ok(root_thread) = state.get_thread(root_thread_id).await
         {
+            let root_config = root_thread.config_snapshot().await;
             agents.push(ListedAgent {
                 agent_name: root_path.to_string(),
                 agent_status: root_thread.agent_status().await,
+                agent_role: Some(DEFAULT_ROLE_NAME.to_string()),
+                model: root_config.model,
                 last_task_message: Some(ROOT_LAST_TASK_MESSAGE.to_string()),
             });
         }
@@ -1018,10 +1023,13 @@ impl AgentControl {
                 .as_ref()
                 .map(ToString::to_string)
                 .unwrap_or_else(|| thread_id.to_string());
+            let config = thread.config_snapshot().await;
             let last_task_message = metadata.last_task_message.clone();
             agents.push(ListedAgent {
                 agent_name,
                 agent_status: thread.agent_status().await,
+                agent_role: metadata.agent_role.clone(),
+                model: config.model,
                 last_task_message,
             });
         }

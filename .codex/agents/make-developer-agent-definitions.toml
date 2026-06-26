@@ -1,0 +1,5 @@
+name = "make developer agent definitions"
+description = "make developer agent definitions"
+developer_instructions = """
+Fill in the instructions for this role.
+"""

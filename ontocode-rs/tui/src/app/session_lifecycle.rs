@@ -6,6 +6,117 @@
 
 use super::*;
 
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AgentDefinitionOptionalFields {
+    model: Option<String>,
+    model_reasoning_effort: Option<ontocode_protocol::openai_models::ReasoningEffort>,
+    service_tier: Option<String>,
+    nickname_candidates: Option<Vec<String>>,
+}
+
+fn normalize_agent_definition_optional_string(
+    field_label: &str,
+    value: Option<String>,
+) -> color_eyre::Result<Option<String>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let value = value.trim();
+    if value.is_empty() {
+        color_eyre::eyre::bail!("{field_label} cannot be blank.");
+    }
+    Ok(Some(value.to_string()))
+}
+
+fn normalize_agent_definition_nickname_candidates(
+    nickname_candidates: Option<Vec<String>>,
+) -> color_eyre::Result<Option<Vec<String>>> {
+    let Some(nickname_candidates) = nickname_candidates else {
+        return Ok(None);
+    };
+
+    if nickname_candidates.is_empty() {
+        color_eyre::eyre::bail!("nickname_candidates must contain at least one name");
+    }
+
+    let mut normalized_candidates = Vec::with_capacity(nickname_candidates.len());
+    let mut seen_candidates = std::collections::BTreeSet::new();
+
+    for nickname in nickname_candidates {
+        let normalized_nickname = nickname.trim();
+        if normalized_nickname.is_empty() {
+            color_eyre::eyre::bail!("nickname_candidates cannot contain blank names");
+        }
+
+        if !seen_candidates.insert(normalized_nickname.to_string()) {
+            color_eyre::eyre::bail!("nickname_candidates cannot contain duplicates");
+        }
+
+        if !normalized_nickname
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '-' | '_'))
+        {
+            color_eyre::eyre::bail!(
+                "nickname_candidates may only contain ASCII letters, digits, spaces, hyphens, and underscores"
+            );
+        }
+
+        normalized_candidates.push(normalized_nickname.to_string());
+    }
+
+    Ok(Some(normalized_candidates))
+}
+
+fn parse_agent_definition_optional_fields(
+    raw_optional_fields: &str,
+) -> color_eyre::Result<AgentDefinitionOptionalFields> {
+    let mut fields: AgentDefinitionOptionalFields = toml::from_str(raw_optional_fields)
+        .wrap_err("parse optional agent definition fields as TOML")?;
+    fields.model = normalize_agent_definition_optional_string("model", fields.model)?;
+    fields.service_tier =
+        normalize_agent_definition_optional_string("service_tier", fields.service_tier)?;
+    fields.nickname_candidates =
+        normalize_agent_definition_nickname_candidates(fields.nickname_candidates)?;
+    Ok(fields)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct AgentDefinitionProposalScaffold {
+    name: String,
+    description: String,
+    developer_instructions: String,
+}
+
+fn parse_agent_definition_proposal(
+    raw_proposal: &str,
+) -> color_eyre::Result<AgentDefinitionProposalScaffold> {
+    let lines = raw_proposal
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    let Some(raw_name) = lines.first().copied() else {
+        color_eyre::eyre::bail!("Proposal must include a role name on the first line.");
+    };
+    let Some(name) = crate::legacy_core::util::normalize_thread_name(raw_name) else {
+        color_eyre::eyre::bail!("Proposal must include a non-empty role name on the first line.");
+    };
+    let body_lines = lines.iter().skip(1).copied().collect::<Vec<_>>();
+    let body_lines = if body_lines.is_empty() {
+        vec![raw_name]
+    } else {
+        body_lines
+    };
+    let description = body_lines[0].to_string();
+    let developer_instructions = body_lines.join("\n");
+    Ok(AgentDefinitionProposalScaffold {
+        name,
+        description,
+        developer_instructions,
+    })
+}
+
 impl App {
     pub(super) async fn open_agent_picker(&mut self, app_server: &mut AppServerSession) {
         let mut thread_ids = self.agent_navigation.tracked_thread_ids();
@@ -34,44 +145,184 @@ impl App {
             return;
         }
 
-        if self.agent_navigation.is_empty() {
-            self.chat_widget
-                .add_info_message("No agents available yet.".to_string(), /*hint*/ None);
-            return;
-        }
+        let has_agent_roles = !self.config.agent_roles.is_empty();
+        let project_root = get_git_repo_root(self.config.cwd.as_path())
+            .unwrap_or_else(|| self.config.cwd.to_path_buf());
+        let repo_local_agents_dir = project_root.join(".codex").join("agents");
 
         let mut initial_selected_idx = None;
-        let items: Vec<SelectionItem> = self
-            .agent_navigation
-            .ordered_threads()
-            .iter()
-            .enumerate()
-            .map(|(idx, (thread_id, entry))| {
-                if self.active_thread_id == Some(*thread_id) {
-                    initial_selected_idx = Some(idx);
-                }
-                let id = *thread_id;
-                let is_primary = self.primary_thread_id == Some(*thread_id);
-                let name = format_agent_picker_item_name(
-                    entry.agent_nickname.as_deref(),
-                    entry.agent_role.as_deref(),
-                    is_primary,
-                );
-                let uuid = thread_id.to_string();
-                SelectionItem {
-                    name: name.clone(),
-                    name_prefix_spans: agent_picker_status_dot_spans(entry.is_closed),
-                    description: Some(uuid.clone()),
-                    is_current: self.active_thread_id == Some(*thread_id),
+        let mut items: Vec<SelectionItem> = vec![
+            SelectionItem {
+                name: "Create from proposal".to_string(),
+                description: Some(
+                    "Write a repo-local scaffold from one freeform role proposal.".to_string(),
+                ),
+                actions: vec![Box::new(move |tx| {
+                    tx.send(AppEvent::OpenCreateAgentDefinitionProposalPrompt);
+                })],
+                dismiss_on_select: false,
+                dismiss_parent_on_child_accept: true,
+                search_value: Some("create agent definition from proposal role prompt".to_string()),
+                ..Default::default()
+            },
+            SelectionItem {
+                name: "Create agent definition".to_string(),
+                description: Some(
+                    "Write a repo-local .codex/agents/<slug>.toml scaffold.".to_string(),
+                ),
+                actions: vec![Box::new(move |tx| {
+                    tx.send(AppEvent::OpenCreateAgentDefinitionPrompt);
+                })],
+                dismiss_on_select: false,
+                dismiss_parent_on_child_accept: true,
+                search_value: Some("create agent definition role scaffold".to_string()),
+                ..Default::default()
+            },
+        ];
+        for (thread_id, entry) in self.agent_navigation.ordered_threads() {
+            if self.active_thread_id == Some(thread_id) {
+                initial_selected_idx = Some(items.len());
+            }
+            let is_primary = self.primary_thread_id == Some(thread_id);
+            let name = format_agent_picker_item_name(
+                entry.agent_nickname.as_deref(),
+                entry.agent_role.as_deref(),
+                is_primary,
+            );
+            let uuid = thread_id.to_string();
+            items.push(SelectionItem {
+                name: name.clone(),
+                name_prefix_spans: agent_picker_status_dot_spans(entry.is_closed),
+                description: Some(uuid.clone()),
+                is_current: self.active_thread_id == Some(thread_id),
+                actions: vec![Box::new(move |tx| {
+                    tx.send(AppEvent::SelectAgentThread(thread_id));
+                })],
+                dismiss_on_select: true,
+                search_value: Some(format!("{name} {uuid}")),
+                ..Default::default()
+            });
+
+            if !is_primary {
+                let rename_name = name.clone();
+                items.push(SelectionItem {
+                    name: format!("Rename {rename_name}"),
+                    description: Some(
+                        "Change only the visible label for this live thread.".to_string(),
+                    ),
                     actions: vec![Box::new(move |tx| {
-                        tx.send(AppEvent::SelectAgentThread(id));
+                        tx.send(AppEvent::OpenRenameAgentThreadPrompt { thread_id });
+                    })],
+                    dismiss_parent_on_child_accept: true,
+                    search_value: Some(format!("rename {rename_name} {uuid}")),
+                    ..Default::default()
+                });
+                let delete_name = name.clone();
+                items.push(SelectionItem {
+                    name: format!("Delete {delete_name}"),
+                    description: Some(
+                        "Remove this live thread from the current session only.".to_string(),
+                    ),
+                    actions: vec![Box::new(move |tx| {
+                        tx.send(AppEvent::DeleteAgentThread { thread_id });
                     })],
                     dismiss_on_select: true,
-                    search_value: Some(format!("{name} {uuid}")),
+                    search_value: Some(format!("delete remove hide {delete_name} {uuid}")),
                     ..Default::default()
+                });
+            }
+        }
+
+        if has_agent_roles {
+            items.push(SelectionItem {
+                name: "Available role definitions".to_string(),
+                is_disabled: true,
+                ..Default::default()
+            });
+
+            for (role_name, role_config) in &self.config.agent_roles {
+                let mut search_value = role_name.clone();
+                if let Some(description) = role_config.description.as_deref() {
+                    search_value.push(' ');
+                    search_value.push_str(description);
                 }
-            })
-            .collect();
+
+                items.push(SelectionItem {
+                    name: format!("{role_name} [role]"),
+                    description: role_config.description.clone(),
+                    is_disabled: true,
+                    search_value: Some(search_value),
+                    ..Default::default()
+                });
+
+                if let Some(config_file) = role_config
+                    .config_file
+                    .as_ref()
+                    .filter(|path| path.starts_with(&repo_local_agents_dir))
+                {
+                    let role_name = role_name.clone();
+                    let source_path = config_file.clone();
+                    let search_value = format!("rename role definition {role_name}");
+                    let rename_role_name = role_name.clone();
+                    let rename_source_path = source_path.clone();
+                    items.push(SelectionItem {
+                        name: format!("Rename {role_name} [role]"),
+                        description: Some(
+                            "Move this repo-local role definition to a new name.".to_string(),
+                        ),
+                        actions: vec![Box::new(move |tx| {
+                            tx.send(AppEvent::OpenRenameAgentDefinitionPrompt {
+                                source_path: rename_source_path.clone(),
+                                role_name: rename_role_name.clone(),
+                            });
+                        })],
+                        dismiss_parent_on_child_accept: true,
+                        search_value: Some(search_value),
+                        ..Default::default()
+                    });
+
+                    let role_name = role_name.clone();
+                    let source_path = config_file.clone();
+                    let search_value = format!("copy duplicate role definition {role_name}");
+                    let copy_role_name = role_name.clone();
+                    items.push(SelectionItem {
+                        name: format!("Copy {role_name} [role]"),
+                        description: Some(
+                            "Duplicate this repo-local role definition into a new file."
+                                .to_string(),
+                        ),
+                        actions: vec![Box::new(move |tx| {
+                            tx.send(AppEvent::OpenCopyAgentDefinitionPrompt {
+                                source_path: source_path.clone(),
+                                role_name: copy_role_name.clone(),
+                            });
+                        })],
+                        dismiss_parent_on_child_accept: true,
+                        search_value: Some(search_value),
+                        ..Default::default()
+                    });
+
+                    let role_name = role_name.clone();
+                    let source_path = config_file.clone();
+                    let search_value = format!("delete remove role definition {role_name}");
+                    items.push(SelectionItem {
+                        name: format!("Delete {role_name} [role]"),
+                        description: Some(
+                            "Remove this repo-local role definition file.".to_string(),
+                        ),
+                        actions: vec![Box::new(move |tx| {
+                            tx.send(AppEvent::OpenDeleteAgentDefinitionPrompt {
+                                source_path: source_path.clone(),
+                                role_name: role_name.clone(),
+                            });
+                        })],
+                        dismiss_parent_on_child_accept: true,
+                        search_value: Some(search_value),
+                        ..Default::default()
+                    });
+                }
+            }
+        }
 
         self.chat_widget.show_selection_view(SelectionViewParams {
             title: Some("Subagents".to_string()),
@@ -81,6 +332,234 @@ impl App {
             initial_selected_idx,
             ..Default::default()
         });
+    }
+
+    pub(super) fn create_agent_definition_from_proposal_scaffold(
+        &mut self,
+        raw_proposal: &str,
+    ) -> color_eyre::Result<PathBuf> {
+        let scaffold = parse_agent_definition_proposal(raw_proposal)?;
+        let project_root = get_git_repo_root(self.config.cwd.as_path())
+            .unwrap_or_else(|| self.config.cwd.to_path_buf());
+        let slug = slugify_agent_definition_name(&scaffold.name);
+        let agents_dir = project_root.join(".codex").join("agents");
+        let role_path = agents_dir.join(format!("{slug}.toml"));
+        if role_path.exists() {
+            color_eyre::eyre::bail!("Agent definition already exists: {}", role_path.display());
+        }
+        std::fs::create_dir_all(&agents_dir)
+            .wrap_err_with(|| format!("create {}", agents_dir.display()))?;
+        let scaffold = format!(
+            "name = {:?}\n\
+description = {:?}\n\
+developer_instructions = \"\"\"\n\
+{}\n\
+\"\"\"\n",
+            scaffold.name, scaffold.description, scaffold.developer_instructions
+        );
+        std::fs::write(&role_path, scaffold)
+            .wrap_err_with(|| format!("write {}", role_path.display()))?;
+        Ok(role_path)
+    }
+
+    pub(super) fn create_agent_definition_scaffold(
+        &mut self,
+        raw_name: &str,
+        raw_optional_fields: &str,
+    ) -> color_eyre::Result<PathBuf> {
+        let Some(name) = crate::legacy_core::util::normalize_thread_name(raw_name) else {
+            color_eyre::eyre::bail!("Agent definition name cannot be empty.");
+        };
+        let optional_fields = parse_agent_definition_optional_fields(raw_optional_fields)?;
+        let project_root = get_git_repo_root(self.config.cwd.as_path())
+            .unwrap_or_else(|| self.config.cwd.to_path_buf());
+        let slug = slugify_agent_definition_name(&name);
+        let agents_dir = project_root.join(".codex").join("agents");
+        let role_path = agents_dir.join(format!("{slug}.toml"));
+        if role_path.exists() {
+            color_eyre::eyre::bail!("Agent definition already exists: {}", role_path.display());
+        }
+        std::fs::create_dir_all(&agents_dir)
+            .wrap_err_with(|| format!("create {}", agents_dir.display()))?;
+        let mut scaffold_lines = vec![
+            format!("name = {name:?}"),
+            format!("description = {name:?}"),
+        ];
+        if let Some(model) = optional_fields.model {
+            scaffold_lines.push(format!("model = {}", toml::Value::String(model)));
+        }
+        if let Some(model_reasoning_effort) = optional_fields.model_reasoning_effort {
+            scaffold_lines.push(format!(
+                "model_reasoning_effort = {}",
+                toml::Value::String(model_reasoning_effort.to_string())
+            ));
+        }
+        if let Some(service_tier) = optional_fields.service_tier {
+            scaffold_lines.push(format!(
+                "service_tier = {}",
+                toml::Value::String(service_tier)
+            ));
+        }
+        if let Some(nickname_candidates) = optional_fields.nickname_candidates {
+            let nickname_candidates = toml::Value::Array(
+                nickname_candidates
+                    .into_iter()
+                    .map(toml::Value::String)
+                    .collect(),
+            );
+            scaffold_lines.push(format!("nickname_candidates = {nickname_candidates}"));
+        }
+        scaffold_lines.push("developer_instructions = \"\"\"".to_string());
+        scaffold_lines.push("Fill in the instructions for this role.".to_string());
+        scaffold_lines.push("\"\"\"".to_string());
+        let scaffold = format!("{}\n", scaffold_lines.join("\n"));
+        std::fs::write(&role_path, scaffold)
+            .wrap_err_with(|| format!("write {}", role_path.display()))?;
+        Ok(role_path)
+    }
+
+    pub(super) fn copy_agent_definition_scaffold(
+        &mut self,
+        source_path: &Path,
+        raw_name: &str,
+    ) -> color_eyre::Result<PathBuf> {
+        let Some(name) = crate::legacy_core::util::normalize_thread_name(raw_name) else {
+            color_eyre::eyre::bail!("Agent definition name cannot be empty.");
+        };
+        let project_root = get_git_repo_root(self.config.cwd.as_path())
+            .unwrap_or_else(|| self.config.cwd.to_path_buf());
+        let agents_dir = project_root.join(".codex").join("agents");
+        let canonical_source = source_path
+            .canonicalize()
+            .wrap_err_with(|| format!("read {}", source_path.display()))?;
+        let canonical_agents_dir = agents_dir
+            .canonicalize()
+            .unwrap_or_else(|_| agents_dir.clone());
+        if !canonical_source.starts_with(&canonical_agents_dir) {
+            color_eyre::eyre::bail!(
+                "Only repo-local agent definitions under {} can be copied.",
+                agents_dir.display()
+            );
+        }
+
+        let slug = slugify_agent_definition_name(&name);
+        let role_path = agents_dir.join(format!("{slug}.toml"));
+        if role_path.exists() {
+            color_eyre::eyre::bail!("Agent definition already exists: {}", role_path.display());
+        }
+
+        let source = std::fs::read_to_string(&canonical_source)
+            .wrap_err_with(|| format!("read {}", canonical_source.display()))?;
+        let mut wrote_name = false;
+        let mut copied = source
+            .lines()
+            .map(|line| {
+                if !wrote_name && line.trim_start().starts_with("name =") {
+                    wrote_name = true;
+                    format!("name = {name:?}")
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>();
+        if !wrote_name {
+            copied.insert(0, format!("name = {name:?}"));
+        }
+
+        std::fs::write(&role_path, format!("{}\n", copied.join("\n")))
+            .wrap_err_with(|| format!("write {}", role_path.display()))?;
+        Ok(role_path)
+    }
+
+    pub(super) fn rename_agent_definition_scaffold(
+        &mut self,
+        source_path: &Path,
+        raw_name: &str,
+    ) -> color_eyre::Result<PathBuf> {
+        let Some(name) = crate::legacy_core::util::normalize_thread_name(raw_name) else {
+            color_eyre::eyre::bail!("Agent definition name cannot be empty.");
+        };
+        let project_root = get_git_repo_root(self.config.cwd.as_path())
+            .unwrap_or_else(|| self.config.cwd.to_path_buf());
+        let agents_dir = project_root.join(".codex").join("agents");
+        let canonical_source = source_path
+            .canonicalize()
+            .wrap_err_with(|| format!("read {}", source_path.display()))?;
+        let canonical_agents_dir = agents_dir
+            .canonicalize()
+            .unwrap_or_else(|_| agents_dir.clone());
+        if !canonical_source.starts_with(&canonical_agents_dir) {
+            color_eyre::eyre::bail!(
+                "Only repo-local agent definitions under {} can be renamed.",
+                agents_dir.display()
+            );
+        }
+
+        let slug = slugify_agent_definition_name(&name);
+        let role_path = agents_dir.join(format!("{slug}.toml"));
+        let target_is_source = role_path
+            .canonicalize()
+            .map(|path| path == canonical_source)
+            .unwrap_or(false);
+        if role_path.exists() && !target_is_source {
+            color_eyre::eyre::bail!("Agent definition already exists: {}", role_path.display());
+        }
+
+        let source = std::fs::read_to_string(&canonical_source)
+            .wrap_err_with(|| format!("read {}", canonical_source.display()))?;
+        let mut wrote_name = false;
+        let mut renamed = source
+            .lines()
+            .map(|line| {
+                if !wrote_name && line.trim_start().starts_with("name =") {
+                    wrote_name = true;
+                    format!("name = {name:?}")
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>();
+        if !wrote_name {
+            renamed.insert(0, format!("name = {name:?}"));
+        }
+
+        std::fs::write(&role_path, format!("{}\n", renamed.join("\n")))
+            .wrap_err_with(|| format!("write {}", role_path.display()))?;
+        if !target_is_source {
+            std::fs::remove_file(&canonical_source)
+                .wrap_err_with(|| format!("remove {}", canonical_source.display()))?;
+        }
+        Ok(role_path)
+    }
+
+    pub(super) fn delete_agent_definition_scaffold(
+        &mut self,
+        source_path: &Path,
+        confirmation: &str,
+    ) -> color_eyre::Result<PathBuf> {
+        if confirmation.trim() != "DELETE" {
+            color_eyre::eyre::bail!("Type DELETE to confirm agent definition removal.");
+        }
+
+        let project_root = get_git_repo_root(self.config.cwd.as_path())
+            .unwrap_or_else(|| self.config.cwd.to_path_buf());
+        let agents_dir = project_root.join(".codex").join("agents");
+        let canonical_source = source_path
+            .canonicalize()
+            .wrap_err_with(|| format!("read {}", source_path.display()))?;
+        let canonical_agents_dir = agents_dir
+            .canonicalize()
+            .unwrap_or_else(|_| agents_dir.clone());
+        if !canonical_source.starts_with(&canonical_agents_dir) {
+            color_eyre::eyre::bail!(
+                "Only repo-local agent definitions under {} can be deleted.",
+                agents_dir.display()
+            );
+        }
+
+        std::fs::remove_file(&canonical_source)
+            .wrap_err_with(|| format!("remove {}", canonical_source.display()))?;
+        Ok(canonical_source)
     }
 
     pub(super) fn is_terminal_thread_read_error(err: &color_eyre::Report) -> bool {
@@ -131,6 +610,45 @@ impl App {
     pub(super) fn mark_agent_picker_thread_closed(&mut self, thread_id: ThreadId) {
         self.agent_navigation.mark_closed(thread_id);
         self.sync_active_agent_label();
+    }
+
+    pub(super) fn rename_agent_picker_thread_label(
+        &mut self,
+        thread_id: ThreadId,
+        raw_name: &str,
+    ) -> color_eyre::Result<()> {
+        if self.primary_thread_id == Some(thread_id) {
+            color_eyre::eyre::bail!("The main thread cannot be renamed from /agent.");
+        }
+        if self.agent_navigation.get(&thread_id).is_none() {
+            color_eyre::eyre::bail!("Unknown agent thread: {thread_id}");
+        }
+        let Some(name) = crate::legacy_core::util::normalize_thread_name(raw_name) else {
+            color_eyre::eyre::bail!("Agent label cannot be empty.");
+        };
+        let Some(existing_entry) = self.agent_navigation.get(&thread_id).cloned() else {
+            color_eyre::eyre::bail!("Unknown agent thread: {thread_id}");
+        };
+        self.upsert_agent_picker_thread(
+            thread_id,
+            Some(name),
+            existing_entry.agent_role,
+            existing_entry.is_closed,
+        );
+        Ok(())
+    }
+
+    pub(super) fn can_manage_agent_picker_thread(
+        &self,
+        thread_id: ThreadId,
+    ) -> color_eyre::Result<()> {
+        if self.primary_thread_id == Some(thread_id) {
+            color_eyre::eyre::bail!("The main thread cannot be managed from /agent.");
+        }
+        if self.agent_navigation.get(&thread_id).is_none() {
+            color_eyre::eyre::bail!("Unknown agent thread: {thread_id}");
+        }
+        Ok(())
     }
 
     pub(super) async fn refresh_agent_picker_thread_liveness(
@@ -768,6 +1286,27 @@ impl App {
         }
 
         Ok(AppRunControl::Continue)
+    }
+}
+
+fn slugify_agent_definition_name(value: &str) -> String {
+    let mut slug = String::new();
+    let mut last_was_dash = false;
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch.to_ascii_lowercase());
+            last_was_dash = false;
+        } else if !last_was_dash {
+            slug.push('-');
+            last_was_dash = true;
+        }
+    }
+
+    let slug = slug.trim_matches('-').to_string();
+    if slug.is_empty() {
+        "agent".to_string()
+    } else {
+        slug
     }
 }
 

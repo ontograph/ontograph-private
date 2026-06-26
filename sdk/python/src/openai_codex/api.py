@@ -147,7 +147,7 @@ class Ontocode:
         session_start_source: ThreadStartSource | None = None,
         thread_source: ThreadSource | None = None,
     ) -> Thread:
-        """Create a new Ontocode conversation thread."""
+        """Create a new Codex conversation thread."""
         approval_policy, approvals_reviewer = _approval_mode_settings(approval_mode)
         params = ThreadStartParams(
             approval_policy=approval_policy,
@@ -387,7 +387,7 @@ class AsyncOntocode:
         session_start_source: ThreadStartSource | None = None,
         thread_source: ThreadSource | None = None,
     ) -> AsyncThread:
-        """Create a new Ontocode conversation thread."""
+        """Create a new Codex conversation thread."""
         await self._ensure_initialized()
         approval_policy, approvals_reviewer = _approval_mode_settings(approval_mode)
         params = ThreadStartParams(
@@ -674,7 +674,7 @@ class AsyncThread:
         summary: ReasoningSummary | None = None,
     ) -> AsyncTurnHandle:
         """Start a turn and return a handle for streaming or control."""
-        await self._ontocode._ensure_initialized()
+        await self._codex._ensure_initialized()
         wire_input = _to_wire_input(_normalize_run_input(input))
         approval_policy, approvals_reviewer = _approval_mode_override_settings(approval_mode)
         params = TurnStartParams(
@@ -691,12 +691,12 @@ class AsyncThread:
             service_tier=service_tier,
             summary=summary,
         )
-        turn = await self._ontocode._client.turn_start(
+        turn = await self._codex._client.turn_start(
             self.id,
             wire_input,
             params=params,
         )
-        return AsyncTurnHandle(self._ontocode, self.id, turn.turn.id)
+        return AsyncTurnHandle(self._codex, self.id, turn.turn.id)
 
     # END GENERATED: AsyncThread.flat_methods
 

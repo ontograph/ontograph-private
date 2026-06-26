@@ -25,10 +25,29 @@ Prepare the repository for an alpha release cut while preserving the existing `0
 - Keep npm/Python source manifests on their dev placeholders unless the release process explicitly requires a committed version bump.
 - Use release tooling to inject the concrete alpha version at staging time.
 - Remove hardcoded runtime placeholders that would survive a release cut and leak incorrect metadata.
-- Use `0.1.0-alpha.1` as the default first-alpha candidate unless release management chooses a different prerelease identifier.
+- Use the next unused private prerelease identifier for new cuts. As of 2026-06-26, private GitHub releases exist through `0.1.0-alpha.3`; local checkout tag names for `rust-v0.1.0-alpha.3` and `rust-v0.1.0-alpha.4` are occupied by fetched upstream/OpenAI tag objects, so the safe next private alpha candidate is `0.1.0-alpha.5`.
 
 ## Completed In This Slice
 
+- 2026-06-22 release-prep validation
+  - `git diff --check` and `git diff --cached --check` passed.
+  - `CARGO_BUILD_JOBS=8 just fix -p ontocode-api` passed.
+  - `CARGO_BUILD_JOBS=8 just fmt` passed.
+  - `CARGO_BUILD_JOBS=8 cargo build --release -p ontocode-cli --bin ontocode` passed in `31m 34s`.
+  - `target/release/ontocode --version` reports `Ontocode CLI 0.0.0`.
+  - `target/release/ontocode --help` opens successfully and shows the Ontocode command surface.
+- 2026-06-22 alpha staging checks
+  - `codex-sdk` npm staging passed with `0.1.0-alpha.1` into `/tmp/ontocode-alpha-npm-stage/codex-sdk-npm-0.1.0-alpha.1.tgz`.
+  - Python SDK staging passed with PEP 440 version `0.1.0a1` into `/tmp/ontocode-alpha-python-sdk-stage`.
+  - Native `codex` npm staging is blocked until a `rust-v0.1.0-alpha.1` `rust-release` workflow run exists or a workflow artifact URL is supplied.
+  - `scripts/stage_npm_packages.py` can target a private release repo by setting `CODEX_RELEASE_GITHUB_REPO=ontograph/ontograph-private`.
+  - Local release tooling prerequisites used for staging: `pnpm` via a temporary Corepack shim, `openai-codex-cli-bin==0.137.0a4`, `datamodel-code-generator==0.31.2`, and `ruff==0.15.12`.
+- 2026-06-26 alpha.5 preparation
+  - Private GitHub releases checked with `gh release list --repo ontograph/ontograph-private --limit 10`: published releases currently stop at `0.1.0-alpha.3`.
+  - Private git tags checked with `git ls-remote --tags ontograph 'rust-v0.1.0-alpha.*'`: private tags currently stop at `rust-v0.1.0-alpha.3`.
+  - `origin` points at `openai/codex`; fetched local tag names include upstream `rust-v0.1.0-alpha.4`, so do not reuse that tag name from this mixed checkout.
+  - Added `release-notes-v0.1.0-alpha.5.md`.
+  - `.github/workflows/private-alpha-release.yml` now uses `release-notes-v<version>.md` as prerelease notes when the file exists.
 - `ontocode-rs/core/src/native_provider/copilot.rs`
   - `Copilot` user-agent and editor version headers now derive from `env!("CARGO_PKG_VERSION")`.
 - `ontocode-rs/core/src/native_provider/copilot_tests.rs`
@@ -49,8 +68,8 @@ Prepare the repository for an alpha release cut while preserving the existing `0
   - Source: `ontocode-rs/Cargo.toml`
   - Consumer path: `env!("CARGO_PKG_VERSION")` across CLI, app-server, telemetry, MCP, and runtime metadata
 - npm staging
-  - Source templates: `codex-cli/package.json`, `ontocode-rs/responses-api-proxy/npm/package.json`, `sdk/typescript/package.json`
-  - Staging owner: `codex-cli/scripts/build_npm_package.py`
+  - Source templates: `ontocode-cli/package.json`, `ontocode-rs/responses-api-proxy/npm/package.json`, `sdk/typescript/package.json`
+  - Staging owner: `ontocode-cli/scripts/build_npm_package.py`
   - Multi-package staging: `scripts/stage_npm_packages.py`
 - Python packaging
   - Source templates: `sdk/python/pyproject.toml`, `sdk/python-runtime/pyproject.toml`
@@ -63,13 +82,13 @@ Prepare the repository for an alpha release cut while preserving the existing `0
 ## Alpha Cut Checklist
 
 1. Choose the concrete release version.
-   - Preferred default: `0.1.0-alpha.1`.
+   - Preferred next private candidate: `0.1.0-alpha.5`.
    - Already supported by installer tooling: `0.1.0`, `0.1.0-alpha`, `0.1.0-alpha.1`.
 2. Decide release-branch version policy.
    - Option A: leave source manifests on placeholders and stage all packages with `--release-version`.
    - Option B: bump version-bearing manifests on a release branch/tag commit.
 3. Stage release artifacts with explicit version injection.
-   - CLI / platform npm / responses proxy / SDK: `scripts/stage_npm_packages.py --release-version <version> ...`
+   - CLI / platform npm / responses proxy / SDK: `scripts/stage_npm_packages.py --release-version <version> --package codex --package codex-sdk --package ontocode-responses-api-proxy`
    - Python SDK / runtime: `sdk/python/scripts/update_sdk_artifacts.py stage-sdk --sdk-version <version>` and `stage-runtime --codex-version <version>`
 4. Verify runtime metadata.
    - local source-built `ontocode --version`
@@ -84,16 +103,18 @@ Prepare the repository for an alpha release cut while preserving the existing `0
 
 - `Claude OAuth live validation`
   - Needs one real redacted `CLAUDE_OAUTH_REDACTED_SAMPLE`.
-- `Concrete alpha version choice`
-  - Recommended baseline is `0.1.0-alpha.1`, but no final release-manager decision is recorded yet.
+- `Native release artifacts`
+  - Native npm packages need a successful `rust-release` workflow run for the selected alpha tag or an explicit workflow artifact URL.
+  - For the private alpha publish path, set `CODEX_RELEASE_GITHUB_REPO=ontograph/ontograph-private` while staging native npm packages.
 - `Workspace path rename`
-  - The binary is `ontocode`, but the Rust workspace directory is still `ontocode-rs/`.
-  - This is layout debt, not a runtime blocker; moving the workspace root to `ontocode-rs/` still requires a dedicated path-migration plan across Cargo, Bazel, scripts, and CI.
+  - The Rust workspace directory is `ontocode-rs/`.
+  - This is layout debt, not a runtime blocker; changing the workspace root again would require a dedicated path-migration plan across Cargo, Bazel, scripts, and CI.
 - `Release warning cleanup`
   - Cargo still emits multi-target duplicate-source warnings for `ontocode`/`codex` and other renamed helper binaries during builds.
   - These warnings are currently accepted as non-blocking alpha debt unless a dedicated post-alpha entrypoint/helper alias refactor is scheduled.
 - `Dead-code cleanup`
   - Pre-existing warnings remain in `model-provider`, `rmcp-client`, and `core`; they do not block the alias-binary fix but still reduce alpha-release signal quality.
+  - The duplicate `codex-api` SSE error classifier warnings were removed in the 2026-06-22 release-prep pass.
 
 ## Verification Commands
 

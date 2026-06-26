@@ -145,6 +145,66 @@ pub(crate) enum KeymapEditIntent {
 pub(crate) enum AppEvent {
     /// Open the agent picker for switching active threads.
     OpenAgentPicker,
+    /// Open the prompt for renaming a live agent thread label in the current TUI session.
+    OpenRenameAgentThreadPrompt {
+        thread_id: ThreadId,
+    },
+    /// Rename only the visible label for a live agent thread in the current TUI session.
+    RenameAgentThreadLabel {
+        thread_id: ThreadId,
+        name: String,
+    },
+    /// Remove a live agent thread from the current TUI session only.
+    DeleteAgentThread {
+        thread_id: ThreadId,
+    },
+    /// Open the prompt for creating a repo-local agent definition scaffold.
+    OpenCreateAgentDefinitionPrompt,
+    /// Open the prompt for creating a repo-local agent definition scaffold from one proposal.
+    OpenCreateAgentDefinitionProposalPrompt,
+    /// Open the prompt for optional repo-local agent definition fields.
+    OpenCreateAgentDefinitionOptionsPrompt {
+        name: String,
+    },
+    /// Open the prompt for copying a repo-local agent definition scaffold.
+    OpenCopyAgentDefinitionPrompt {
+        source_path: PathBuf,
+        role_name: String,
+    },
+    /// Open the prompt for renaming a repo-local agent definition scaffold.
+    OpenRenameAgentDefinitionPrompt {
+        source_path: PathBuf,
+        role_name: String,
+    },
+    /// Open the prompt for deleting a repo-local agent definition scaffold.
+    OpenDeleteAgentDefinitionPrompt {
+        source_path: PathBuf,
+        role_name: String,
+    },
+    /// Create a repo-local agent definition scaffold file from the provided display name.
+    CreateAgentDefinitionScaffold {
+        name: String,
+        optional_fields_toml: String,
+    },
+    /// Create a repo-local agent definition scaffold file from a single freeform proposal.
+    CreateAgentDefinitionFromProposalScaffold {
+        proposal: String,
+    },
+    /// Copy a repo-local agent definition scaffold file to the provided display name.
+    CopyAgentDefinitionScaffold {
+        source_path: PathBuf,
+        name: String,
+    },
+    /// Rename a repo-local agent definition scaffold file to the provided display name.
+    RenameAgentDefinitionScaffold {
+        source_path: PathBuf,
+        name: String,
+    },
+    /// Delete a repo-local agent definition scaffold file after explicit confirmation.
+    DeleteAgentDefinitionScaffold {
+        source_path: PathBuf,
+        confirmation: String,
+    },
     /// Switch the active thread to the selected agent.
     SelectAgentThread(ThreadId),
 

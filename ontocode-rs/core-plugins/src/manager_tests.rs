@@ -455,6 +455,72 @@ enabled = true
 }
 
 #[tokio::test]
+async fn remote_installed_cache_refresh_invalidates_stale_connectors() {
+    let codex_home = TempDir::new().unwrap();
+    write_file(
+        &codex_home.path().join(CONFIG_TOML_FILE),
+        r#"[features]
+plugins = true
+remote_plugin = true
+"#,
+    );
+
+    let linear_root = codex_home
+        .path()
+        .join("plugins/cache/openai-curated-remote/linear/local");
+    write_cached_plugin(codex_home.path(), "openai-curated-remote", "linear");
+    write_file(
+        &linear_root.join(".app.json"),
+        r#"{"apps":{"calendar":{"id":"connector_calendar"}}}"#,
+    );
+    let remote_only_root = codex_home
+        .path()
+        .join("plugins/cache/openai-curated-remote/remote-only/local");
+    write_cached_plugin(codex_home.path(), "openai-curated-remote", "remote-only");
+    write_file(
+        &remote_only_root.join(".app.json"),
+        r#"{"apps":{"drive":{"id":"connector_drive"}}}"#,
+    );
+
+    let config = load_config(codex_home.path(), codex_home.path()).await;
+    let manager = PluginsManager::new(codex_home.path().to_path_buf());
+
+    manager.write_remote_installed_plugins_cache(vec![remote_installed_plugin("linear")]);
+    let initial = manager.plugins_for_config(&config).await;
+    assert_eq!(
+        initial.effective_apps(),
+        vec![AppConnectorId("connector_calendar".to_string())]
+    );
+    assert_eq!(
+        initial
+            .plugins()
+            .iter()
+            .map(|plugin| plugin.config_name.clone())
+            .collect::<Vec<_>>(),
+        vec!["linear@openai-curated-remote".to_string()]
+    );
+
+    assert!(manager.clear_remote_installed_plugins_cache());
+    let cleared = manager.plugins_for_config(&config).await;
+    assert_eq!(cleared, PluginLoadOutcome::default());
+
+    manager.write_remote_installed_plugins_cache(vec![remote_installed_plugin("remote-only")]);
+    let refreshed = manager.plugins_for_config(&config).await;
+    assert_eq!(
+        refreshed.effective_apps(),
+        vec![AppConnectorId("connector_drive".to_string())]
+    );
+    assert_eq!(
+        refreshed
+            .plugins()
+            .iter()
+            .map(|plugin| plugin.config_name.clone())
+            .collect::<Vec<_>>(),
+        vec!["remote-only@openai-curated-remote".to_string()]
+    );
+}
+
+#[tokio::test]
 async fn build_remote_installed_plugin_marketplaces_from_cache_uses_remote_metadata() {
     let codex_home = TempDir::new().unwrap();
     let manager = PluginsManager::new(codex_home.path().to_path_buf());

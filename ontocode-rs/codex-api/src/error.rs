@@ -72,5 +72,40 @@ impl ErrorPayload {
 
     pub fn is_server_overloaded_error(&self) -> bool {
         self.code.as_deref() == Some("server_is_overloaded")
+            || self.code.as_deref() == Some("slow_down")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ErrorPayload;
+
+    #[test]
+    fn context_window_error_classifier_matches_context_length_exceeded() {
+        let error = ErrorPayload {
+            r#type: None,
+            code: Some("context_length_exceeded".to_string()),
+            message: Some(
+                "Your input exceeds the context window of this model.\nPlease adjust your input and try again."
+                    .to_string(),
+            ),
+            plan_type: None,
+            resets_at: None,
+        };
+
+        assert!(error.is_context_window_error());
+    }
+
+    #[test]
+    fn server_overloaded_classifier_matches_slow_down() {
+        let error = ErrorPayload {
+            r#type: None,
+            code: Some("slow_down".to_string()),
+            message: None,
+            plan_type: None,
+            resets_at: None,
+        };
+
+        assert!(error.is_server_overloaded_error());
     }
 }

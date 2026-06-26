@@ -131,6 +131,8 @@ impl ChatWidget {
             rate_limit_switch_prompt: RateLimitSwitchPromptState::default(),
             add_credits_nudge_email_in_flight: None,
             adaptive_chunking: AdaptiveChunkingPolicy::default(),
+            mcp_tool_failure_streak_key: None,
+            mcp_tool_failure_streak_count: 0,
             stream_controller: None,
             plan_stream_controller: None,
             clipboard_lease: None,

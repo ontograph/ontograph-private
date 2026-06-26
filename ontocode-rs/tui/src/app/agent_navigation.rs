@@ -63,14 +63,6 @@ impl AgentNavigationState {
         self.threads.get(thread_id)
     }
 
-    /// Returns whether the picker cache currently knows about any threads.
-    ///
-    /// This is the cheapest way for `App` to decide whether opening the picker should show "No
-    /// agents available yet." rather than constructing picker rows from an empty state.
-    pub(crate) fn is_empty(&self) -> bool {
-        self.threads.is_empty()
-    }
-
     /// Inserts or updates a picker entry while preserving first-seen traversal order.
     ///
     /// The key invariant of this module is enforced here: a thread id is appended to `order` only

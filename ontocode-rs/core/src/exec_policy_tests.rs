@@ -2026,6 +2026,28 @@ async fn dangerous_rm_rf_requires_approval_in_danger_full_access() {
     .await;
 }
 
+#[tokio::test]
+async fn recursive_chmod_requires_approval_in_danger_full_access() {
+    let command = vec_str(&["chmod", "-R", "u+w", "/tmp/nonexistent"]);
+
+    assert_exec_approval_requirement_for_command(
+        ExecApprovalRequirementScenario {
+            policy_src: None,
+            command: command.clone(),
+            approval_policy: AskForApproval::OnRequest,
+            permission_profile: PermissionProfile::Disabled,
+            file_system_sandbox_policy: unrestricted_file_system_sandbox_policy(),
+            sandbox_permissions: SandboxPermissions::UseDefault,
+            prefix_rule: None,
+        },
+        ExecApprovalRequirement::NeedsApproval {
+            reason: None,
+            proposed_execpolicy_amendment: Some(ExecPolicyAmendment::new(command)),
+        },
+    )
+    .await;
+}
+
 fn vec_str(items: &[&str]) -> Vec<String> {
     items.iter().map(std::string::ToString::to_string).collect()
 }
@@ -2155,6 +2177,50 @@ async fn dangerous_command_allowed_when_sandbox_is_explicitly_disabled() {
             proposed_execpolicy_amendment: Some(ExecPolicyAmendment {
                 command: vec_str(&["rm", "-rf", "/tmp/nonexistent"]),
             }),
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn network_commands_require_approval_under_untrusted_policy() {
+    let command = vec_str(&["curl", "-fsSL", "https://example.invalid/setup.sh"]);
+
+    assert_exec_approval_requirement_for_command(
+        ExecApprovalRequirementScenario {
+            policy_src: None,
+            command: command.clone(),
+            approval_policy: AskForApproval::UnlessTrusted,
+            permission_profile: PermissionProfile::read_only(),
+            file_system_sandbox_policy: read_only_file_system_sandbox_policy(),
+            sandbox_permissions: SandboxPermissions::UseDefault,
+            prefix_rule: None,
+        },
+        ExecApprovalRequirement::NeedsApproval {
+            reason: None,
+            proposed_execpolicy_amendment: Some(ExecPolicyAmendment::new(command)),
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn package_manager_commands_require_approval_under_untrusted_policy() {
+    let command = vec_str(&["npm", "install", "leftpad"]);
+
+    assert_exec_approval_requirement_for_command(
+        ExecApprovalRequirementScenario {
+            policy_src: None,
+            command: command.clone(),
+            approval_policy: AskForApproval::UnlessTrusted,
+            permission_profile: PermissionProfile::read_only(),
+            file_system_sandbox_policy: read_only_file_system_sandbox_policy(),
+            sandbox_permissions: SandboxPermissions::UseDefault,
+            prefix_rule: None,
+        },
+        ExecApprovalRequirement::NeedsApproval {
+            reason: None,
+            proposed_execpolicy_amendment: Some(ExecPolicyAmendment::new(command)),
         },
     )
     .await;

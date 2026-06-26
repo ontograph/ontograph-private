@@ -23,6 +23,7 @@ use tracing::warn;
 
 use crate::config::Config;
 use crate::context::ContextualUserFragment;
+use crate::context::SubagentNotification;
 use crate::goals::GoalRuntimeEvent;
 use crate::hook_runtime::inspect_pending_input;
 use crate::hook_runtime::record_additional_contexts;
@@ -33,7 +34,9 @@ use crate::session::turn_context::TurnContext;
 use crate::state::ActiveTurn;
 use crate::state::RunningTask;
 use crate::state::TaskKind;
+use crate::stream_events_utils::last_assistant_message_from_item;
 use ontocode_analytics::TurnTokenUsageFact;
+use ontocode_features::Feature;
 use ontocode_login::AuthManager;
 use ontocode_models_manager::manager::SharedModelsManager;
 use ontocode_otel::SessionTelemetry;
@@ -42,6 +45,7 @@ use ontocode_otel::TURN_MEMORY_METRIC;
 use ontocode_otel::TURN_NETWORK_PROXY_METRIC;
 use ontocode_otel::TURN_TOKEN_USAGE_METRIC;
 use ontocode_otel::TURN_TOOL_CALL_METRIC;
+use ontocode_protocol::config_types::ModeKind;
 use ontocode_protocol::models::ResponseItem;
 use ontocode_protocol::protocol::EventMsg;
 use ontocode_protocol::protocol::MultiAgentVersion;
@@ -52,7 +56,6 @@ use ontocode_protocol::protocol::TurnCompleteEvent;
 use ontocode_protocol::protocol::WarningEvent;
 
 pub(crate) use compact::CompactTask;
-use ontocode_features::Feature;
 use ontocode_protocol::models::ContentItem;
 pub(crate) use regular::RegularTask;
 pub(crate) use review::ReviewTask;
@@ -110,6 +113,13 @@ pub(crate) fn interrupted_turn_history_marker(
             })
         }
     }
+}
+
+fn is_subagent_notification(content: &[ContentItem]) -> bool {
+    content.iter().any(|content_item| match content_item {
+        ContentItem::InputText { text } => SubagentNotification::matches_text(text),
+        _ => false,
+    })
 }
 
 fn emit_turn_network_proxy_metric(
@@ -351,13 +361,18 @@ impl Session {
             warn!("failed to apply goal runtime turn-start event: {err}");
         }
         let pending_items = self.input_queue.get_pending_input(&self.active_turn).await;
+        let history_items_at_turn_start = self.clone_history().await.raw_items().len();
         let turn_state = {
             let mut active = self.active_turn.lock().await;
             let turn = active.get_or_insert_with(ActiveTurn::default);
             debug_assert!(turn.task.is_none());
             Arc::clone(&turn.turn_state)
         };
-        turn_state.lock().await.token_usage_at_turn_start = token_usage_at_turn_start.clone();
+        {
+            let mut turn_state = turn_state.lock().await;
+            turn_state.token_usage_at_turn_start = token_usage_at_turn_start.clone();
+            turn_state.history_items_at_turn_start = history_items_at_turn_start;
+        }
         self.input_queue
             .extend_pending_input_for_turn_state(turn_state.as_ref(), pending_items)
             .await;
@@ -595,12 +610,18 @@ impl Session {
             .input_queue
             .take_pending_input_for_turn_state(turn_state.as_ref())
             .await;
-        let (turn_had_memory_citation, turn_tool_calls, token_usage_at_turn_start) = {
+        let (
+            turn_had_memory_citation,
+            turn_tool_calls,
+            token_usage_at_turn_start,
+            history_items_at_turn_start,
+        ) = {
             let ts = turn_state.lock().await;
             (
                 ts.has_memory_citation,
                 ts.tool_calls,
                 ts.token_usage_at_turn_start.clone(),
+                ts.history_items_at_turn_start,
             )
         };
         if !pending_input.is_empty() {
@@ -762,6 +783,16 @@ impl Session {
         {
             warn!("failed to apply goal runtime turn-finished event: {err}");
         }
+        let last_agent_message = match last_agent_message {
+            Some(message) => Some(message),
+            None => {
+                self.last_agent_message_from_history_for_turn_completion(
+                    &turn_context,
+                    history_items_at_turn_start,
+                )
+                .await
+            }
+        };
         let event = EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: turn_context.sub_id.clone(),
             last_agent_message,
@@ -798,6 +829,34 @@ impl Session {
             warn!("failed to apply goal runtime maybe-continue event: {err}");
         }
         self.emit_thread_idle_lifecycle_if_idle().await;
+    }
+
+    async fn last_agent_message_from_history_for_turn_completion(
+        &self,
+        turn_context: &TurnContext,
+        history_items_at_turn_start: usize,
+    ) -> Option<String> {
+        let history = self.clone_history().await;
+        let plan_mode = turn_context.collaboration_mode.mode == ModeKind::Plan;
+        let raw_items = history.raw_items();
+        let turn_items = &raw_items[history_items_at_turn_start.min(raw_items.len())..];
+        for item in turn_items.iter().rev() {
+            match item {
+                ResponseItem::Message { role, content, .. } if role == "user" => {
+                    if is_subagent_notification(content) {
+                        continue;
+                    }
+                    return None;
+                }
+                ResponseItem::Message { role, .. } if role == "assistant" => {
+                    if let Some(message) = last_assistant_message_from_item(item, plan_mode) {
+                        return Some(message);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
     }
 
     async fn take_active_turn(&self) -> Option<ActiveTurn> {

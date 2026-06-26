@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
@@ -6,6 +7,31 @@ use serde::Serialize;
 use serde_json::Map;
 use serde_json::Value;
 use tracing::warn;
+
+use crate::mcp_tool_call::McpToolApprovalKey;
+use crate::mcp_tool_call::McpToolApprovalMetadata;
+use crate::session::session::Session;
+use crate::session::turn_context::TurnContext;
+use ontocode_app_server_protocol::McpElicitationObjectType;
+use ontocode_app_server_protocol::McpElicitationSchema;
+use ontocode_app_server_protocol::McpServerElicitationRequest;
+use ontocode_app_server_protocol::McpServerElicitationRequestParams;
+use ontocode_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use ontocode_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_TOOL_APPROVAL_KIND_KEY;
+use ontocode_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL;
+use ontocode_protocol::mcp_approval_meta::CONNECTOR_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_CONNECTOR_DESCRIPTION_KEY;
+use ontocode_protocol::mcp_approval_meta::CONNECTOR_ID_KEY as MCP_TOOL_APPROVAL_CONNECTOR_ID_KEY;
+use ontocode_protocol::mcp_approval_meta::CONNECTOR_NAME_KEY as MCP_TOOL_APPROVAL_CONNECTOR_NAME_KEY;
+use ontocode_protocol::mcp_approval_meta::PERSIST_ALWAYS as MCP_TOOL_APPROVAL_PERSIST_ALWAYS;
+use ontocode_protocol::mcp_approval_meta::PERSIST_KEY as MCP_TOOL_APPROVAL_PERSIST_KEY;
+use ontocode_protocol::mcp_approval_meta::PERSIST_SESSION as MCP_TOOL_APPROVAL_PERSIST_SESSION;
+use ontocode_protocol::mcp_approval_meta::SOURCE_CONNECTOR as MCP_TOOL_APPROVAL_SOURCE_CONNECTOR;
+use ontocode_protocol::mcp_approval_meta::SOURCE_KEY as MCP_TOOL_APPROVAL_SOURCE_KEY;
+use ontocode_protocol::mcp_approval_meta::TOOL_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_TOOL_DESCRIPTION_KEY;
+use ontocode_protocol::mcp_approval_meta::TOOL_PARAMS_DISPLAY_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_DISPLAY_KEY;
+use ontocode_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_KEY;
+use ontocode_protocol::mcp_approval_meta::TOOL_TITLE_KEY as MCP_TOOL_APPROVAL_TOOL_TITLE_KEY;
+use ontocode_protocol::request_user_input::RequestUserInputQuestion;
 
 const CONSEQUENTIAL_TOOL_MESSAGE_TEMPLATES_SCHEMA_VERSION: u8 = 4;
 const CONNECTOR_NAME_TEMPLATE_VAR: &str = "{connector_name}";
@@ -27,6 +53,22 @@ pub(crate) struct RenderedMcpToolApprovalParam {
     pub(crate) name: String,
     pub(crate) value: Value,
     pub(crate) display_name: String,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct McpToolApprovalPromptOptions {
+    pub(crate) allow_session_remember: bool,
+    pub(crate) allow_persistent_approval: bool,
+}
+
+pub(crate) struct McpToolApprovalElicitationRequest<'a> {
+    pub(crate) server: &'a str,
+    pub(crate) metadata: Option<&'a McpToolApprovalMetadata>,
+    pub(crate) tool_params: Option<&'a Value>,
+    pub(crate) tool_params_display: Option<&'a [RenderedMcpToolApprovalParam]>,
+    pub(crate) question: RequestUserInputQuestion,
+    pub(crate) message_override: Option<&'a str>,
+    pub(crate) prompt_options: McpToolApprovalPromptOptions,
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,6 +108,18 @@ pub(crate) fn render_mcp_tool_approval_template(
         tool_title,
         tool_params,
     )
+}
+
+pub(crate) fn mcp_tool_approval_prompt_options(
+    session_approval_key: Option<&McpToolApprovalKey>,
+    persistent_approval_key: Option<&McpToolApprovalKey>,
+    tool_call_mcp_elicitation_enabled: bool,
+) -> McpToolApprovalPromptOptions {
+    McpToolApprovalPromptOptions {
+        allow_session_remember: session_approval_key.is_some(),
+        allow_persistent_approval: tool_call_mcp_elicitation_enabled
+            && persistent_approval_key.is_some(),
+    }
 }
 
 fn load_consequential_tool_message_templates() -> Option<Vec<ConsequentialToolMessageTemplate>> {
@@ -187,6 +241,153 @@ fn render_tool_params(
     }
 
     Some((Some(Value::Object(tool_params.clone())), display_params))
+}
+
+pub(crate) fn build_mcp_tool_approval_elicitation_request(
+    sess: &Session,
+    turn_context: &TurnContext,
+    request: McpToolApprovalElicitationRequest<'_>,
+) -> McpServerElicitationRequestParams {
+    let message = request
+        .message_override
+        .map(ToString::to_string)
+        .unwrap_or_else(|| request.question.question.clone());
+
+    McpServerElicitationRequestParams {
+        thread_id: sess.thread_id.to_string(),
+        turn_id: Some(turn_context.sub_id.clone()),
+        server_name: request.server.to_string(),
+        request: McpServerElicitationRequest::Form {
+            meta: build_mcp_tool_approval_elicitation_meta(
+                request.server,
+                request.metadata,
+                request.tool_params,
+                request.tool_params_display,
+                request.prompt_options,
+            ),
+            message,
+            requested_schema: McpElicitationSchema {
+                schema_uri: None,
+                type_: McpElicitationObjectType::Object,
+                properties: BTreeMap::new(),
+                required: None,
+            },
+        },
+    }
+}
+
+pub(crate) fn build_mcp_tool_approval_elicitation_meta(
+    server: &str,
+    metadata: Option<&McpToolApprovalMetadata>,
+    tool_params: Option<&Value>,
+    tool_params_display: Option<&[RenderedMcpToolApprovalParam]>,
+    prompt_options: McpToolApprovalPromptOptions,
+) -> Option<Value> {
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        MCP_TOOL_APPROVAL_KIND_KEY.to_string(),
+        serde_json::Value::String(MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL.to_string()),
+    );
+    match (
+        prompt_options.allow_session_remember,
+        prompt_options.allow_persistent_approval,
+    ) {
+        (true, true) => {
+            meta.insert(
+                MCP_TOOL_APPROVAL_PERSIST_KEY.to_string(),
+                serde_json::json!([
+                    MCP_TOOL_APPROVAL_PERSIST_SESSION,
+                    MCP_TOOL_APPROVAL_PERSIST_ALWAYS,
+                ]),
+            );
+        }
+        (true, false) => {
+            meta.insert(
+                MCP_TOOL_APPROVAL_PERSIST_KEY.to_string(),
+                serde_json::Value::String(MCP_TOOL_APPROVAL_PERSIST_SESSION.to_string()),
+            );
+        }
+        (false, true) => {
+            meta.insert(
+                MCP_TOOL_APPROVAL_PERSIST_KEY.to_string(),
+                serde_json::Value::String(MCP_TOOL_APPROVAL_PERSIST_ALWAYS.to_string()),
+            );
+        }
+        (false, false) => {}
+    }
+    if let Some(metadata) = metadata {
+        if let Some(tool_title) = metadata.tool_title.as_ref() {
+            meta.insert(
+                MCP_TOOL_APPROVAL_TOOL_TITLE_KEY.to_string(),
+                serde_json::Value::String(tool_title.clone()),
+            );
+        }
+        if let Some(tool_description) = metadata.tool_description.as_ref() {
+            meta.insert(
+                MCP_TOOL_APPROVAL_TOOL_DESCRIPTION_KEY.to_string(),
+                serde_json::Value::String(tool_description.clone()),
+            );
+        }
+        if server == CODEX_APPS_MCP_SERVER_NAME
+            && (metadata.connector_id.is_some()
+                || metadata.connector_name.is_some()
+                || metadata.connector_description.is_some())
+        {
+            meta.insert(
+                MCP_TOOL_APPROVAL_SOURCE_KEY.to_string(),
+                serde_json::Value::String(MCP_TOOL_APPROVAL_SOURCE_CONNECTOR.to_string()),
+            );
+            if let Some(connector_id) = metadata.connector_id.as_deref() {
+                meta.insert(
+                    MCP_TOOL_APPROVAL_CONNECTOR_ID_KEY.to_string(),
+                    serde_json::Value::String(connector_id.to_string()),
+                );
+            }
+            if let Some(connector_name) = metadata.connector_name.as_ref() {
+                meta.insert(
+                    MCP_TOOL_APPROVAL_CONNECTOR_NAME_KEY.to_string(),
+                    serde_json::Value::String(connector_name.clone()),
+                );
+            }
+            if let Some(connector_description) = metadata.connector_description.as_ref() {
+                meta.insert(
+                    MCP_TOOL_APPROVAL_CONNECTOR_DESCRIPTION_KEY.to_string(),
+                    serde_json::Value::String(connector_description.clone()),
+                );
+            }
+        }
+    }
+    if let Some(tool_params) = tool_params {
+        meta.insert(
+            MCP_TOOL_APPROVAL_TOOL_PARAMS_KEY.to_string(),
+            tool_params.clone(),
+        );
+    }
+    if let Some(tool_params_display) = tool_params_display
+        && let Ok(tool_params_display) = serde_json::to_value(tool_params_display)
+    {
+        meta.insert(
+            MCP_TOOL_APPROVAL_TOOL_PARAMS_DISPLAY_KEY.to_string(),
+            tool_params_display,
+        );
+    }
+    (!meta.is_empty()).then_some(serde_json::Value::Object(meta))
+}
+
+pub(crate) fn build_mcp_tool_approval_display_params(
+    tool_params: Option<&Value>,
+) -> Option<Vec<RenderedMcpToolApprovalParam>> {
+    let tool_params = tool_params?.as_object()?;
+    let mut display_params = tool_params
+        .iter()
+        .map(|(name, value)| RenderedMcpToolApprovalParam {
+            name: name.clone(),
+            value: value.clone(),
+            display_name: name.clone(),
+        })
+        .collect::<Vec<_>>();
+    display_params.sort_by(|left, right| left.name.cmp(&right.name));
+    Some(display_params)
 }
 
 #[cfg(test)]

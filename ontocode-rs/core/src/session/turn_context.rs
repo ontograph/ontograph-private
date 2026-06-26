@@ -12,6 +12,7 @@ use ontocode_protocol::openai_models::ToolMode;
 use ontocode_protocol::protocol::MultiAgentVersion;
 use ontocode_protocol::protocol::ThreadSource;
 use ontocode_protocol::protocol::TurnEnvironmentSelection;
+use ontocode_protocol::read_evidence::FileReadEvidence;
 use ontocode_sandboxing::compatibility_sandbox_policy_for_permission_profile;
 use ontocode_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
 use ontocode_sandboxing::policy_transforms::effective_network_sandbox_policy;
@@ -340,8 +341,50 @@ impl TurnContext {
     }
 
     pub(crate) fn record_file_read(&self, path: &AbsolutePathBuf) {
-        if let Ok(mut evidence) = self.file_read_evidence.lock() {
-            *evidence.paths.entry(path.clone()).or_insert(0) += 1;
+        self.with_file_read_evidence(|evidence| evidence.record_path(path.clone()));
+    }
+
+    pub(crate) fn record_symbol_touch(&self, symbol: &str) {
+        self.with_file_read_evidence(|evidence| evidence.record_symbol_touch(symbol));
+    }
+
+    pub(crate) fn record_test_run(&self, test: &str) {
+        self.with_file_read_evidence(|evidence| evidence.record_test_run(test));
+    }
+
+    pub(crate) fn record_policy_check(&self, check: &str) {
+        self.with_file_read_evidence(|evidence| evidence.record_policy_check(check));
+    }
+
+    pub(crate) fn record_source_reference(&self, source_ref: &str) {
+        self.with_file_read_evidence(|evidence| evidence.record_source_reference(source_ref));
+    }
+
+    pub(crate) fn record_tool_result_evidence(
+        &self,
+        tool_name: &str,
+        tool_input: Option<&Value>,
+        _tool_response: Option<&Value>,
+    ) {
+        self.record_symbol_touch(tool_name);
+
+        let Some(command) = tool_input.and_then(command_from_tool_input) else {
+            return;
+        };
+
+        if tool_name == "apply_patch" {
+            for path in apply_patch_source_references(command) {
+                self.record_source_reference(&path);
+            }
+            return;
+        }
+
+        self.record_source_reference(command);
+        if is_test_command(command) {
+            self.record_test_run(command);
+        }
+        if is_policy_check_command(command) {
+            self.record_policy_check(command);
         }
     }
 
@@ -371,7 +414,11 @@ impl TurnContext {
             multi_agent_version: Some(self.multi_agent_version),
             realtime_active: Some(self.realtime_active),
             effort: self.reasoning_effort,
-            file_read_evidence: Some(self.file_read_evidence.lock().unwrap().clone()),
+            file_read_evidence: self
+                .file_read_evidence
+                .lock()
+                .ok()
+                .map(|evidence| evidence.clone()),
             summary: ReasoningSummaryConfig::Auto,
         }
     }
@@ -395,6 +442,12 @@ impl TurnContext {
                 .and_then(ontocode_config::NetworkDomainPermissionsToml::denied_domains)
                 .unwrap_or_default(),
         })
+    }
+
+    fn with_file_read_evidence(&self, apply: impl FnOnce(&mut FileReadEvidence)) {
+        if let Ok(mut evidence) = self.file_read_evidence.lock() {
+            apply(&mut evidence);
+        }
     }
 }
 
@@ -495,11 +548,6 @@ impl Session {
         );
         let session_source = session_configuration.session_source.clone();
         let auth_manager_for_context = auth_manager.clone();
-        let mut provider = provider;
-        provider.name = session_configuration
-            .original_config_do_not_use
-            .model_provider_id
-            .clone();
         let provider_for_context = create_model_provider(provider, auth_manager);
         let session_telemetry_for_context = session_telemetry;
         let available_models = models_manager.try_list_models().unwrap_or_default();
@@ -682,11 +730,15 @@ impl Session {
                 .await;
         }
 
+        let final_output_json_schema =
+            validate_final_output_json_schema_update(updates.final_output_json_schema)
+                .map_err(CodexErr::InvalidRequest)?;
+
         Ok(self
             .new_turn_from_configuration(
                 sub_id,
                 session_configuration,
-                updates.final_output_json_schema,
+                final_output_json_schema,
                 turn_environments,
             )
             .await)
@@ -915,3 +967,65 @@ impl Session {
         }
     }
 }
+
+fn command_from_tool_input(tool_input: &Value) -> Option<&str> {
+    match tool_input {
+        Value::Object(map) => map.get("command").and_then(Value::as_str),
+        Value::String(command) => Some(command.as_str()),
+        _ => None,
+    }
+}
+
+fn is_test_command(command: &str) -> bool {
+    command
+        .split_whitespace()
+        .any(|part| matches!(part, "test" | "nextest" | "insta"))
+}
+
+fn is_policy_check_command(command: &str) -> bool {
+    command.split_whitespace().any(|part| {
+        matches!(
+            part,
+            "fmt"
+                | "fix"
+                | "clippy"
+                | "argument-comment-lint"
+                | "bazel-lock-check"
+                | "write-config-schema"
+                | "write-app-server-schema"
+        )
+    })
+}
+
+fn apply_patch_source_references(command: &str) -> Vec<String> {
+    command
+        .lines()
+        .filter_map(|line| {
+            let path = line
+                .strip_prefix("*** Update File: ")
+                .or_else(|| line.strip_prefix("*** Add File: "))
+                .or_else(|| line.strip_prefix("*** Delete File: "))
+                .or_else(|| line.strip_prefix("*** Move to: "))?;
+            Some(path.trim().to_string())
+        })
+        .collect()
+}
+
+fn validate_final_output_json_schema_update(
+    schema_update: Option<Option<Value>>,
+) -> Result<Option<Option<Value>>, String> {
+    let Some(schema) = schema_update.as_ref().and_then(Option::as_ref) else {
+        return Ok(schema_update);
+    };
+    let Some(object) = schema.as_object() else {
+        return Err("final_output_json_schema must be a JSON object".to_string());
+    };
+    if object.is_empty() {
+        return Err("final_output_json_schema must not be empty".to_string());
+    }
+    Ok(schema_update)
+}
+
+#[cfg(test)]
+#[path = "turn_context_tests.rs"]
+mod tests;

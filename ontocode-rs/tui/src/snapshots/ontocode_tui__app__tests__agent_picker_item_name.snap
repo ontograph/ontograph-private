@@ -1,6 +1,6 @@
 ---
 source: tui/src/app/tests.rs
-assertion_line: 3018
+assertion_line: 3278
 expression: snapshot
 ---
 Main [default] | 00000000-0000-0000-0000-000000000123

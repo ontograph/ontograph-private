@@ -6,9 +6,11 @@ use super::handle_non_tool_response_item;
 use super::handle_output_item_done;
 use super::image_generation_artifact_path;
 use super::last_assistant_message_from_item;
+use super::record_completed_response_item;
 use super::response_item_may_include_external_context;
 use super::save_image_generation_result;
 use crate::session::tests::make_session_and_context;
+use crate::session::tests::make_session_and_context_with_rx;
 use crate::tools::ToolRouter;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::turn_diff_tracker::TurnDiffTracker;
@@ -25,9 +27,13 @@ use ontocode_protocol::models::LocalShellExecAction;
 use ontocode_protocol::models::LocalShellStatus;
 use ontocode_protocol::models::MessagePhase;
 use ontocode_protocol::models::ResponseItem;
+use ontocode_protocol::protocol::EventMsg;
+use ontocode_protocol::protocol::WarningEvent;
 use ontocode_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
 fn assistant_output_text(text: &str) -> ResponseItem {
@@ -415,6 +421,33 @@ fn completed_item_defers_mailbox_delivery_for_image_generation_calls() {
     assert!(completed_item_defers_mailbox_delivery_to_next_turn(
         &item, /*plan_mode*/ false,
     ));
+}
+
+#[tokio::test]
+async fn final_answer_verifier_warns_when_test_claim_lacks_evidence() {
+    let (session, turn_context, rx) = make_session_and_context_with_rx().await;
+
+    record_completed_response_item(
+        &session,
+        &turn_context,
+        &assistant_output_text("Tests passed."),
+    )
+    .await;
+
+    for _ in 0..4 {
+        let event = timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .expect("event should arrive")
+            .expect("event should be readable");
+        if matches!(
+            event.msg,
+            EventMsg::Warning(WarningEvent { message })
+                if message.contains("claimed tests")
+        ) {
+            return;
+        }
+    }
+    panic!("expected final-answer verifier warning");
 }
 
 #[tokio::test]

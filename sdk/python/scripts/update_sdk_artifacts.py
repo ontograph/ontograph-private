@@ -545,7 +545,9 @@ def generate_v2_all(schema_dir: Path) -> None:
         shutil.rmtree(old_package_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
         normalized_bundle = Path(td) / schema_bundle_path(schema_dir).name
+        generated_out = td_path / out_path.name
         normalized_bundle.write_text(_normalized_schema_bundle_text(schema_dir))
         run_python_module(
             "datamodel_code_generator",
@@ -555,7 +557,7 @@ def generate_v2_all(schema_dir: Path) -> None:
                 "--input-file-type",
                 "jsonschema",
                 "--output",
-                str(out_path),
+                str(generated_out),
                 "--output-model-type",
                 "pydantic_v2.BaseModel",
                 "--target-python-version",
@@ -580,6 +582,7 @@ def generate_v2_all(schema_dir: Path) -> None:
             ],
             cwd=sdk_root(),
         )
+        shutil.move(generated_out, out_path)
     _normalize_generated_timestamps(out_path)
 
 

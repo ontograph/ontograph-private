@@ -435,12 +435,20 @@ fn list_agents_output_schema() -> Value {
                             "description": "Last known status of the agent.",
                             "allOf": [agent_status_output_schema()]
                         },
+                        "agent_role": {
+                            "type": ["string", "null"],
+                            "description": "Configured role/type for the agent when available."
+                        },
+                        "model": {
+                            "type": "string",
+                            "description": "Effective model used by the agent."
+                        },
                         "last_task_message": {
                             "type": ["string", "null"],
                             "description": "Most recent user or inter-agent instruction received by the agent, when available."
                         }
                     },
-                    "required": ["agent_name", "agent_status", "last_task_message"],
+                    "required": ["agent_name", "agent_status", "agent_role", "model", "last_task_message"],
                     "additionalProperties": false
                 },
                 "description": "Live agents visible in the current root thread tree."
@@ -751,11 +759,11 @@ The new agent's canonical task name will be provided to it along with the messag
 }
 
 fn spawn_agent_models_description(models: &[ModelPreset]) -> String {
-    let visible_models: Vec<&ModelPreset> = models
+    let visible_models = models
         .iter()
         .filter(|model| model.show_in_picker)
         .take(MAX_MODEL_OVERRIDES_IN_SPAWN_AGENT_DESCRIPTION)
-        .collect();
+        .collect::<Vec<_>>();
     if visible_models.is_empty() {
         return "No picker-visible model overrides are currently loaded.".to_string();
     }

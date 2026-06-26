@@ -146,6 +146,7 @@ use ontocode_config::types::WindowsToml;
 use ontocode_exec_server::EnvironmentManager;
 use ontocode_features::Feature;
 use ontocode_features::FeaturesToml;
+use ontocode_git_utils::get_git_repo_root;
 use ontocode_model_provider::ProviderRuntimeEngine;
 use ontocode_model_provider::create_model_provider;
 use ontocode_model_provider_info::GEMINI_CLI_PROVIDER_ID;

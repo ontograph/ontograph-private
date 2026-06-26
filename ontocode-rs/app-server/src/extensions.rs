@@ -30,6 +30,7 @@ where
 {
     let mut builder = ExtensionRegistryBuilder::<Config>::with_event_sink(event_sink);
     ontocode_guardian::install(&mut builder, guardian_agent_spawner);
+    ontocode_excel_extension::install(&mut builder);
     ontocode_memories_extension::install(&mut builder, ontocode_otel::global());
     ontocode_web_search_extension::install(&mut builder, auth_manager.clone());
     ontocode_image_generation_extension::install(&mut builder, auth_manager);

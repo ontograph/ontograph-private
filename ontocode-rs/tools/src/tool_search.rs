@@ -73,6 +73,23 @@ impl ToolSearchInfo {
     }
 }
 
+#[allow(dead_code)]
+pub fn augment_tool_search_text(
+    search_text: String,
+    disabled_reason: Option<&str>,
+    source: Option<&str>,
+) -> String {
+    let mut parts = vec![search_text];
+    if let Some(reason) = disabled_reason {
+        push_search_part(&mut parts, reason.to_string());
+    }
+    if let Some(src) = source {
+        push_search_part(&mut parts, src.to_string());
+    }
+
+    parts.join(" ")
+}
+
 pub fn default_tool_search_text(
     tool_name: &ToolName,
     spec: &ToolSpec,
@@ -153,5 +170,31 @@ fn push_search_part(parts: &mut Vec<String>, part: String) {
     let part = part.trim();
     if !part.is_empty() {
         parts.push(part.to_string());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn augment_tool_search_text_appends_internal_reason_and_source_tokens() {
+        assert_eq!(
+            augment_tool_search_text(
+                "tool name description".to_string(),
+                Some("deferred single-flight"),
+                Some("Multi-agent tools"),
+            ),
+            "tool name description deferred single-flight Multi-agent tools"
+        );
+    }
+
+    #[test]
+    fn augment_tool_search_text_ignores_empty_tokens() {
+        assert_eq!(
+            augment_tool_search_text("tool name description".to_string(), Some(" "), Some("")),
+            "tool name description"
+        );
     }
 }

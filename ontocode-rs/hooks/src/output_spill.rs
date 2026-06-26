@@ -100,8 +100,18 @@ fn hook_output_path(output_dir: &AbsolutePathBuf, thread_id: ThreadId) -> Absolu
 /// does not let the preview grow past the hook-output limit.
 fn spilled_hook_output_preview(text: &str, path: &AbsolutePathBuf) -> String {
     let footer = format!("\n\nFull hook output saved to: {}", path.display());
+    // `formatted_truncate_text` prepends "Total output lines: N\n\n" and
+    // `truncate_middle_with_token_budget` adds an ellipsis line when truncating;
+    // reserve a conservative overhead for both so the combined preview stays
+    // within the hook-output token limit.
+    let header_overhead =
+        approx_token_count(&format!("Total output lines: {}\n\n", text.lines().count()));
+    let truncation_note_overhead = approx_token_count("...  tokens truncated ...\n\n");
     let preview_policy = TruncationPolicy::Tokens(
-        HOOK_OUTPUT_TOKEN_LIMIT.saturating_sub(approx_token_count(&footer)),
+        HOOK_OUTPUT_TOKEN_LIMIT
+            .saturating_sub(approx_token_count(&footer))
+            .saturating_sub(header_overhead)
+            .saturating_sub(truncation_note_overhead),
     );
     format!("{}{footer}", formatted_truncate_text(text, preview_policy))
 }

@@ -1,11 +1,11 @@
 ---
 source: tui/src/app/tests.rs
-assertion_line: 3724
+assertion_line: 3922
 expression: rendered
 ---
-╭─────────────────────────────────────────────╮
-│ >_ OpenAI Codex (v<VERSION>)                │
-│                                             │
-│ model:     gpt-test high   /model to change │
-│ directory: /tmp/project                     │
-╰─────────────────────────────────────────────╯
+╭───────────────────────────────────────────────────╮
+│ >_ Ontocode inspired by OpenAI Codex (v<VERSION>) │
+│                                                   │
+│ model:     gpt-test high   /model to change       │
+│ directory: /tmp/project                           │
+╰───────────────────────────────────────────────────╯

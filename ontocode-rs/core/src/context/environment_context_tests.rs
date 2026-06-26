@@ -177,6 +177,7 @@ fn turn_context_item_filesystem_uses_workspace_roots_instead_of_cwd() {
         permission_profile: Some(workspace_write_permission_profile_with_private_denials()),
         network: None,
         file_system_sandbox_policy: None,
+        file_read_evidence: None,
         model: "gpt-5".to_string(),
         personality: None,
         collaboration_mode: None,

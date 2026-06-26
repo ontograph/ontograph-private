@@ -1,0 +1,27 @@
+--- a/ontocode-rs/tui/src/multi_agents.rs
++++ b/ontocode-rs/tui/src/multi_agents.rs
+@@ -445,17 +445,16 @@
+
+     if let Some(nickname) = nickname {
+         spans.push(Span::from(nickname.to_string()).cyan().bold());
++        if let Some(role) = role {
++            spans.push(Span::from(" ").dim());
++            spans.push(Span::from(format!("[{role}]")).dim());
++        }
+     } else if let Some(thread_id) = agent.thread_id {
+         spans.push(Span::from(thread_id.to_string()).cyan());
++        if let Some(role) = role {
++            spans.push(Span::from(" ").dim());
++            spans.push(Span::from(format!("[{role}]")).dim());
++        }
+     } else {
+         spans.push(Span::from("agent").cyan());
+     }
+-
+-    if let Some(role) = role {
+-        spans.push(Span::from(" ").dim());
+-        spans.push(Span::from(format!("[{role}]")));
+-    }
+
+     spans
+ }

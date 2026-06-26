@@ -159,6 +159,8 @@ impl SlashCommand {
                 | SlashCommand::Rename
                 | SlashCommand::Plan
                 | SlashCommand::Goal
+                | SlashCommand::Agent
+                | SlashCommand::MultiAgents
                 | SlashCommand::Ide
                 | SlashCommand::Keymap
                 | SlashCommand::Mcp
@@ -306,6 +308,8 @@ mod tests {
         assert!(SlashCommand::Login.supports_inline_args());
         assert!(SlashCommand::Auth.supports_inline_args());
         assert!(SlashCommand::Logout.supports_inline_args());
+        assert!(SlashCommand::Agent.supports_inline_args());
+        assert!(SlashCommand::MultiAgents.supports_inline_args());
     }
 
     #[test]

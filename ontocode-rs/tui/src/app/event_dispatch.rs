@@ -1733,6 +1733,179 @@ impl App {
             AppEvent::OpenAgentPicker => {
                 self.open_agent_picker(app_server).await;
             }
+            AppEvent::OpenRenameAgentThreadPrompt { thread_id } => {
+                match self.agent_navigation.get(&thread_id).cloned() {
+                    Some(entry) => self.chat_widget.show_rename_agent_thread_prompt(
+                        thread_id,
+                        entry.agent_nickname.as_deref(),
+                        entry.agent_role.as_deref(),
+                    ),
+                    None => self
+                        .chat_widget
+                        .add_error_message(format!("Unknown agent thread: {thread_id}")),
+                }
+            }
+            AppEvent::RenameAgentThreadLabel { thread_id, name } => {
+                if let Err(err) = self.rename_agent_picker_thread_label(thread_id, &name) {
+                    self.chat_widget
+                        .add_error_message(format!("Failed to rename agent thread: {err}"));
+                }
+            }
+            AppEvent::DeleteAgentThread { thread_id } => {
+                if let Err(err) = self
+                    .delete_agent_picker_thread(tui, app_server, thread_id)
+                    .await
+                {
+                    self.chat_widget
+                        .add_error_message(format!("Failed to delete agent thread: {err}"));
+                }
+            }
+            AppEvent::OpenCreateAgentDefinitionPrompt => {
+                let target_root = get_git_repo_root(self.config.cwd.as_path())
+                    .unwrap_or_else(|| self.config.cwd.to_path_buf());
+                self.chat_widget
+                    .show_create_agent_definition_prompt(&target_root);
+            }
+            AppEvent::OpenCreateAgentDefinitionProposalPrompt => {
+                let target_root = get_git_repo_root(self.config.cwd.as_path())
+                    .unwrap_or_else(|| self.config.cwd.to_path_buf());
+                self.chat_widget
+                    .show_create_agent_definition_proposal_prompt(&target_root);
+            }
+            AppEvent::OpenCreateAgentDefinitionOptionsPrompt { name } => {
+                let target_root = get_git_repo_root(self.config.cwd.as_path())
+                    .unwrap_or_else(|| self.config.cwd.to_path_buf());
+                self.chat_widget
+                    .show_create_agent_definition_options_prompt(&name, &target_root);
+            }
+            AppEvent::OpenCopyAgentDefinitionPrompt {
+                source_path,
+                role_name,
+            } => {
+                let target_root = get_git_repo_root(self.config.cwd.as_path())
+                    .unwrap_or_else(|| self.config.cwd.to_path_buf());
+                self.chat_widget.show_copy_agent_definition_prompt(
+                    &source_path,
+                    &role_name,
+                    &target_root,
+                );
+            }
+            AppEvent::OpenRenameAgentDefinitionPrompt {
+                source_path,
+                role_name,
+            } => {
+                let target_root = get_git_repo_root(self.config.cwd.as_path())
+                    .unwrap_or_else(|| self.config.cwd.to_path_buf());
+                self.chat_widget.show_rename_agent_definition_prompt(
+                    &source_path,
+                    &role_name,
+                    &target_root,
+                );
+            }
+            AppEvent::OpenDeleteAgentDefinitionPrompt {
+                source_path,
+                role_name,
+            } => {
+                let target_root = get_git_repo_root(self.config.cwd.as_path())
+                    .unwrap_or_else(|| self.config.cwd.to_path_buf());
+                self.chat_widget.show_delete_agent_definition_prompt(
+                    &source_path,
+                    &role_name,
+                    &target_root,
+                );
+            }
+            AppEvent::CreateAgentDefinitionScaffold {
+                name,
+                optional_fields_toml,
+            } => {
+                match self.create_agent_definition_scaffold(&name, &optional_fields_toml) {
+                    Ok(path) => {
+                        self.chat_widget.add_info_message(
+                            format!(
+                                "Created {}. Edit the file, then reopen /agent or restart to load it.",
+                                path.display()
+                            ),
+                            /*hint*/ None,
+                        );
+                    }
+                    Err(err) => {
+                        self.chat_widget
+                            .add_error_message(format!("Failed to create agent definition: {err}"));
+                    }
+                }
+            }
+            AppEvent::CreateAgentDefinitionFromProposalScaffold { proposal } => {
+                match self.create_agent_definition_from_proposal_scaffold(&proposal) {
+                    Ok(path) => {
+                        self.chat_widget.add_info_message(
+                            format!(
+                                "Created {}. Edit the file, then reopen /agent or restart to load it.",
+                                path.display()
+                            ),
+                            /*hint*/ None,
+                        );
+                    }
+                    Err(err) => {
+                        self.chat_widget.add_error_message(format!(
+                            "Failed to create agent definition from proposal: {err}"
+                        ));
+                    }
+                }
+            }
+            AppEvent::CopyAgentDefinitionScaffold { source_path, name } => {
+                match self.copy_agent_definition_scaffold(&source_path, &name) {
+                    Ok(path) => {
+                        self.chat_widget.add_info_message(
+                            format!(
+                                "Copied agent definition to {}. Reopen /agent or restart to load it.",
+                                path.display()
+                            ),
+                            /*hint*/ None,
+                        );
+                    }
+                    Err(err) => {
+                        self.chat_widget
+                            .add_error_message(format!("Failed to copy agent definition: {err}"));
+                    }
+                }
+            }
+            AppEvent::RenameAgentDefinitionScaffold { source_path, name } => {
+                match self.rename_agent_definition_scaffold(&source_path, &name) {
+                    Ok(path) => {
+                        self.chat_widget.add_info_message(
+                            format!(
+                                "Renamed agent definition to {}. Reopen /agent or restart to load it.",
+                                path.display()
+                            ),
+                            /*hint*/ None,
+                        );
+                    }
+                    Err(err) => {
+                        self.chat_widget
+                            .add_error_message(format!("Failed to rename agent definition: {err}"));
+                    }
+                }
+            }
+            AppEvent::DeleteAgentDefinitionScaffold {
+                source_path,
+                confirmation,
+            } => {
+                match self.delete_agent_definition_scaffold(&source_path, &confirmation) {
+                    Ok(path) => {
+                        self.chat_widget.add_info_message(
+                            format!(
+                                "Deleted agent definition {}. Reopen /agent or restart to refresh the list.",
+                                path.display()
+                            ),
+                            /*hint*/ None,
+                        );
+                    }
+                    Err(err) => {
+                        self.chat_widget
+                            .add_error_message(format!("Failed to delete agent definition: {err}"));
+                    }
+                }
+            }
             AppEvent::SelectAgentThread(thread_id) => {
                 self.select_agent_thread_and_discard_side(tui, app_server, thread_id)
                     .await?;

@@ -14,7 +14,7 @@ Authority: `CLAUDE_CODE_APPROACHES_FOR_CODEBASE_TRACKING.md`.
 
 ### Provider Policy Reset
 
-Status: `active`.
+Status: `done`.
 
 Authority:
 - `ADR_MULTI_PROVIDER_OAUTH_CONNECTION_ROUTING.md`
@@ -130,21 +130,64 @@ Next actions:
 
 ### Qwen Donor Blocked Rows Unblock
 
-Status: `active-narrow-dispatch`.
+Status: `done`.
 
 Authority:
 - `ADR_QWEN_DONOR_BLOCKED_ROWS_UNBLOCK.md`
+- `ADR_QWEN_DONOR_REMAINING_BLOCKERS_SOLUTIONS.md`
 - `tmp/qwen-code-donor-dispatch-tracking.md`
 
 Outcome targeted:
-- Resolve the 12 blocked Qwen donor rows only through existing owners.
-- Keep broad public metadata, persistent read-evidence, transcript storage,
-  native HTTP hooks, and artifact classifier work blocked.
+- Resolve the remaining ten Qwen donor blocker rows only through existing
+  owners.
+- Keep SQLite read-evidence persistence, public metadata APIs, transcript
+  storage, native HTTP hooks, and raw artifact injection blocked.
 
 Next actions:
-- Dispatch only the narrow slices listed in the ADR.
+- Dispatch only `R1` through `R5` from the remaining-blockers ADR.
 - Update the tracker before each slice starts and after each slice closes.
 - Use OntoIndex before edits and refresh/check it after each completed slice.
+
+### jscpd Donor Core Extension
+
+Status: `done`.
+
+Authority:
+- `ADR_JSCPD_DONOR_CORE_EXTENSION_REVIEW.md`
+- `ADR_JSCPD_DONOR_CORE_EXTENSION_SOLUTIONS.md`
+- `JSCPD_DONOR_CORE_EXTENSION_TRACKING.md`
+
+Outcome:
+- `JSCPD-R1` added apply-patch diagnostic/adversarial parser coverage.
+- `JSCPD-R2` added hook spill duplicate-output coverage and a minimal
+  owner-local budget fix.
+- `JSCPD-R3` added a static base-instructions duplication guard.
+- `JSCPD-R4` closed as already covered by existing guardian/model-visible layout
+  snapshots.
+
+Next actions:
+- No remaining dispatch tasks from the jscpd donor ADR.
+- Reopen only with a concrete owner-local failing regression; keep duplicate
+  detection, clone scanning, generic report generation, and SQLite tracking out
+  of core.
+
+### Hermes Donor Core Extension
+
+Status: `done`.
+
+Authority:
+- `tmp/hermes-agent-500-tools-for-ontocode-challenged.md`
+- `ADR_HERMES_DONOR_CORE_EXTENSION_SOLUTIONS.md`
+- `HERMES_DONOR_CORE_EXTENSION_TRACKING.md`
+
+Outcome targeted:
+Outcome:
+- Closed the four implementation-queue rows as owner-local regression coverage or one minimal existing-owner TUI diagnostic.
+- Kept browser/CDP tools, provider plugins, optional skills, cron, memory stores, process registries, and SQLite tracking rejected.
+
+Next actions:
+- No remaining dispatch tasks from the Hermes donor ADR.
+- Reopen only with a concrete owner-local failing regression.
 
 ### Claude Code Donor Deferred/Narrow/Rejected Pre-Junior
 
@@ -167,6 +210,54 @@ Next actions:
   or failing regression test and does not introduce a parallel source, command,
   MCP, plugin, hook, UI, or context owner.
 
+### Five Concurrent Coding Sub-Agents
+
+Status: `active-reopened`.
+
+Authority:
+- `ADR_FIVE_CONCURRENT_CODING_SUBAGENTS.md`
+- `ADR_FIVE_CONCURRENT_CODING_SUBAGENTS_TRACKING.md`
+
+### Modular Tool Boundaries Next Phase
+
+Status: `proposed-no-dispatch`.
+
+Authority:
+- `ADR_MODULAR_TOOL_BOUNDARIES.md`
+- `ADR_MODULAR_TOOL_BOUNDARIES_NEXT_PHASE.md`
+
+Outcome so far:
+- The original modular-boundaries ADR is closed through Stage 1 planner
+  extraction, Stage 2A MCP approval-template extraction, and Stage 4A focused
+  boundary audit.
+- `MTBNP-N1` is complete: MCP call telemetry/span helpers and result-shaping
+  helpers were extracted into private sibling modules without moving runtime
+  ownership out of `mcp_tool_call.rs`.
+- `MTBNP-N2` is complete: `McpToolOutput` and `ExecCommandToolOutput` were
+  moved into private sibling modules while `tools/context.rs` kept invocation
+  state and shared helpers.
+- `MTBNP-N3` is complete: static MCP naming/spec/search helpers were moved
+  into `tools/handlers/mcp_support.rs` while `tools/handlers/mcp.rs` kept the
+  runtime handler impls.
+- Stage 3 is already satisfied for the optional families reviewed there.
+
+Next actions:
+- Do not reopen the closed ADR loop for synthetic remaining work.
+- If modularization resumes, reopen only with a fresh senior challenge that
+  proves one smaller internal `tools/registry.rs` seam or another new
+  owner-local modularization need.
+- Keep broad `tools/registry.rs` modularization blocked until a separate senior
+  challenge proves one smaller internal seam.
+
+Outcome:
+- Allow five simultaneous direct coding sub-agents through the existing multi-agent v2 cap and close path.
+- Remove recursive `spawn_agent` access from ordinary coding sub-agents.
+- Keep scheduler, SQLite task tables, worker pools, default worktrees, and nested fan-out out of phase one.
+
+Next actions:
+- No remaining dispatch tasks from this ADR.
+- Reopen only with a concrete failing fixture in the existing multi-agent v2 owners.
+
 ### Alpha Release Readiness
 
 Status: `in_progress`.
@@ -182,8 +273,9 @@ Outcome so far:
 - Main CLI help copy now says `Ontocode` / `Ontocode Cloud` on the verified binary surface.
 
 Next actions:
-- Choose final alpha version, with `0.1.0-alpha.1` as the default baseline.
+- Use `0.1.0-alpha.5` as the alpha publish candidate; private releases currently stop at `0.1.0-alpha.3`, and `0.1.0-alpha.4` is avoided in this mixed checkout because the local tag name is occupied by fetched upstream/OpenAI tag data.
 - Treat `ontocode-rs/` as the active Rust workspace directory.
+- Open one bounded publish-prep slice: stage the remaining alpha publish set that does not depend on `CLAUDE_OAUTH_REDACTED_SAMPLE`, including native release-artifact path verification for the selected alpha tag or an explicit workflow artifact URL.
 - Cargo metadata now reports zero `codex` binary targets after the dedicated alias-entrypoint cleanup; remaining legacy names are compatibility/runtime/prose surfaces, not duplicate Cargo bins.
 - Close `Claude OAuth Live Validation` if a real redacted sample becomes available.
 
@@ -226,6 +318,30 @@ Next actions:
 - Keep S10 context fragment blocked until a separate ADR approves model-visible evidence.
 - Reuse the state-owned operational evidence ledger and closure evaluator for future manager/subagent planned-versus-done checks.
 
+### Slash-Command Sub-Agent Management Followups
+
+Status: `done-narrowed`.
+
+Authority:
+- `ADR_AGENT_SLASH_SUBAGENT_MANAGEMENT.md`
+- `CLAUDE_CODE_AGENTIC_ENGINE_SOLUTIONS_TRACKING.md`
+
+Outcome so far:
+- `AGENTIC-S1` is complete: the thin `/agent` and `/subagents` inline-argument wrapper is implemented and verified.
+- Proposal-only followups were re-reviewed repeatedly with OntoIndex; broader Stage 4 items stayed blocked or gated.
+- Explicit user demand now promotes three small owner-local slices into the development queue.
+
+Next actions:
+- `AGENTIC-S6` is complete: `/agent` supports picker-local live-thread rename with cached visible-label updates only.
+- `AGENTIC-S7` is complete: `/agent` supports picker-local live-thread delete with current-session-only removal and active-thread fallback to main.
+- `AGENTIC-S8` is complete: `/agent` supports repo-local definition copy for repo-root `.codex/agents/*.toml` role files, reusing the existing picker/prompt/scaffold owner and updating only the destination slug/path plus internal `name = ...`.
+- `AGDEF-S2` is complete: the existing create flow now supports one narrow follow-up prompt for optional role fields and writes only `model`, `model_reasoning_effort`, `service_tier`, and `nickname_candidates` into the same repo-local scaffold path.
+- `AGENTIC-S2` is complete: `/agent` now supports repo-local role scaffolds from one freeform proposal, writing only `name`, `description`, and `developer_instructions` through the existing picker-owned path.
+- `Stage 4A0` is complete: the blank repo-local scaffold path now writes a required `description`, and existing malformed repo-local agent files were repaired with description fallback values.
+- `AGENTIC-S9` is complete: `/agent` supports repo-local definition rename for repo-root `.codex/agents/*.toml` role files, moving the file, updating only the internal `name = ...`, rejecting collisions, and preserving the reopen/restart reload boundary.
+- `AGENTIC-S10` is complete: `/agent` supports repo-local definition delete for repo-root `.codex/agents/*.toml` role files, requires explicit `DELETE` confirmation, removes only the targeted file, and preserves the reopen/restart reload boundary.
+- Keep `AGENTIC-S3/S4/S5` blocked until their recorded architecture gates change.
+
 ### Ontocode Full Legacy Migration
 
 Status: `reviewed-proposed`.
@@ -248,7 +364,7 @@ Outcome so far:
 - F4-H root npm wrapper cleanup is complete: `codex-cli/` moved to `ontocode-cli/`, local workspace/staging paths were updated, and public npm package compatibility was preserved.
 
 Next actions:
-- Resume F5-L package-wide verification triage from the known code-mode and compact-remote-parity failures.
+- Run `F5-M`: package-wide `ontocode-core` rerun after the F5-L remote-compaction fix using a fresh isolated `TMPDIR`, and only reopen implementation work if that rerun isolates one smaller failing owner.
 - Keep protocol, telemetry, and final compatibility cleanup blocked until their prerequisites and owners are recorded.
 
 ### Provider Credential Routing Refactor
@@ -325,6 +441,72 @@ Reason:
 Needed:
 - Claude/Gemini discovery-contract ADR/test spike with mocked HTTP fixtures and redaction assertions before any dynamic model-manager implementation.
 - Separate Copilot account-scoped discovery design before any Copilot implementation.
+
+### Claude Code Donor 300 Core Extension Bundles
+
+Status: `done-scoped-regressions`.
+
+Source:
+- `ADR_CLAUDE_CODE_DONOR_300_CORE_EXTENSION_SOLUTIONS.md`
+- `CLAUDE_CODE_DONOR_300_CORE_EXTENSION_TRACKING.md`
+
+Outcome:
+- `CLAUDE300-R1`: multi-agent and agent-job regressions closed.
+- `CLAUDE300-R2`: shell and PowerShell policy/parser regressions closed; broad
+  `ontocode-core` failures were verified unrelated to the bundle.
+- `CLAUDE300-R3`: bounded context/file/search/LSP/attachment/compaction
+  regressions closed; model-visible context remains valid only while bounded,
+  capped, and inside approved context owners.
+- `CLAUDE300-R4`: MCP/resource/auth/tool-discovery/skills/plugins/config
+  regressions closed by manager verification after unusable worker output.
+- `CLAUDE300-R5`: diagnostics/review/web/pacing/plan-mode/model/auth
+  regressions closed; release/support-bundle claims still need secret-output
+  content review.
+
+Next actions:
+- No remaining dispatch tasks from the Claude Code donor 300 ADR.
+- Reopen only with a concrete owner-local failing regression.
+- Treat dirty worktree and snapshot artifacts as merge hygiene, not a reason to
+  redispatch Claude300.
+
+### Donor Tool Proposals Consolidation
+
+Status: `done-narrowed`.
+
+Authority:
+- `ADR_DONOR_TOOL_PROPOSALS_CONSOLIDATION.md`
+- `DONOR_TOOL_PROPOSALS_CONSOLIDATION_TRACKING.md`
+
+Outcome targeted:
+- Close only the current accepted/narrowed slices from the consolidation ADR:
+  structured final-output schema shape validation, bounded evidence ledger,
+  bounded final-answer claim warnings, and hosted web-search guarded fetch
+  proof.
+- Keep verification-only candidates parked until a concrete current-owner
+  failing test is reproduced.
+
+Outcome so far:
+- `DTP-R1` first slice is complete in single-mode recovery:
+  `final_output_json_schema` updates are validated in the existing session turn
+  path. Redaction and conformance diagnostics stay parked without a failing
+  current-owner test.
+- `DTP-R2` is complete in single-mode recovery: bounded evidence buckets and a
+  capped operational evidence context fragment stay inside existing
+  evidence/context/session owners, with scoped protocol and core tests passing
+  under `CARGO_BUILD_JOBS=1`.
+- `DTP-R3` narrowed slice is complete in single-mode recovery: final assistant
+  answers emit bounded warnings for unsupported test, policy-check, or
+  source-change claims. Exact file/command/failure/approval verification stays
+  parked without a failing current-owner test.
+- `DTP-R4` is closed with no new code by senior-narrowed proof: hosted `web_search` already
+  covers guarded open-page/find-in-page fetch-style actions behind provider,
+  config, standalone-web, and web-search mode gates; a separate `web_fetch`
+  stack remains rejected.
+
+Next actions:
+- No remaining dispatch tasks from the Donor Tool Proposals Consolidation ADR.
+- Reopen only with a concrete provider/API surface for dedicated `web_fetch` or
+  a current owner-local failing regression.
 
 ## Done
 

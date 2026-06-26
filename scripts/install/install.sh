@@ -7,6 +7,8 @@ RELEASE="${ONTOCODE_RELEASE:-${CODEX_RELEASE:-}}"
 BIN_DIR="${ONTOCODE_INSTALL_DIR:-${CODEX_INSTALL_DIR:-$HOME/.local/bin}}"
 BIN_PATH="$BIN_DIR/ontocode"
 GITHUB_AUTH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+ONTOCODE_HOME_DIR="${ONTOCODE_HOME:-$HOME/.ontocode}"
+LEGACY_CODEX_HOME_DIR="$HOME/.codex"
 
 usage() {
   cat <<EOF
@@ -89,6 +91,7 @@ need mktemp
 need chmod
 need install
 need sha256sum
+need cp
 need_asset() {
   [ -s "$1" ] || { echo "Missing downloaded asset: $1" >&2; exit 1; }
 }
@@ -113,11 +116,18 @@ archive="$tmp_dir/$asset"
 checksums="$tmp_dir/SHA256SUMS"
 
 echo "==> Downloading Ontocode CLI $version for $target"
-if ! curl_file "$asset_url" "$archive"; then
-  asset="$legacy_asset"
-  archive="$tmp_dir/$asset"
-  echo "==> Falling back to legacy release asset name $asset"
-  curl_file "$legacy_asset_url" "$archive"
+if curl_file "$asset_url" "$archive"; then
+  :
+else
+  curl_exit=$?
+  if [ "$curl_exit" -eq 22 ]; then
+    asset="$legacy_asset"
+    archive="$tmp_dir/$asset"
+    echo "==> Falling back to legacy release asset name $asset"
+    curl_file "$legacy_asset_url" "$archive"
+  else
+    exit "$curl_exit"
+  fi
 fi
 curl_file "$checksums_url" "$checksums"
 need_asset "$archive"
@@ -131,5 +141,11 @@ actual="$(sha256sum "$archive" | awk '{ print $1 }')"
 
 mkdir -p "$BIN_DIR"
 install -m 0755 "$archive" "$BIN_PATH"
+
+if [ ! -f "$ONTOCODE_HOME_DIR/config.toml" ] && [ -d "$LEGACY_CODEX_HOME_DIR" ] && [ "$ONTOCODE_HOME_DIR" != "$LEGACY_CODEX_HOME_DIR" ]; then
+  echo "==> Copying settings and history from $LEGACY_CODEX_HOME_DIR to $ONTOCODE_HOME_DIR"
+  mkdir -p "$ONTOCODE_HOME_DIR"
+  cp -R "$LEGACY_CODEX_HOME_DIR"/. "$ONTOCODE_HOME_DIR"/
+fi
 
 echo "Ontocode CLI $version installed to $BIN_PATH"

@@ -1133,6 +1133,7 @@ async fn resume_candidate_matches_cwd_reads_latest_turn_context() -> std::io::Re
     let turn_context = RolloutLine {
         timestamp: "2025-01-03T13:00:01Z".to_string(),
         item: RolloutItem::TurnContext(TurnContextItem {
+            file_read_evidence: None,
             turn_id: Some("turn-1".to_string()),
             cwd: latest_cwd.clone(),
             workspace_roots: None,

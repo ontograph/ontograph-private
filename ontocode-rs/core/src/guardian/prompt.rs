@@ -7,13 +7,16 @@ use ontocode_protocol::user_input::UserInput;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::apply_patch::is_generated_file_path;
 use crate::compact::content_items_to_text;
 use crate::event_mapping::is_contextual_user_message_content;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
+use ontocode_utils_absolute_path::AbsolutePathBuf;
 use ontocode_utils_output_truncation::approx_bytes_for_tokens;
 use ontocode_utils_output_truncation::approx_token_count;
 use ontocode_utils_output_truncation::approx_tokens_from_byte_count;
+use std::collections::BTreeMap;
 
 use super::AUTO_REVIEW_DENIED_ACTION_APPROVAL_DEVELOPER_PREFIX;
 use super::GUARDIAN_MAX_MESSAGE_ENTRY_TOKENS;
@@ -77,6 +80,105 @@ pub(crate) struct GuardianTranscriptCursor {
 pub(crate) enum GuardianPromptMode {
     Full,
     Delta { cursor: GuardianTranscriptCursor },
+}
+
+fn format_patch_paths(paths: &[AbsolutePathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn format_counted_strings(values: &BTreeMap<String, usize>) -> Option<String> {
+    let values = values
+        .iter()
+        .map(|(value, count)| format_counted_value(value.as_str(), *count))
+        .collect::<Vec<_>>();
+    (!values.is_empty()).then(|| values.join(", "))
+}
+
+fn format_counted_value(value: impl AsRef<str>, count: usize) -> String {
+    if count > 1 {
+        format!("{} (x{})", value.as_ref(), count)
+    } else {
+        value.as_ref().to_string()
+    }
+}
+
+fn apply_patch_evidence_note(
+    parent_turn: Option<&TurnContext>,
+    files: &[AbsolutePathBuf],
+) -> Option<String> {
+    let evidence = parent_turn
+        .and_then(|turn| turn.file_read_evidence.lock().ok())
+        .map(|evidence| evidence.clone());
+    let read_paths = files
+        .iter()
+        .filter(|path| {
+            evidence
+                .as_ref()
+                .is_some_and(|e| e.paths.contains_key(*path))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let generated_paths = files
+        .iter()
+        .filter(|path| is_generated_file_path(path.as_path()))
+        .cloned()
+        .collect::<Vec<_>>();
+    let symbol_touches = evidence
+        .as_ref()
+        .and_then(|evidence| format_counted_strings(&evidence.symbol_touches));
+    let tests_run = evidence
+        .as_ref()
+        .and_then(|evidence| format_counted_strings(&evidence.tests_run));
+    let policy_checks = evidence
+        .as_ref()
+        .and_then(|evidence| format_counted_strings(&evidence.policy_checks));
+    let source_references = evidence
+        .as_ref()
+        .and_then(|evidence| format_counted_strings(&evidence.source_references));
+
+    if read_paths.is_empty()
+        && generated_paths.is_empty()
+        && symbol_touches.is_none()
+        && tests_run.is_none()
+        && policy_checks.is_none()
+        && source_references.is_none()
+    {
+        return None;
+    }
+
+    let mut note = String::from(">>> APPLY PATCH EVIDENCE START\n");
+    if !read_paths.is_empty() {
+        note.push_str(&format!(
+            "Read evidence recorded for: {}\n",
+            format_patch_paths(&read_paths)
+        ));
+    }
+    if let Some(symbol_touches) = symbol_touches {
+        note.push_str(&format!("Symbols touched recorded for: {symbol_touches}\n"));
+    }
+    if let Some(tests_run) = tests_run {
+        note.push_str(&format!("Tests run recorded for: {tests_run}\n"));
+    }
+    if let Some(policy_checks) = policy_checks {
+        note.push_str(&format!("Policy checks recorded for: {policy_checks}\n"));
+    }
+    if let Some(source_references) = source_references {
+        note.push_str(&format!(
+            "Source references recorded for: {source_references}\n"
+        ));
+    }
+    if !generated_paths.is_empty() {
+        note.push_str(&format!(
+            "Generated-file warning for: {}\n",
+            format_patch_paths(&generated_paths)
+        ));
+    }
+    note.push_str(">>> APPLY PATCH EVIDENCE END\n");
+    Some(note)
 }
 
 /// Builds the guardian user content items from:
@@ -216,6 +318,22 @@ pub(crate) async fn build_guardian_prompt_items_with_parent_turn(
                     .to_string(),
             );
             push_text("Network access JSON:\n".to_string());
+        }
+        GuardianApprovalRequest::ApplyPatch { files, .. } => {
+            push_text(headings.action_intro.to_string());
+            push_text(">>> APPROVAL REQUEST START\n".to_string());
+            if let Some(reason) = retry_reason {
+                push_text("Retry reason:\n".to_string());
+                push_text(format!("{reason}\n\n"));
+            }
+            push_text(
+                "Assess the exact planned action below. Use read-only tool checks when local state matters.\n"
+                    .to_string(),
+            );
+            if let Some(note) = apply_patch_evidence_note(parent_turn, files) {
+                push_text(format!("{note}\n"));
+            }
+            push_text("Planned action JSON:\n".to_string());
         }
         _ => {
             push_text(headings.action_intro.to_string());

@@ -26,6 +26,7 @@ use assert_matches::assert_matches;
 
 use crate::app_command::AppCommand as Op;
 use crate::diff_model::FileChange;
+use crate::legacy_core::config::AgentRoleConfig;
 use crate::legacy_core::config::ConfigBuilder;
 use crate::legacy_core::config::ConfigOverrides;
 use crate::legacy_core::config::PermissionProfileSnapshot;
@@ -94,6 +95,8 @@ use ontocode_protocol::request_permissions::RequestPermissionProfile;
 use ontocode_protocol::user_input::TextElement;
 use ontocode_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 use ratatui::prelude::Line;
 use std::path::Path;
 use std::path::PathBuf;
@@ -1284,7 +1287,7 @@ async fn open_agent_picker_prunes_terminal_metadata_only_threads() -> Result<()>
     Box::pin(app.open_agent_picker(&mut app_server)).await;
 
     assert_eq!(app.agent_navigation.get(&thread_id), None);
-    assert!(app.agent_navigation.is_empty());
+    assert!(app.agent_navigation.ordered_threads().is_empty());
     Ok(())
 }
 
@@ -1316,6 +1319,565 @@ async fn open_agent_picker_marks_terminal_read_errors_closed() -> Result<()> {
             is_closed: true,
         })
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_shows_configured_agent_roles_when_no_threads_exist() -> Result<()> {
+    let mut app = Box::pin(make_test_app()).await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+    app.config.agent_roles.insert(
+        "researcher".to_string(),
+        AgentRoleConfig {
+            description: Some("Focused codebase investigation.".to_string()),
+            ..Default::default()
+        },
+    );
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+
+    assert!(app.chat_widget.has_active_view());
+
+    let width = 100;
+    let height = app.chat_widget.desired_height(width);
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    app.chat_widget.render(area, &mut buf);
+
+    let mut lines: Vec<String> = (0..area.height)
+        .map(|row| {
+            let mut line = String::new();
+            for col in 0..area.width {
+                let symbol = buf[(area.x + col, area.y + row)].symbol();
+                if symbol.is_empty() {
+                    line.push(' ');
+                } else {
+                    line.push_str(symbol);
+                }
+            }
+            line.trim_end().to_string()
+        })
+        .collect();
+    while lines.first().is_some_and(|line| line.trim().is_empty()) {
+        lines.remove(0);
+    }
+    while lines.last().is_some_and(|line| line.trim().is_empty()) {
+        lines.pop();
+    }
+    let popup = lines.join("\n");
+
+    assert!(
+        popup.contains("Available role definitions"),
+        "popup: {popup}"
+    );
+    assert!(popup.contains("Create agent definition"), "popup: {popup}");
+    assert!(popup.contains("researcher [role]"), "popup: {popup}");
+    assert!(
+        popup.contains("Focused codebase investigation."),
+        "popup: {popup}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_allows_create_action_when_no_threads_exist() -> Result<()> {
+    let (mut app, mut app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_matches!(
+        app_event_rx.try_recv(),
+        Ok(AppEvent::OpenCreateAgentDefinitionPrompt)
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_allows_create_from_proposal_action_when_no_threads_exist() -> Result<()>
+{
+    let (mut app, mut app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_matches!(
+        app_event_rx.try_recv(),
+        Ok(AppEvent::OpenCreateAgentDefinitionProposalPrompt)
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_exposes_copy_action_for_repo_local_role_definition() -> Result<()> {
+    let (mut app, mut app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let role_path = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        role_path
+            .parent()
+            .expect("role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &role_path,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+    app.config.agent_roles.insert(
+        "researcher".to_string(),
+        AgentRoleConfig {
+            description: Some("Focused codebase investigation.".to_string()),
+            config_file: Some(role_path.clone()),
+            nickname_candidates: None,
+        },
+    );
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_matches!(
+        app_event_rx.try_recv(),
+        Ok(AppEvent::OpenCopyAgentDefinitionPrompt {
+            source_path,
+            role_name,
+        }) if source_path == role_path && role_name == "researcher"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_exposes_rename_action_for_repo_local_role_definition() -> Result<()> {
+    let (mut app, mut app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let role_path = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        role_path
+            .parent()
+            .expect("role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &role_path,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+    app.config.agent_roles.insert(
+        "researcher".to_string(),
+        AgentRoleConfig {
+            description: Some("Focused codebase investigation.".to_string()),
+            config_file: Some(role_path.clone()),
+            nickname_candidates: None,
+        },
+    );
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_matches!(
+        app_event_rx.try_recv(),
+        Ok(AppEvent::OpenRenameAgentDefinitionPrompt {
+            source_path,
+            role_name,
+        }) if source_path == role_path && role_name == "researcher"
+    );
+    Ok(())
+}
+
+#[test]
+fn delete_agent_definition_scaffold_removes_repo_local_role_file() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let source = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        source
+            .parent()
+            .expect("source role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &source,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+    let canonical_source = source.canonicalize()?;
+
+    let deleted = app.delete_agent_definition_scaffold(&source, "DELETE")?;
+
+    assert_eq!(deleted, canonical_source);
+    assert!(!source.exists(), "expected source file to be removed");
+    Ok(())
+}
+
+#[test]
+fn delete_agent_definition_scaffold_requires_confirmation() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let source = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        source
+            .parent()
+            .expect("source role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &source,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let err = app
+        .delete_agent_definition_scaffold(&source, "nope")
+        .expect_err("delete should require explicit confirmation");
+    assert!(
+        err.to_string()
+            .contains("Type DELETE to confirm agent definition removal"),
+        "{err}"
+    );
+    assert!(source.exists(), "expected source file to remain");
+    Ok(())
+}
+
+#[test]
+fn create_agent_definition_scaffold_writes_repo_local_role_file() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let created = app.create_agent_definition_scaffold("Research Helper", "")?;
+
+    let expected = project_root
+        .join(".codex")
+        .join("agents")
+        .join("research-helper.toml");
+    assert_eq!(created, expected);
+    assert!(
+        expected.exists(),
+        "expected {} to exist",
+        expected.display()
+    );
+    assert!(
+        !nested
+            .join(".codex")
+            .join("agents")
+            .join("research-helper.toml")
+            .exists(),
+        "expected scaffold to target the repo root instead of the nested cwd"
+    );
+    let contents = std::fs::read_to_string(&expected)?;
+    assert_eq!(
+        contents,
+        "name = \"Research Helper\"\n\
+description = \"Research Helper\"\n\
+developer_instructions = \"\"\"\n\
+Fill in the instructions for this role.\n\
+\"\"\"\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn create_agent_definition_scaffold_writes_optional_fields_when_provided() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let created = app.create_agent_definition_scaffold(
+        "Research Helper",
+        r#"
+model = "gpt-5.4-mini"
+model_reasoning_effort = "high"
+service_tier = "priority"
+nickname_candidates = ["Atlas", " Sagan "]
+"#,
+    )?;
+
+    let contents = std::fs::read_to_string(&created)?;
+    assert_eq!(
+        contents,
+        "name = \"Research Helper\"\n\
+description = \"Research Helper\"\n\
+model = \"gpt-5.4-mini\"\n\
+model_reasoning_effort = \"high\"\n\
+service_tier = \"priority\"\n\
+nickname_candidates = [\"Atlas\", \"Sagan\"]\n\
+developer_instructions = \"\"\"\n\
+Fill in the instructions for this role.\n\
+\"\"\"\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn create_agent_definition_scaffold_rejects_invalid_nickname_candidates() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let err = app
+        .create_agent_definition_scaffold(
+            "Research Helper",
+            r#"nickname_candidates = ["Atlas", " Atlas "]"#,
+        )
+        .expect_err("duplicate nickname_candidates should fail");
+    assert!(
+        err.to_string()
+            .contains("nickname_candidates cannot contain duplicates"),
+        "{err}"
+    );
+    Ok(())
+}
+
+#[test]
+fn create_agent_definition_from_proposal_scaffold_writes_repo_local_role_file() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let created = app.create_agent_definition_from_proposal_scaffold(
+        "Research Helper\nFocused codebase investigation.\nTrace call paths before editing.\nKeep summaries short.",
+    )?;
+
+    let contents = std::fs::read_to_string(&created)?;
+    assert_eq!(
+        contents,
+        "name = \"Research Helper\"\n\
+description = \"Focused codebase investigation.\"\n\
+developer_instructions = \"\"\"\n\
+Focused codebase investigation.\n\
+Trace call paths before editing.\n\
+Keep summaries short.\n\
+\"\"\"\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn create_agent_definition_from_proposal_scaffold_accepts_one_line_prompt() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let created =
+        app.create_agent_definition_from_proposal_scaffold("Make developer agent definitions")?;
+
+    let contents = std::fs::read_to_string(&created)?;
+    assert_eq!(
+        contents,
+        "name = \"Make developer agent definitions\"\n\
+description = \"Make developer agent definitions\"\n\
+developer_instructions = \"\"\"\n\
+Make developer agent definitions\n\
+\"\"\"\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn copy_agent_definition_scaffold_duplicates_repo_local_role_file() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let source = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        source
+            .parent()
+            .expect("source role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &source,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let copied = app.copy_agent_definition_scaffold(&source, "Research Helper")?;
+
+    let expected = project_root
+        .join(".codex")
+        .join("agents")
+        .join("research-helper.toml");
+    assert_eq!(copied, expected);
+    assert_eq!(
+        std::fs::read_to_string(&expected)?,
+        "name = \"Research Helper\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&source)?,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn rename_agent_definition_scaffold_moves_repo_local_role_file() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let source = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        source
+            .parent()
+            .expect("source role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &source,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let renamed = app.rename_agent_definition_scaffold(&source, "Research Helper")?;
+
+    let expected = project_root
+        .join(".codex")
+        .join("agents")
+        .join("research-helper.toml");
+    assert_eq!(renamed, expected);
+    assert!(!source.exists(), "expected source file to be removed");
+    assert_eq!(
+        std::fs::read_to_string(&expected)?,
+        "name = \"Research Helper\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n"
+    );
+    Ok(())
+}
+
+#[test]
+fn rename_agent_definition_scaffold_rejects_collision() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let agents_dir = project_root.join(".codex").join("agents");
+    let source = agents_dir.join("researcher.toml");
+    let existing = agents_dir.join("research-helper.toml");
+    std::fs::create_dir_all(&agents_dir)?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &source,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    std::fs::write(
+        &existing,
+        "name = \"Research Helper\"\ndescription = \"Existing helper.\"\ndeveloper_instructions = \"Already here\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+
+    let err = app
+        .rename_agent_definition_scaffold(&source, "Research Helper")
+        .expect_err("destination collision should fail");
+    assert!(
+        err.to_string().contains("Agent definition already exists"),
+        "{err}"
+    );
+    assert!(source.exists(), "expected source file to remain");
     Ok(())
 }
 
@@ -2081,6 +2643,403 @@ async fn open_agent_picker_allows_existing_agent_threads_when_feature_is_disable
         app_event_rx.try_recv(),
         Ok(AppEvent::SelectAgentThread(selected_thread_id)) if selected_thread_id == thread_id
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_exposes_rename_action_for_existing_side_threads() -> Result<()> {
+    let (mut app, mut app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+    let thread_id = ThreadId::new();
+    app.thread_event_channels
+        .insert(thread_id, ThreadEventChannel::new(/*capacity*/ 1));
+    app.agent_navigation.upsert(
+        thread_id,
+        Some("Robie".to_string()),
+        Some("explorer".to_string()),
+        /*is_closed*/ false,
+    );
+    app.active_thread_id = Some(thread_id);
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_matches!(
+        app_event_rx.try_recv(),
+        Ok(AppEvent::OpenRenameAgentThreadPrompt {
+            thread_id: selected_thread_id
+        }) if selected_thread_id == thread_id
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_exposes_delete_action_for_existing_side_threads() -> Result<()> {
+    let (mut app, mut app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+    let thread_id = ThreadId::new();
+    app.thread_event_channels
+        .insert(thread_id, ThreadEventChannel::new(/*capacity*/ 1));
+    app.agent_navigation.upsert(
+        thread_id,
+        Some("Robie".to_string()),
+        Some("explorer".to_string()),
+        /*is_closed*/ false,
+    );
+    app.active_thread_id = Some(thread_id);
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_matches!(
+        app_event_rx.try_recv(),
+        Ok(AppEvent::DeleteAgentThread {
+            thread_id: selected_thread_id
+        }) if selected_thread_id == thread_id
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_copy_role_row_snapshot() -> Result<()> {
+    let mut app = Box::pin(make_test_app()).await;
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let role_path = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        role_path
+            .parent()
+            .expect("role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &role_path,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+    app.config.agent_roles.insert(
+        "researcher".to_string(),
+        AgentRoleConfig {
+            description: Some("Focused codebase investigation.".to_string()),
+            config_file: Some(role_path),
+            nickname_candidates: None,
+        },
+    );
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+
+    let width = 100;
+    let height = app.chat_widget.desired_height(width);
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    app.chat_widget.render(area, &mut buf);
+
+    let mut lines: Vec<String> = (0..area.height)
+        .map(|row| {
+            let mut line = String::new();
+            for col in 0..area.width {
+                let symbol = buf[(area.x + col, area.y + row)].symbol();
+                if symbol.is_empty() {
+                    line.push(' ');
+                } else {
+                    line.push_str(symbol);
+                }
+            }
+            line.trim_end().to_string()
+        })
+        .collect();
+    while lines.first().is_some_and(|line| line.trim().is_empty()) {
+        lines.remove(0);
+    }
+    while lines.last().is_some_and(|line| line.trim().is_empty()) {
+        lines.pop();
+    }
+
+    assert_app_snapshot!("agent_picker_copy_role_row", lines.join("\n"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_exposes_delete_action_for_repo_local_role_definition() -> Result<()> {
+    let (mut app, mut app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
+    let workspace = tempdir()?;
+    let project_root = workspace.path().join("project");
+    let nested = project_root.join("nested");
+    let role_path = project_root
+        .join(".codex")
+        .join("agents")
+        .join("researcher.toml");
+    std::fs::create_dir_all(
+        role_path
+            .parent()
+            .expect("role file should have a parent directory"),
+    )?;
+    std::fs::create_dir_all(&nested)?;
+    std::fs::write(project_root.join(".git"), "gitdir: here")?;
+    std::fs::write(
+        &role_path,
+        "name = \"researcher\"\ndescription = \"Focused codebase investigation.\"\ndeveloper_instructions = \"Research carefully\"\n",
+    )?;
+    app.config.cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
+    app.config.agent_roles.insert(
+        "researcher".to_string(),
+        AgentRoleConfig {
+            description: Some("Focused codebase investigation.".to_string()),
+            config_file: Some(role_path.clone()),
+            nickname_candidates: None,
+        },
+    );
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    app.chat_widget
+        .handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    assert_matches!(
+        app_event_rx.try_recv(),
+        Ok(AppEvent::OpenDeleteAgentDefinitionPrompt {
+            source_path,
+            role_name,
+        }) if source_path == role_path && role_name == "researcher"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_create_from_proposal_row_snapshot() -> Result<()> {
+    let mut app = Box::pin(make_test_app()).await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+
+    let width = 100;
+    let height = app.chat_widget.desired_height(width);
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    app.chat_widget.render(area, &mut buf);
+
+    let mut lines: Vec<String> = (0..area.height)
+        .map(|row| {
+            let mut line = String::new();
+            for col in 0..area.width {
+                let symbol = buf[(area.x + col, area.y + row)].symbol();
+                if symbol.is_empty() {
+                    line.push(' ');
+                } else {
+                    line.push_str(symbol);
+                }
+            }
+            line.trim_end().to_string()
+        })
+        .collect();
+    while lines.first().is_some_and(|line| line.trim().is_empty()) {
+        lines.remove(0);
+    }
+    while lines.last().is_some_and(|line| line.trim().is_empty()) {
+        lines.pop();
+    }
+
+    assert_app_snapshot!("agent_picker_create_from_proposal_row", lines.join("\n"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn open_agent_picker_rename_row_snapshot() -> Result<()> {
+    let mut app = Box::pin(make_test_app()).await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+    let main_thread_id =
+        ThreadId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
+    let thread_id =
+        ThreadId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread id");
+    app.primary_thread_id = Some(main_thread_id);
+    app.active_thread_id = Some(thread_id);
+    app.thread_event_channels
+        .insert(main_thread_id, ThreadEventChannel::new(/*capacity*/ 1));
+    app.thread_event_channels
+        .insert(thread_id, ThreadEventChannel::new(/*capacity*/ 1));
+    app.agent_navigation.upsert(
+        main_thread_id,
+        /*agent_nickname*/ None,
+        /*agent_role*/ None,
+        /*is_closed*/ false,
+    );
+    app.agent_navigation.upsert(
+        thread_id,
+        Some("Robie".to_string()),
+        Some("explorer".to_string()),
+        /*is_closed*/ false,
+    );
+
+    Box::pin(app.open_agent_picker(&mut app_server)).await;
+
+    let width = 100;
+    let height = app.chat_widget.desired_height(width);
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    app.chat_widget.render(area, &mut buf);
+
+    let mut lines: Vec<String> = (0..area.height)
+        .map(|row| {
+            let mut line = String::new();
+            for col in 0..area.width {
+                let symbol = buf[(area.x + col, area.y + row)].symbol();
+                if symbol.is_empty() {
+                    line.push(' ');
+                } else {
+                    line.push_str(symbol);
+                }
+            }
+            line.trim_end().to_string()
+        })
+        .collect();
+    while lines.first().is_some_and(|line| line.trim().is_empty()) {
+        lines.remove(0);
+    }
+    while lines.last().is_some_and(|line| line.trim().is_empty()) {
+        lines.pop();
+    }
+
+    assert_app_snapshot!("agent_picker_rename_row", lines.join("\n"));
+    Ok(())
+}
+
+#[test]
+fn rename_agent_picker_thread_label_updates_visible_metadata_only() -> Result<()> {
+    let runtime = tokio::runtime::Runtime::new()?;
+    let mut app = runtime.block_on(make_test_app());
+    let main_thread_id = ThreadId::new();
+    let thread_id = ThreadId::new();
+    app.primary_thread_id = Some(main_thread_id);
+    app.agent_navigation.upsert(
+        main_thread_id,
+        /*agent_nickname*/ None,
+        /*agent_role*/ None,
+        /*is_closed*/ false,
+    );
+    app.agent_navigation.upsert(
+        thread_id,
+        Some("Robie".to_string()),
+        Some("explorer".to_string()),
+        /*is_closed*/ true,
+    );
+
+    app.rename_agent_picker_thread_label(thread_id, "Roadmap Scout")?;
+
+    assert_eq!(
+        app.agent_navigation.get(&thread_id),
+        Some(&AgentPickerThreadEntry {
+            agent_nickname: Some("Roadmap Scout".to_string()),
+            agent_role: Some("explorer".to_string()),
+            is_closed: true,
+        })
+    );
+    assert_eq!(
+        app.agent_navigation
+            .active_agent_label(Some(thread_id), app.primary_thread_id),
+        Some("Roadmap Scout [explorer]".to_string())
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn delete_agent_picker_thread_removes_inactive_local_state() -> Result<()> {
+    let mut app = make_test_app().await;
+    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
+        app.chat_widget.config_ref(),
+    ))
+    .await
+    .expect("embedded app server");
+    let mut tui = crate::tui::Tui::new(
+        crate::tui::Terminal::with_options_and_cursor_position(
+            ratatui::backend::CrosstermBackend::new(std::io::stdout()),
+            ratatui::layout::Position { x: 0, y: 0 },
+        )
+        .expect("terminal"),
+        /*enhanced_keys_supported*/ false,
+        unsafe { std::mem::zeroed() },
+    );
+    let main_thread_id = ThreadId::new();
+    let thread_id = ThreadId::new();
+    app.primary_thread_id = Some(main_thread_id);
+    app.active_thread_id = Some(main_thread_id);
+    app.thread_event_channels.insert(
+        main_thread_id,
+        ThreadEventChannel::new_with_session(
+            /*capacity*/ 4,
+            test_thread_session(main_thread_id, test_path_buf("/tmp/main")),
+            Vec::new(),
+        ),
+    );
+    app.thread_event_channels.insert(
+        thread_id,
+        ThreadEventChannel::new_with_session(
+            /*capacity*/ 4,
+            test_thread_session(thread_id, test_path_buf("/tmp/agent")),
+            Vec::new(),
+        ),
+    );
+    app.side_threads
+        .insert(thread_id, SideThreadState::new(main_thread_id));
+    app.agent_navigation.upsert(
+        thread_id,
+        Some("Robie".to_string()),
+        Some("explorer".to_string()),
+        /*is_closed*/ false,
+    );
+
+    app.delete_agent_picker_thread(&mut tui, &mut app_server, thread_id)
+        .await?;
+
+    assert_eq!(app.active_thread_id, Some(main_thread_id));
+    assert!(!app.side_threads.contains_key(&thread_id));
+    assert!(!app.thread_event_channels.contains_key(&thread_id));
+    assert_eq!(app.agent_navigation.get(&thread_id), None);
     Ok(())
 }
 

@@ -5,14 +5,17 @@ use ontocode_apply_patch::MaybeApplyPatchVerified;
 use ontocode_exec_server::LOCAL_FS;
 use ontocode_protocol::permissions::FileSystemSandboxPolicy;
 use ontocode_protocol::protocol::FileChange;
+use ontocode_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
+use crate::apply_patch::generated_file_warning_paths;
 use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolInvocation;
 use crate::tools::hook_names::HookToolName;
@@ -259,6 +262,65 @@ fn write_permissions_for_paths_skip_dirs_already_writable_under_workspace_root()
     let permissions = write_permissions_for_paths(&[file_path], &sandbox_policy, &cwd);
 
     assert_eq!(permissions, None);
+}
+
+#[tokio::test]
+async fn apply_patch_read_evidence_is_recorded_and_cleared_for_verified_updates() {
+    let tmp = TempDir::new().expect("tmp");
+    let cwd_path = tmp.path();
+    let cwd = cwd_path.abs();
+    let src_path = AbsolutePathBuf::try_from(cwd_path.join("src/input.txt"))
+        .expect("source file path should be absolute");
+    let generated_path = AbsolutePathBuf::try_from(cwd_path.join("dist/output.min.js"))
+        .expect("generated destination path should be absolute");
+    std::fs::create_dir_all(cwd_path.join("src")).expect("create src dir");
+    std::fs::create_dir_all(cwd_path.join("dist")).expect("create dist dir");
+    std::fs::write(cwd_path.join("src/input.txt"), "old content\n").expect("write source file");
+    let patch = r#"*** Begin Patch
+*** Update File: src/input.txt
+*** Move to: dist/output.min.js
+@@
+-old content
++new content
+*** End Patch"#;
+    let argv = vec!["apply_patch".to_string(), patch.to_string()];
+    let action = match ontocode_apply_patch::maybe_parse_apply_patch_verified(
+        &argv,
+        &cwd,
+        LOCAL_FS.as_ref(),
+        /*sandbox*/ None,
+    )
+    .await
+    {
+        MaybeApplyPatchVerified::Body(action) => action,
+        other => panic!("expected patch body, got: {other:?}"),
+    };
+
+    assert_eq!(
+        apply_patch_read_evidence_paths(&action),
+        vec![src_path.clone()]
+    );
+    assert_eq!(
+        generated_file_warning_paths(&action),
+        vec![generated_path.clone()]
+    );
+
+    let (_session, turn) = make_session_and_context().await;
+    record_apply_patch_read_evidence(&turn, &action);
+    assert_eq!(
+        turn.file_read_evidence.lock().expect("evidence lock").paths,
+        BTreeMap::from([(src_path.clone(), 1)])
+    );
+
+    let clear_paths = apply_patch_read_evidence_paths(&action);
+    clear_apply_patch_read_evidence(&turn, &clear_paths);
+    assert!(
+        turn.file_read_evidence
+            .lock()
+            .expect("evidence lock")
+            .paths
+            .is_empty()
+    );
 }
 
 #[test]

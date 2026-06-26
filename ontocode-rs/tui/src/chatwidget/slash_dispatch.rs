@@ -44,6 +44,7 @@ const SIDE_SLASH_COMMAND_UNAVAILABLE_HINT: &str =
 const GOAL_USAGE: &str = "Usage: /goal <objective>";
 const GOAL_USAGE_HINT: &str = "Example: /goal improve benchmark coverage";
 const RAW_USAGE: &str = "Usage: /raw [on|off]";
+const AGENT_USAGE: &str = "Usage: /agent <create|send|wait|list|close> ...";
 const CLAUDE_PROVIDER_NAME: &str = "claude";
 const CLAUDE_RUNTIME_UNAVAILABLE_REASON: &str = "Claude runtime is not available yet.";
 const KIMI_PROVIDER_NAME: &str = "kimi";
@@ -167,6 +168,40 @@ impl ChatWidget {
         provider
             .eq_ignore_ascii_case(provider_id)
             .then_some(tokens.into_iter().skip(1).collect())
+    }
+
+    fn agent_usage_message() -> String {
+        [
+            AGENT_USAGE,
+            "Examples:",
+            "/agent create worker_1 investigate the parser regression",
+            "/agent create worker_2 --role reviewer --model gpt-5.4-mini review the patch",
+            "/agent send worker_1 check the latest failing test",
+            "/agent wait worker_1",
+            "/agent list",
+            "/agent close worker_1",
+        ]
+        .join("\n")
+    }
+
+    fn build_agent_command_message(cmd: SlashCommand, args: &str) -> Result<String, String> {
+        let Some(verb) = args.split_whitespace().next() else {
+            return Err(Self::agent_usage_message());
+        };
+
+        let details = match verb.to_ascii_lowercase().as_str() {
+            "create" => "Call `spawn_agent`.",
+            "send" => "Use `send_message` or `followup_task`.",
+            "wait" => "Call `wait_agent`.",
+            "list" => "Call `list_agents`.",
+            "close" => "Call `close_agent`.",
+            _ => return Err(Self::agent_usage_message()),
+        };
+
+        Ok(format!(
+            "Interpret the following `/{command} {args}` request as a manager instruction.\nUse the existing multi-agent tools only.\n- {details}\n- Do not invent a new runtime, registry, or dispatch path.",
+            command = cmd.command()
+        ))
     }
 
     fn handle_login_provider_command(&mut self, args: &str) -> bool {
@@ -1307,6 +1342,36 @@ impl ChatWidget {
                     source,
                 );
                 self.request_side_conversation(parent_thread_id, Some(user_message));
+            }
+            SlashCommand::Agent | SlashCommand::MultiAgents if !trimmed.is_empty() => {
+                let agent_message = match Self::build_agent_command_message(cmd, trimmed) {
+                    Ok(message) => message,
+                    Err(usage) => {
+                        self.add_error_message(usage);
+                        return;
+                    }
+                };
+                let user_message = self.prepared_inline_user_message(
+                    agent_message,
+                    text_elements,
+                    local_images,
+                    remote_image_urls,
+                    mention_bindings,
+                    source,
+                );
+                if self.is_session_configured() {
+                    self.submit_user_message_with_history_record(
+                        user_message,
+                        UserMessageHistoryRecord::Override(
+                            crate::chatwidget::user_messages::UserMessageHistoryOverride {
+                                text: String::new(),
+                                text_elements: Vec::new(),
+                            },
+                        ),
+                    );
+                } else {
+                    self.queue_user_message(user_message);
+                }
             }
             SlashCommand::Review if !trimmed.is_empty() => {
                 self.submit_op(AppCommand::review(ReviewTarget::Custom {

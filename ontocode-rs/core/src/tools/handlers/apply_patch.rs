@@ -218,6 +218,37 @@ fn file_paths_for_action(action: &ApplyPatchAction) -> Vec<AbsolutePathBuf> {
     keys
 }
 
+fn apply_patch_read_evidence_paths(action: &ApplyPatchAction) -> Vec<AbsolutePathBuf> {
+    let mut paths = BTreeSet::new();
+    for (path, change) in action.changes() {
+        match change {
+            ApplyPatchFileChange::Add { .. } => {}
+            ApplyPatchFileChange::Delete { .. } | ApplyPatchFileChange::Update { .. } => {
+                if let Ok(path) = AbsolutePathBuf::from_absolute_path(path) {
+                    paths.insert(path);
+                }
+            }
+        }
+    }
+
+    paths.into_iter().collect()
+}
+
+fn record_apply_patch_read_evidence(turn: &TurnContext, action: &ApplyPatchAction) {
+    let paths = apply_patch_read_evidence_paths(action);
+    for path in paths {
+        turn.record_file_read(&path);
+    }
+}
+
+fn clear_apply_patch_read_evidence(turn: &TurnContext, paths: &[AbsolutePathBuf]) {
+    if let Ok(mut evidence) = turn.file_read_evidence.lock() {
+        for path in paths {
+            evidence.paths.remove(path);
+        }
+    }
+}
+
 fn to_abs_path(cwd: &AbsolutePathBuf, path: &Path) -> Option<AbsolutePathBuf> {
     Some(AbsolutePathBuf::resolve_path_against_base(path, cwd))
 }
@@ -369,6 +400,8 @@ impl ToolExecutor<ToolInvocation> for ApplyPatchHandler {
                         &cwd,
                     )
                     .await;
+                record_apply_patch_read_evidence(turn.as_ref(), &changes);
+                let clear_paths = apply_patch_read_evidence_paths(&changes);
                 match apply_patch::apply_patch(turn.as_ref(), &file_system_sandbox_policy, changes)
                     .await
                 {
@@ -428,7 +461,9 @@ impl ToolExecutor<ToolInvocation> for ApplyPatchHandler {
                             &call_id,
                             Some(&tracker),
                         );
-                        let content = emitter.finish(event_ctx, out, delta.as_ref()).await?;
+                        let content = emitter.finish(event_ctx, out, delta.as_ref()).await;
+                        clear_apply_patch_read_evidence(turn.as_ref(), &clear_paths);
+                        let content = content?;
                         Ok(boxed_tool_output(ApplyPatchToolOutput::from_text(content)))
                     }
                 }
@@ -528,6 +563,8 @@ pub(crate) async fn intercept_apply_patch(
                     cwd,
                 )
                 .await;
+            record_apply_patch_read_evidence(turn.as_ref(), &changes);
+            let clear_paths = apply_patch_read_evidence_paths(&changes);
             match apply_patch::apply_patch(turn.as_ref(), &file_system_sandbox_policy, changes)
                 .await
             {
@@ -586,7 +623,9 @@ pub(crate) async fn intercept_apply_patch(
                         call_id,
                         tracker.as_ref().copied(),
                     );
-                    let content = emitter.finish(event_ctx, out, delta.as_ref()).await?;
+                    let content = emitter.finish(event_ctx, out, delta.as_ref()).await;
+                    clear_apply_patch_read_evidence(turn.as_ref(), &clear_paths);
+                    let content = content?;
                     Ok(Some(FunctionToolOutput::from_text(content, Some(true))))
                 }
             }

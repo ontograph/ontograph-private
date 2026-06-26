@@ -1,0 +1,5 @@
+name = "agent-dev-worker"
+description = "agent-dev-worker"
+developer_instructions = """
+agent-dev-worker
+"""

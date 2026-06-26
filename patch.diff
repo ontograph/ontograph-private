@@ -1,13 +1,28 @@
---- AGENTS.md
-+++ AGENTS.md
-@@ -101,5 +101,6 @@
- - For sub-agent coding tasks in this repository, request models in this order:
-   `gemini-3.5-flash-low`, `gemini-3-flash-agent`, `gemini-pro-agent`,
-   `claude-sonnet-4-6`, `gpt-5.3-codex-spark`, `gpt-5.4-mini`.
--  Use the first available model. If a model fails today, do not retry that
--  same model again until tomorrow; use the next available model in the order
--  for today's next attempt.
-+  You must use the exact model names listed above; do not truncate them (e.g. do not ask for `gemini-3-flash`).
-+  Use the first available model. If an exact model fails today, do not retry that
-+  same exact model again until tomorrow; use the next available model in the order
-+  for today's next attempt.
+--- ontocode-rs/core/src/tools/context.rs
++++ ontocode-rs/core/src/tools/context.rs
+@@ -403,6 +403,26 @@
+
+     pub(crate) fn truncated_output(&self, max_tokens: usize) -> String {
+         let text = String::from_utf8_lossy(&self.raw_output).to_string();
++
++        if let Some(count) = self.original_token_count {
++            if count > max_tokens {
++                let mut result = formatted_truncate_text(&text, TruncationPolicy::Tokens(max_tokens));
++                // If `text` itself was already truncated by the unified exec process manager during streaming,
++                // it might be shorter than `max_tokens` (or exactly `max_tokens`) when it reaches this point.
++                // As a result, `formatted_truncate_text` might not insert a truncation marker,
++                // or might insert one with an inaccurately small token count based only on `text.len()`.
++                // To leave a correct recovery path, we ensure the marker reflects the true original count.
++                if !result.contains("tokens truncated") {
++                    let removed = count.saturating_sub(max_tokens);
++                    let total_lines = text.lines().count();
++                    if text.len() <= TruncationPolicy::Tokens(max_tokens).byte_budget() {
++                        return format!("Total output lines: {total_lines}\n\n{text}\n…{removed} tokens truncated…");
++                    } else {
++                        return format!("{result}\n…{removed} tokens truncated…");
++                    }
++                }
++            }
++        }
+         formatted_truncate_text(&text, TruncationPolicy::Tokens(max_tokens))
+     }

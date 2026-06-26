@@ -49,6 +49,7 @@ members = [
     "ext/goal",
     "ext/guardian",
     "ext/image-generation",
+    "ext/excel",
     "ext/memories",
     "ext/skills",
     "ext/web-search",
@@ -170,6 +171,7 @@ ontocode-file-system = { path = "file-system" }
 ontocode-exec-server = { path = "exec-server" }
 ontocode-execpolicy = { path = "execpolicy" }
 ontocode-extension-api = { path = "ext/extension-api" }
+ontocode-excel-extension = { path = "ext/excel" }
 ontocode-goal-extension = { path = "ext/goal" }
 ontocode-guardian = { path = "ext/guardian" }
 ontocode-image-generation-extension = { path = "ext/image-generation" }

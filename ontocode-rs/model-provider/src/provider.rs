@@ -416,12 +416,16 @@ mod tests {
     use std::sync::Mutex;
     use std::sync::OnceLock;
 
+    use ontocode_login::AuthCredentialsStoreMode;
+    use ontocode_login::auth::upsert_provider_oauth_credential;
     use ontocode_model_provider_info::ModelProviderAwsAuthInfo;
     use ontocode_model_provider_info::WireApi;
     use ontocode_models_manager::manager::RefreshStrategy;
     use ontocode_protocol::config_types::ModelProviderAuthInfo;
+    use ontocode_protocol::credential_routing::ProviderCredentialSourceKind;
     use ontocode_protocol::openai_models::ModelInfo;
     use ontocode_protocol::openai_models::ModelsResponse;
+    use ontocode_provider_auth::ProviderOAuthCredential;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use wiremock::Mock;
@@ -823,6 +827,53 @@ mod tests {
 
         assert_eq!(provider.provider_id(), "gemini-cli");
         assert_eq!(provider.info().name, "Gemini CLI");
+    }
+
+    #[tokio::test]
+    async fn configured_provider_api_auth_uses_provider_id_alias_for_oauth_lookup() {
+        let codex_home = std::env::temp_dir().join(format!(
+            "ontocode-model-provider-auth-alias-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system time should be after epoch")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&codex_home).expect("temp dir should be created");
+        upsert_provider_oauth_credential(
+            codex_home.as_path(),
+            AuthCredentialsStoreMode::File,
+            ProviderOAuthCredential::new(
+                "gemini-cli",
+                ProviderCredentialSourceKind::ExternalImport,
+                "gemini-cli:workspace-1",
+                "gemini-cli-access-token",
+            ),
+        )
+        .expect("provider oauth credential should persist");
+        let auth_manager = AuthManager::from_auth_for_testing_with_home(
+            CodexAuth::from_api_key("openai-api-key"),
+            codex_home,
+        );
+        let provider = create_model_provider_with_id(
+            "gemini-cli",
+            ModelProviderInfo::create_gemini_provider(),
+            Some(auth_manager),
+        );
+
+        let auth = provider
+            .api_auth()
+            .await
+            .expect("provider auth should resolve");
+        let mut headers = http::HeaderMap::new();
+        auth.add_auth_headers(&mut headers);
+
+        assert_eq!(
+            headers
+                .get(http::header::AUTHORIZATION)
+                .and_then(|value| value.to_str().ok()),
+            Some("Bearer gemini-cli-access-token")
+        );
     }
 
     #[test]

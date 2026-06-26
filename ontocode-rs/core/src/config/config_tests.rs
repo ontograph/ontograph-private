@@ -9864,7 +9864,7 @@ non_code_mode_only = true
 }
 
 #[tokio::test]
-async fn multi_agent_v2_default_session_thread_cap_counts_root() -> std::io::Result<()> {
+async fn multi_agent_v2_default_session_thread_cap_allows_five_children() -> std::io::Result<()> {
     let codex_home = TempDir::new()?;
     std::fs::write(
         codex_home.path().join(CONFIG_TOML_FILE),
@@ -9879,7 +9879,7 @@ enabled = true
         .build()
         .await?;
 
-    assert_eq!(config.multi_agent_v2.max_concurrent_threads_per_session, 4);
+    assert_eq!(config.multi_agent_v2.max_concurrent_threads_per_session, 6);
     assert_eq!(config.multi_agent_v2.min_wait_timeout_ms, 10_000);
     assert_eq!(config.multi_agent_v2.max_wait_timeout_ms, 3_600_000);
     assert_eq!(config.multi_agent_v2.default_wait_timeout_ms, 30_000);
@@ -9888,7 +9888,7 @@ enabled = true
             config.agent_max_threads,
             config.effective_agent_max_threads(MultiAgentVersion::V2)
         ),
-        (None, Some(3))
+        (None, Some(5))
     );
     assert_eq!(
         config.multi_agent_v2.root_agent_usage_hint_text.as_deref(),

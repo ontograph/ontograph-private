@@ -1,0 +1,15 @@
+---
+source: tui/src/app/tests.rs
+assertion_line: 2343
+expression: lines.join("\\n")
+---
+  Subagents
+  Select an agent to watch. ⌥ + ← previous, ⌥ + → next.
+
+  1. Create agent definition       Write a repo-local .codex/agents/<slug>.toml scaffold.
+  2. • Main [default]              00000000-0000-0000-0000-000000000001
+› 3. • Robie [explorer] (current)  00000000-0000-0000-0000-000000000002
+  4. Rename Robie [explorer]       Change only the visible label for this live thread.
+  5. Delete Robie [explorer]       Remove this live thread from the current session only.
+
+  Press enter to confirm or esc to go back

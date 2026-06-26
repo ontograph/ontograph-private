@@ -69,7 +69,7 @@ const FIRST_AUTO_SUMMARY: &str = "FIRST_AUTO_SUMMARY";
 const SECOND_AUTO_SUMMARY: &str = "SECOND_AUTO_SUMMARY";
 const FINAL_REPLY: &str = "FINAL_REPLY";
 const CONTEXT_LIMIT_MESSAGE: &str =
-    "Your input exceeds the context window of this model. Please adjust your input and try again.";
+    "Your input exceeds the context window of this model.\nPlease adjust your input and try again.";
 const DUMMY_FUNCTION_NAME: &str = "test_tool";
 const DUMMY_CALL_ID: &str = "call-multi-auto";
 const FUNCTION_CALL_LIMIT_MSG: &str = "function call limit push";
@@ -3959,7 +3959,7 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
             sse_failed(
                 "compact-failed",
                 "context_length_exceeded",
-                "Your input exceeds the context window of this model. Please adjust your input and try again.",
+                "Your input exceeds the context window of this model.\nPlease adjust your input and try again.",
             )
         }),
     );

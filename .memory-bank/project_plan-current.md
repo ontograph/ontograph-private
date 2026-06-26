@@ -58,14 +58,16 @@ Upcoming work depends on:
   active plan. External provider configuration remains the supported extension
   path.
 - Alpha release cut decisions captured in `ALPHA_RELEASE_READINESS.md`, including version policy, package staging, and remaining evidence gates.
-- Default first-alpha candidate is `0.1.0-alpha.1`; final release-manager confirmation is still pending.
+- Alpha publish candidate is `0.1.0-alpha.5`; private releases currently stop at `0.1.0-alpha.3`, and `0.1.0-alpha.4` is avoided in this mixed checkout because the local tag name is occupied by fetched upstream/OpenAI tag data.
 - The standalone `ontocode` launcher/runtime blocker is fixed, and both fresh dev-profile and clean release-profile `ontocode` binary verification are complete.
-- Remaining alpha work is now final version choice, Claude OAuth live validation, and accepted warning/layout debt cleanup.
+- Remaining alpha work is now Claude OAuth live validation, one bounded publish-prep slice for the remaining artifact/staging path, and accepted warning/layout debt cleanup.
 - The Rust workspace directory is now `ontocode-rs/`; the shipped binary surface is `ontocode`, and Cargo metadata reports zero `codex` binary targets after the main-checkout layout reconciliation.
 - The root npm wrapper directory is now `ontocode-cli/`; local pnpm/release tooling uses the new path while the public npm package identity remains compatibility-preserved.
-- `ONTOCODE_FULL_LEGACY_MIGRATION_PROJECT_PLAN.md` remains the staged migration track. Main-checkout F1 layout reconciliation is complete; remaining work is F5 verification/runtime compatibility plus release-gated F6/F7 cleanup.
+- `ONTOCODE_FULL_LEGACY_MIGRATION_PROJECT_PLAN.md` remains the staged migration track. Main-checkout F1 layout reconciliation is complete; the next concrete task is `F5-M` package-wide `ontocode-core` verification after the remote-compaction fix, and broader F6/F7 cleanup stays release-gated.
 - Rollout of TUI context visualization.
 - Multi-agent goal orchestration refinements.
+- `ADR_FIVE_CONCURRENT_CODING_SUBAGENTS.md` is implemented: the default v2 session cap supports five direct coding children, coding sub-agents no longer receive recursive `spawn_agent`, cap refusal explains close-to-free-slots behavior, and focused core tests pass.
+- `/agent` management followups now have the narrow agent-definition path closed through valid scaffolds, repo-local copy, repo-local definition rename, and repo-local definition delete. Broader dispatch/profile/job surfaces remain blocked.
 - `NATIVE_CONTEXT_TOOLS_CORE_ENGINE_PROJECT_PLAN.md` C0 is complete: shell-output reducers now live in existing `ontocode-core` formatting, focused reducer tests pass, the arg0 test-binary-support alias collision is fixed, and broad `ontocode-core` tests pass when run with a fresh isolated `TMPDIR`.
 - `GITNEXUS_CODE_GRAPH_ADOPTION_PRE_JUNIOR_PROJECT_PLAN.md` is complete through S0-S9: the Rust `operational_evidence_records` ledger, bounded state runtime methods, runtime topology evidence, explicit artifact/workflow import, and planned-versus-done gate evaluator are implemented in `ontocode-state`. S10 remains blocked until a separate ADR approves any model-visible context fragment.
 - `GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_PRE_JUNIOR_PROJECT_PLAN.md`
@@ -76,10 +78,51 @@ Upcoming work depends on:
   rows only as narrow existing-owner slices. Broad public metadata, persisted
   read-evidence, full transcript, native HTTP-hook, and artifact-classifier
   surfaces remain ADR-blocked.
+- `ADR_QWEN_DONOR_REMAINING_BLOCKERS_SOLUTIONS.md` reopens only the ten rows
+  still blocked after the first pass. The accepted implementation path remains
+  owner-local: internal tool reasons, per-turn in-memory read evidence, bounded
+  agent summary if no migration is needed, a bounded context fragment for
+  operational evidence, and provider-local context-window classification.
 - `CLAUDE_CODE_DONOR_DEFERRED_NARROW_REJECT_PRE_JUNIOR_PROJECT_PLAN.md`
   is closed no-dispatch: all 146 parked DEFER/NARROW/REJECT rows are tracked,
   with zero remaining dispatch rows and no new core-extension implementation
   accepted from the parked set.
+- `ADR_JSCPD_DONOR_CORE_EXTENSION_SOLUTIONS.md` is complete. The five retained
+  jscpd donor rows closed as owner-local regression coverage or existing
+  snapshot coverage in `JSCPD_DONOR_CORE_EXTENSION_TRACKING.md`; duplicate
+  detectors, generic report pipelines, and SQLite tracking stores remain
+  rejected.
+- `ADR_HERMES_DONOR_CORE_EXTENSION_SOLUTIONS.md` is complete. The four accepted
+  Hermes donor rows closed in `HERMES_DONOR_CORE_EXTENSION_TRACKING.md` as
+  owner-local regression coverage or one minimal existing-owner TUI diagnostic:
+  subagent namespace/model/tool exposure, repeated MCP failure hints,
+  MCP/plugin connector cache invalidation, and long-running process lifecycle
+  cleanup/status. All other Hermes donor rows remain closed unless a concrete
+  failing fixture reopens them.
+- `ADR_CLAUDE_CODE_DONOR_300_CORE_EXTENSION_SOLUTIONS.md` is complete for
+  scoped owner-local regression closure, not full donor feature parity. The
+  keep-only Claude Code donor 300 review closed all five bundles in
+  `CLAUDE_CODE_DONOR_300_CORE_EXTENSION_TRACKING.md`; remaining broad
+  `ontocode-core` failures are unrelated pre-existing suite blockers, and dirty
+  snapshots/scratch files are merge hygiene.
+- `ADR_DONOR_TOOL_PROPOSALS_CONSOLIDATION.md` is closed-narrowed in
+  `DONOR_TOOL_PROPOSALS_CONSOLIDATION_TRACKING.md`.
+  `DTP-R1` first-slice final-output schema validation, `DTP-R2` bounded
+  evidence ledger, `DTP-R3` narrowed final-answer claim warnings, and
+  senior-narrowed `DTP-R4` hosted web-search guarded fetch proof are complete
+  with scoped verification. Full structured-output redaction/conformance
+  diagnostics and exact file/command/failure/approval verification stay parked
+  without a reproduced owner-local failing test. The ADR loop was completed in
+  single mode: one active bundle and no overlapping build/test commands, with
+  `CARGO_BUILD_JOBS=1`.
+- `ADR_MODULAR_TOOL_BOUNDARIES.md` is closed after Stage 1, Stage 2A, and
+  Stage 4A. Follow-on work now lives only as proposal candidates in
+  `ADR_MODULAR_TOOL_BOUNDARIES_NEXT_PHASE.md`: `mcp_tool_call.rs`
+  support-module extraction is complete as `MTBNP-N1`. The remaining bounded
+  `tools/context.rs` output-family split is complete as `MTBNP-N2`, and
+  `tools/handlers/mcp.rs` spec/search helper split is complete as `MTBNP-N3`.
+  Broad `tools/registry.rs` modularization remains blocked until a smaller
+  owner-local seam is proven.
 - Gemini/Kimi/Antigravity OAuth donor plans are superseded for model runtime.
   Their ADRs remain as historical donor evidence for external sidecars only.
 - `ADR_KIMI_OAUTH_CLIPROXY_IMPORT_AND_DEVICE_FLOW.md` is complete to ADR gates: parser/fixture coverage, existing provider OAuth storage projection, and slash auth/status visibility are done. The next allowed Kimi slice is login-only device flow after explicit client-id approval; native runtime remains ADR-blocked and `/model` stays out of scope.

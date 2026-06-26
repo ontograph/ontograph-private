@@ -118,6 +118,60 @@ fn spawn_agent_tool_v2_requires_task_name_and_lists_visible_models() {
 }
 
 #[test]
+fn spawn_agent_tool_preserves_exact_visible_model_string_and_namespace() {
+    let mut visible_model = model_preset("visible", /*show_in_picker*/ true);
+    visible_model.model = "provider/alpha/gpt-5.4-mini".to_string();
+    visible_model.description = "visible description".to_string();
+    let mut hidden_model = model_preset("hidden", /*show_in_picker*/ false);
+    hidden_model.model = "provider/beta/gpt-4.1".to_string();
+    hidden_model.description = "hidden description".to_string();
+    let available_models = vec![visible_model, hidden_model];
+
+    let tool = create_spawn_agent_tool_v1(SpawnAgentToolOptions {
+        available_models: available_models.clone(),
+        agent_type_description: "role help".to_string(),
+        hide_agent_type_model_reasoning: false,
+        include_usage_hint: true,
+        usage_hint_text: None,
+        max_concurrent_threads_per_session: None,
+    });
+
+    let ToolSpec::Namespace(namespace) = tool else {
+        panic!("spawn_agent v1 should be a namespace tool");
+    };
+    assert_eq!(namespace.name, MULTI_AGENT_V1_NAMESPACE);
+    assert_eq!(namespace.tools.len(), 1);
+    let Some(ResponsesApiNamespaceTool::Function(ResponsesApiTool {
+        name, description, ..
+    })) = namespace.tools.first()
+    else {
+        panic!("spawn_agent should be a namespace function tool");
+    };
+    assert_eq!(name, "spawn_agent");
+    assert!(description.contains("`provider/alpha/gpt-5.4-mini`"));
+    assert!(!description.contains("`provider/beta/gpt-4.1`"));
+
+    let tool = create_spawn_agent_tool_v2(SpawnAgentToolOptions {
+        available_models,
+        agent_type_description: "role help".to_string(),
+        hide_agent_type_model_reasoning: false,
+        include_usage_hint: true,
+        usage_hint_text: None,
+        max_concurrent_threads_per_session: None,
+    });
+
+    let ToolSpec::Function(ResponsesApiTool {
+        name, description, ..
+    }) = tool
+    else {
+        panic!("spawn_agent v2 should be a function tool");
+    };
+    assert_eq!(name, "spawn_agent");
+    assert!(description.contains("`provider/alpha/gpt-5.4-mini`"));
+    assert!(!description.contains("`provider/beta/gpt-4.1`"));
+}
+
+#[test]
 fn spawn_agent_tool_v1_keeps_legacy_fork_context_field() {
     let tool = create_spawn_agent_tool_v1(SpawnAgentToolOptions {
         available_models: Vec::new(),
@@ -416,7 +470,13 @@ fn list_agents_tool_includes_path_prefix_and_agent_fields() {
     );
     assert_eq!(
         output_schema.expect("list_agents output schema")["properties"]["agents"]["items"]["required"],
-        json!(["agent_name", "agent_status", "last_task_message"])
+        json!([
+            "agent_name",
+            "agent_status",
+            "agent_role",
+            "model",
+            "last_task_message"
+        ])
     );
 }
 

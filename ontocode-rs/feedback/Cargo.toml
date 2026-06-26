@@ -11,6 +11,7 @@ workspace = true
 anyhow = { workspace = true }
 ontocode-login = { workspace = true }
 ontocode-protocol = { workspace = true }
+ontocode-secrets = { workspace = true }
 sentry = { version = "0.46" }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

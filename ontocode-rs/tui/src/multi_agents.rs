@@ -20,6 +20,7 @@ use ontocode_app_server_protocol::CollabAgentToolCallStatus;
 use ontocode_app_server_protocol::ThreadItem;
 use ontocode_protocol::ThreadId;
 use ontocode_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use ratatui::style::Color;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
@@ -28,6 +29,7 @@ use std::collections::HashSet;
 const COLLAB_PROMPT_PREVIEW_GRAPHEMES: usize = 160;
 const COLLAB_AGENT_ERROR_PREVIEW_GRAPHEMES: usize = 160;
 const COLLAB_AGENT_RESPONSE_PREVIEW_GRAPHEMES: usize = 240;
+const COLLAB_AGENT_WAIT_DETAIL_LIMIT: usize = 5;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AgentPickerThreadEntry {
@@ -447,18 +449,49 @@ fn agent_label_spans(agent: AgentLabel<'_>) -> Vec<Span<'static>> {
 
     if let Some(nickname) = nickname {
         spans.push(Span::from(nickname.to_string()).cyan().bold());
+        if let Some(role) = role {
+            spans.push(Span::from(" ").dim());
+            spans.push(agent_role_span(role));
+        }
     } else if let Some(thread_id) = agent.thread_id {
         spans.push(Span::from(thread_id.to_string()).cyan());
+        if let Some(role) = role {
+            spans.push(Span::from(" ").dim());
+            spans.push(agent_role_span(role));
+        }
     } else {
         spans.push(Span::from("agent").cyan());
     }
 
-    if let Some(role) = role {
-        spans.push(Span::from(" ").dim());
-        spans.push(Span::from(format!("[{role}]")));
-    }
-
     spans
+}
+
+fn agent_role_span(role: &str) -> Span<'static> {
+    let span = Span::from(format!("[{role}]"));
+    match agent_role_color(role) {
+        Some(color) => span.fg(color),
+        None => span.dim(),
+    }
+}
+
+fn agent_role_color(role: &str) -> Option<Color> {
+    let role = role.trim();
+    if role.eq_ignore_ascii_case("default") || role.eq_ignore_ascii_case("general") {
+        return None;
+    }
+    const PALETTE: [Color; 6] = [
+        Color::Cyan,
+        Color::Green,
+        Color::Magenta,
+        Color::Yellow,
+        Color::Blue,
+        Color::LightRed,
+    ];
+    let index = role
+        .bytes()
+        .fold(0usize, |acc, byte| acc.wrapping_add(byte as usize))
+        % PALETTE.len();
+    Some(PALETTE[index])
 }
 
 fn spawn_request_spans(spawn_request: Option<&SpawnRequestSummary>) -> Vec<Span<'static>> {
@@ -522,15 +555,23 @@ fn wait_complete_lines(
     if entries.is_empty() {
         vec![Line::from(Span::from("No agents completed yet"))]
     } else {
-        entries
+        let hidden_count = entries.len().saturating_sub(COLLAB_AGENT_WAIT_DETAIL_LIMIT);
+        let mut lines = entries
             .into_iter()
+            .take(COLLAB_AGENT_WAIT_DETAIL_LIMIT)
             .map(|(thread_id, metadata, status)| {
                 let mut spans = agent_label_spans(agent_label(thread_id, &metadata));
                 spans.push(Span::from(": ").dim());
                 spans.extend(status_summary_spans(status));
                 spans.into()
             })
-            .collect()
+            .collect::<Vec<_>>();
+        if hidden_count > 0 {
+            lines.push(Line::from(
+                Span::from(format!("{hidden_count} more agents not shown")).dim(),
+            ));
+        }
+        lines
     }
 }
 
@@ -814,10 +855,44 @@ mod tests {
         assert_eq!(title.spans[2].style.fg, Some(Color::Cyan));
         assert!(title.spans[2].style.add_modifier.contains(Modifier::BOLD));
         assert_eq!(title.spans[4].content.as_ref(), "[explorer]");
-        assert_eq!(title.spans[4].style.fg, None);
-        assert!(!title.spans[4].style.add_modifier.contains(Modifier::DIM));
+        assert_eq!(title.spans[4].style.fg, agent_role_color("explorer"));
+        assert_eq!(agent_role_color("explorer"), agent_role_color("explorer"));
+        assert_eq!(agent_role_color("default"), None);
         assert_eq!(title.spans[6].content.as_ref(), "(gpt-5 high)");
         assert_eq!(title.spans[6].style.fg, Some(Color::Magenta));
+    }
+
+    #[test]
+    fn wait_complete_lines_caps_agent_details() {
+        let ids = (0..7)
+            .map(|index| {
+                ThreadId::from_string(format!("00000000-0000-0000-0000-{index:012}").as_str())
+                    .expect("valid thread id")
+            })
+            .collect::<Vec<_>>();
+        let receiver_thread_ids = ids.iter().map(ToString::to_string).collect::<Vec<_>>();
+        let agents_states = ids
+            .iter()
+            .map(|id| {
+                (
+                    id.to_string(),
+                    agent_state(CollabAgentStatus::Completed, Some("done")),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        let lines = wait_complete_lines(&receiver_thread_ids, &agents_states, &mut |thread_id| {
+            AgentMetadata {
+                agent_nickname: Some(format!("Agent {}", thread_id.to_string().len())),
+                agent_role: Some("worker".to_string()),
+            }
+        });
+
+        assert_eq!(lines.len(), COLLAB_AGENT_WAIT_DETAIL_LIMIT + 1);
+        assert_eq!(
+            line_to_text(lines.last().expect("overflow line")),
+            "2 more agents not shown"
+        );
     }
 
     #[test]
