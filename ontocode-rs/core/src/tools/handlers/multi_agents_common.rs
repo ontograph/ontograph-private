@@ -30,6 +30,14 @@ use std::collections::HashMap;
 pub(crate) const MIN_WAIT_TIMEOUT_MS: i64 = DEFAULT_MULTI_AGENT_V2_MIN_WAIT_TIMEOUT_MS;
 pub(crate) const DEFAULT_WAIT_TIMEOUT_MS: i64 = 30_000;
 pub(crate) const MAX_WAIT_TIMEOUT_MS: i64 = HARD_MAX_MULTI_AGENT_V2_TIMEOUT_MS;
+pub(crate) const SPAWN_AGENT_FAST_MODEL_PRIORITY: &[&str] = &[
+    "gemini-3.5-flash-low",
+    "gemini-3-flash-agent",
+    "gemini-pro-agent",
+    "claude-sonnet-4-6",
+    "gpt-5.3-codex-spark",
+    "gpt-5.4-mini",
+];
 
 pub(crate) fn function_arguments(payload: ToolPayload) -> Result<String, FunctionCallError> {
     match payload {
@@ -295,7 +303,21 @@ pub(crate) async fn apply_requested_spawn_agent_model_overrides(
             .models_manager
             .list_models(RefreshStrategy::Offline)
             .await;
-        let selected_model_name = find_spawn_agent_model_name(&available_models, requested_model)?;
+        let selected_model_name =
+            match resolve_requested_spawn_agent_model(&available_models, requested_model)? {
+                SpawnAgentModelResolution::Inherit => {
+                    if let Some(reasoning_effort) = requested_reasoning_effort {
+                        validate_spawn_agent_reasoning_effort(
+                            &turn.model_info.slug,
+                            &turn.model_info.supported_reasoning_levels,
+                            reasoning_effort,
+                        )?;
+                        config.model_reasoning_effort = Some(reasoning_effort);
+                    }
+                    return Ok(());
+                }
+                SpawnAgentModelResolution::Exact(model) => model,
+            };
         let selected_model_info = session
             .services
             .models_manager
@@ -384,24 +406,59 @@ pub(crate) async fn apply_spawn_agent_service_tier(
     Ok(())
 }
 
-fn find_spawn_agent_model_name(
+enum SpawnAgentModelResolution {
+    Inherit,
+    Exact(String),
+}
+
+fn resolve_requested_spawn_agent_model(
     available_models: &[ontocode_protocol::openai_models::ModelPreset],
     requested_model: &str,
-) -> Result<String, FunctionCallError> {
-    available_models
+) -> Result<SpawnAgentModelResolution, FunctionCallError> {
+    if let Some(model) = available_models
         .iter()
         .find(|model| model.model == requested_model)
-        .map(|model| model.model.clone())
-        .ok_or_else(|| {
-            let available = available_models
-                .iter()
-                .map(|model| model.model.as_str())
-                .collect::<Vec<_>>()
-                .join(", ");
-            FunctionCallError::RespondToModel(format!(
-                "Unknown model `{requested_model}` for spawn_agent. Available models: {available}"
-            ))
-        })
+    {
+        return Ok(SpawnAgentModelResolution::Exact(model.model.clone()));
+    }
+
+    if requested_model.eq_ignore_ascii_case("inherit") {
+        return Ok(SpawnAgentModelResolution::Inherit);
+    }
+
+    if requested_model.eq_ignore_ascii_case("fast") {
+        let available_preferred = SPAWN_AGENT_FAST_MODEL_PRIORITY
+            .iter()
+            .copied()
+            .find(|preferred| {
+                available_models
+                    .iter()
+                    .any(|model| model.model == *preferred)
+            })
+            .ok_or_else(|| {
+                let available = available_models
+                    .iter()
+                    .map(|model| model.model.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let preferred = SPAWN_AGENT_FAST_MODEL_PRIORITY.join(", ");
+                FunctionCallError::RespondToModel(format!(
+                    "Requested model selector `fast` for spawn_agent, but none of the preferred worker models are available. Preferred models: {preferred}. Available models: {available}"
+                ))
+            })?;
+        return Ok(SpawnAgentModelResolution::Exact(
+            available_preferred.to_string(),
+        ));
+    }
+
+    let available = available_models
+        .iter()
+        .map(|model| model.model.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(FunctionCallError::RespondToModel(format!(
+        "Unknown model `{requested_model}` for spawn_agent. Available models: {available}"
+    )))
 }
 
 fn validate_spawn_agent_reasoning_effort(

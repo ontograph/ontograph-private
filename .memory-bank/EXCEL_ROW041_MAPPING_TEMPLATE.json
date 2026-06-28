@@ -1,0 +1,20 @@
+[
+  {
+    "workbook_path": "tmp/excel/samples/REPLACE_WITH_REAL_ROW041_WORKBOOK.xlsm",
+    "sheet_name": "REPLACE_WITH_TARGET_SHEET",
+    "formula_targets": [
+      "REPLACE_WITH_CELL_OR_RANGE"
+    ],
+    "from_ref": "REPLACE_WITH_DIRECT_REFERENCE_PATTERN",
+    "to_name": "REPLACE_WITH_EXISTING_DEFINED_NAME",
+    "scope_expectation": "workbook",
+    "sheet_name_for_scope": null,
+    "max_replacements_per_formula": 1,
+    "reference_mode": "exact_textual_match_only",
+    "all_or_nothing": true,
+    "notes": [
+      "Replace this placeholder only after proving that from_ref and to_name resolve to the same logical target.",
+      "Do not invent a new name here. Row 041 requires an existing defined name."
+    ]
+  }
+]

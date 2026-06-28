@@ -146,12 +146,12 @@ def main() -> int:
             "--bwrap-bin",
         ),
         codex_command_runner_bin=resolve_optional_input_path(
-            args.codex_command_runner_bin,
+            args.ontocode_command_runner_bin,
             "prebuilt Windows ontocode-command-runner.exe executable",
             "--ontocode-command-runner-bin",
         ),
         codex_windows_sandbox_setup_bin=resolve_optional_input_path(
-            args.codex_windows_sandbox_setup_bin,
+            args.ontocode_windows_sandbox_setup_bin,
             "prebuilt Windows ontocode-windows-sandbox-setup.exe executable",
             "--ontocode-windows-sandbox-setup-bin",
         ),

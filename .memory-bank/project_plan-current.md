@@ -123,6 +123,31 @@ Upcoming work depends on:
   `tools/handlers/mcp.rs` spec/search helper split is complete as `MTBNP-N3`.
   Broad `tools/registry.rs` modularization remains blocked until a smaller
   owner-local seam is proven.
+- The lean-ctx project is reopened with a new target: `Local maintained fork
+  as plugin backend`.
+- The previous shutdown-removal pass remains historical evidence.
+- The maintained-fork initial pass is complete: in-repo backend home
+  `third_party/lean-ctx-fork`, allowlist `ctx_read`/`ctx_search`/`ctx_summary`,
+  `LEANCTX_TOKEN`, local default `http://127.0.0.1:7777`, separate startup,
+  fail-closed behavior, restored package, restored marketplace entry, restored
+  proof coverage, restored selective guidance, and imported backend source.
+- The repo now also owns a direct runtime path for that backend:
+  `just lean-ctx-plugin-backend-{build,start,status,stop,smoke}` uses the
+  in-repo fork, pins `LEAN_CTX_TOOL_PROFILE=ontocode`, and smoke-checks the
+  live `tools/list` allowlist without any upstream checkout.
+- The adopted fork now fail-closes the inherited external release-download
+  bootstrap path and treats the repo-owned runtime flow as the only supported
+  Ontocode operator path.
+- `RTK_DONOR_2000_USEFUL_TOOLS_FOR_LEAN_CTX_PLUGIN_PROJECT_PLAN.md` is now
+  closed after one bounded implementation: direct source review proved only the
+  backend allowlist gap, and the maintained fork now has an `ontocode` profile
+  that exposes and dispatches only `ctx_read`, `ctx_search`, and `ctx_summary`.
+- No further RTK-native dispatch remains without new source/test evidence
+  against `ctx_read`, `ctx_search`, `ctx_summary`, or that backend-native
+  profile enforcement.
+- The odd broad `cargo test tool_profiles` behavior on this host stays
+  deferred because the exact relevant scoped profile test already passed and no
+  shipping blocker was reproduced in the maintained-fork runtime path.
 - Gemini/Kimi/Antigravity OAuth donor plans are superseded for model runtime.
   Their ADRs remain as historical donor evidence for external sidecars only.
 - `ADR_KIMI_OAUTH_CLIPROXY_IMPORT_AND_DEVICE_FLOW.md` is complete to ADR gates: parser/fixture coverage, existing provider OAuth storage projection, and slash auth/status visibility are done. The next allowed Kimi slice is login-only device flow after explicit client-id approval; native runtime remains ADR-blocked and `/model` stays out of scope.

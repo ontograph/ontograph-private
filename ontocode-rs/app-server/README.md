@@ -138,7 +138,7 @@ Example with notification opt-out:
 - `thread/loaded/list` — list the thread ids currently loaded in memory.
 - `thread/read` — read a stored thread by id without resuming it; optionally include turns via `includeTurns`. The returned `thread` includes `status` (`ThreadStatus`), defaulting to `notLoaded` when the thread is not currently loaded.
 - `thread/turns/list` — experimental; page through a stored thread’s turn history without resuming it; supports cursor-based pagination with `sortDirection`, `itemsView`, `nextCursor`, and `backwardsCursor`.
-- `thread/turns/items/list` — experimental; reserved for paging full items for one turn. The API shape is present, but app-server currently returns an unsupported-method JSON-RPC error.
+- `thread/turns/items/list` — experimental; page through the full persisted items for one stored turn without resuming the thread; supports cursor-based pagination with `sortDirection`, `nextCursor`, and `backwardsCursor`.
 - `thread/metadata/update` — patch stored thread metadata in sqlite; currently supports updating persisted `gitInfo` fields and returns the refreshed `thread`.
 - `thread/settings/update` — experimental; queue a partial update to a loaded thread’s next-turn settings without starting a turn or adding transcript items. Omitted fields leave settings unchanged; `serviceTier: null` clears the tier; `sandboxPolicy` and `permissions` cannot be combined. Returns `{}` when the update is accepted and emits `thread/settings/updated` with the full effective settings only if they actually change. `turn/start` settings overrides emit the same notification when they change the stored settings.
 - `thread/memoryMode/set` — experimental; set a thread’s persisted memory eligibility to `"enabled"` or `"disabled"` for either a loaded thread or a stored rollout; returns `{}` on success.
@@ -463,7 +463,7 @@ Every returned `Turn` includes `itemsView`, which tells clients whether the `ite
 } }
 ```
 
-`thread/turns/items/list` is the planned hydration API for fetching full items for one turn:
+Use `thread/turns/items/list` to hydrate one turn's full persisted items without resuming the thread. Results are sorted ascending by default so clients can replay a turn from its first item forward.
 
 ```json
 { "method": "thread/turns/items/list", "id": 25, "params": {
@@ -473,8 +473,13 @@ Every returned `Turn` includes `itemsView`, which tells clients whether the `ite
     "sortDirection": "asc"
 } }
 ```
-
-This method currently returns JSON-RPC `-32601` with message `thread/turns/items/list is not supported yet`.
+```json
+{ "id": 25, "result": {
+    "data": [ ... ],
+    "nextCursor": "later-items-cursor-or-null",
+    "backwardsCursor": "earlier-items-cursor-or-null"
+} }
+```
 
 ### Example: Update stored thread metadata
 

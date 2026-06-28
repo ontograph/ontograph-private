@@ -1,3 +1,4 @@
+use super::multi_agents_common::SPAWN_AGENT_FAST_MODEL_PRIORITY;
 use ontocode_protocol::openai_models::ModelPreset;
 use ontocode_tools::JsonSchema;
 use ontocode_tools::ResponsesApiNamespace;
@@ -11,13 +12,12 @@ use std::collections::BTreeMap;
 pub const MULTI_AGENT_V1_NAMESPACE: &str = "multi_agent_v1";
 const MULTI_AGENT_V1_NAMESPACE_DESCRIPTION: &str = "Tools for spawning and managing sub-agents.";
 
-const SPAWN_AGENT_INHERITED_MODEL_GUIDANCE: &str = "Spawned agents inherit your current model by default. Omit `model` to use that preferred default; set `model` only when an explicit override is needed.";
-const SPAWN_AGENT_MODEL_OVERRIDE_DESCRIPTION: &str =
-    "Model override for the new agent. Omit unless an explicit override is needed.";
+const SPAWN_AGENT_INHERITED_MODEL_GUIDANCE: &str = "Spawned agents inherit your current model by default. Omit `model` or set it to `inherit` to use that preferred default; set `model` to `fast` to choose the first available preferred worker model, or use an exact model id when an explicit override is needed.";
+const SPAWN_AGENT_MODEL_OVERRIDE_DESCRIPTION: &str = "Model override for the new agent. Use an exact model id, `inherit`, or `fast`. Omit unless an explicit override is needed.";
 const SPAWN_AGENT_SERVICE_TIER_OVERRIDE_DESCRIPTION: &str =
     "Service tier override for the new agent. Omit unless explicitly requested.";
 const MAX_MODEL_OVERRIDES_IN_SPAWN_AGENT_DESCRIPTION: usize = 5;
-const SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE: &str = "When an explicit sub-agent model override is needed, prefer models in this order: `gemini-3.5-flash-low`, `gemini-3-flash-agent`, `gemini-pro-agent`, `claude-sonnet-4-6`, `gpt-5.3-codex-spark`, `gpt-5.4-mini`. Use the first one available in the active model list. If a model fails today, do not retry that model again until tomorrow; use the next available model in this order for today's next attempt.";
+const SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE_SUFFIX: &str = "Use the first one available in the active model list. If a model fails today, do not retry that model again until tomorrow; use the next available model in this order for today's next attempt.";
 
 #[derive(Debug, Clone, Default)]
 pub struct SpawnAgentToolOptions {
@@ -810,7 +810,19 @@ fn spawn_agent_models_description(models: &[ModelPreset]) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "Available model overrides (optional; inherited parent model is preferred):\n{model_descriptions}\n{SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE}"
+        "Available model overrides (optional; inherited parent model is preferred):\n{model_descriptions}\n{}",
+        spawn_agent_model_priority_guidance()
+    )
+}
+
+fn spawn_agent_model_priority_guidance() -> String {
+    let priorities = SPAWN_AGENT_FAST_MODEL_PRIORITY
+        .iter()
+        .map(|model| format!("`{model}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "When an explicit sub-agent model override is needed, prefer models in this order: {priorities}. {SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE_SUFFIX}"
     )
 }
 

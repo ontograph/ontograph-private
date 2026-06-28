@@ -12,6 +12,7 @@ use ontocode_protocol::ThreadId;
 use ontocode_protocol::error::CodexErr;
 use ontocode_protocol::protocol::AgentStatus;
 use ontocode_protocol::protocol::MultiAgentVersion;
+use ontocode_protocol::protocol::Op;
 use ontocode_protocol::protocol::SessionSource;
 use ontocode_protocol::protocol::SubAgentSource;
 use ontocode_protocol::user_input::UserInput;
@@ -202,12 +203,20 @@ async fn run_agent_job_loop(
                     text: prompt,
                     text_elements: Vec::new(),
                 }];
+                let initial_operation = Op::UserInput {
+                    items,
+                    environments: None,
+                    final_output_json_schema: job.output_schema_json.clone(),
+                    responsesapi_client_metadata: None,
+                    additional_context: Default::default(),
+                    thread_settings: Default::default(),
+                };
                 let thread_id = match session
                     .services
                     .agent_control
                     .spawn_agent_with_metadata(
                         options.spawn_config.clone(),
-                        items.into(),
+                        initial_operation,
                         Some(SessionSource::SubAgent(SubAgentSource::Other(format!(
                             "agent_job:{job_id}"
                         )))),

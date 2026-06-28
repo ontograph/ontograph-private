@@ -1,8 +1,14 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::BufReader;
 use std::io::Read;
 use std::path::Path;
 
+use calamine::Data;
+use calamine::Reader as CalamineReader;
+use calamine::Sheets;
+use calamine::open_workbook_auto;
 use quick_xml::Reader;
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::BytesStart;
@@ -43,12 +49,28 @@ pub(crate) fn read_sheet_preview_with_display_path(
     cell_content: CellContentMode,
 ) -> Result<ReadSheetPreviewResult, ExcelInspectionError> {
     let workbook = inspect_workbook_with_display_path(path, display_path)?;
-    if !matches!(workbook.format, WorkbookFormat::Xlsx | WorkbookFormat::Xlsm) {
-        return Err(ExcelInspectionError::Message(
-            "excel.read_sheet_preview supports only .xlsx and .xlsm in this stage".to_string(),
-        ));
+    match workbook.format {
+        WorkbookFormat::Xlsx | WorkbookFormat::Xlsm => {
+            read_openxml_sheet_preview(path, display_path, sheet, max_rows, cell_content, &workbook)
+        }
+        WorkbookFormat::Xlsb => {
+            read_xlsb_sheet_preview(path, display_path, sheet, max_rows, cell_content, &workbook)
+        }
+        WorkbookFormat::Unknown => Err(ExcelInspectionError::Message(
+            "excel.read_sheet_preview supports only .xlsx, .xlsm, or .xlsb in this stage"
+                .to_string(),
+        )),
     }
+}
 
+fn read_openxml_sheet_preview(
+    path: &Path,
+    display_path: &Path,
+    sheet: &SheetSelector,
+    max_rows: Option<usize>,
+    cell_content: CellContentMode,
+    workbook: &crate::tool::InspectWorkbookResult,
+) -> Result<ReadSheetPreviewResult, ExcelInspectionError> {
     let selected_sheet = select_sheet(&workbook.sheets, sheet)?;
     let sheet_name = selected_sheet.name.clone().ok_or_else(|| {
         ExcelInspectionError::Message(
@@ -116,7 +138,244 @@ pub(crate) fn read_sheet_preview_with_display_path(
     })
 }
 
-fn parse_sheet_dimension(
+fn read_xlsb_sheet_preview(
+    path: &Path,
+    display_path: &Path,
+    sheet: &SheetSelector,
+    max_rows: Option<usize>,
+    cell_content: CellContentMode,
+    workbook: &crate::tool::InspectWorkbookResult,
+) -> Result<ReadSheetPreviewResult, ExcelInspectionError> {
+    let capped_rows = max_rows
+        .unwrap_or(DEFAULT_PREVIEW_ROWS)
+        .min(MAX_PREVIEW_ROWS);
+    let mut xlsb = open_workbook_auto(path).map_err(|err| {
+        ExcelInspectionError::Message(format!(
+            "failed to open .xlsb workbook {} for excel.read_sheet_preview: {err}",
+            path.display()
+        ))
+    })?;
+    let (sheet_index, sheet_name) = select_xlsb_sheet(&xlsb, sheet, "excel.read_sheet_preview")?;
+    let sheet_part_path = workbook
+        .sheets
+        .get(sheet_index)
+        .and_then(|summary| summary.part_path.clone())
+        .unwrap_or_default();
+    let worksheet = xlsb.worksheet_range(&sheet_name).map_err(|err| {
+        ExcelInspectionError::Message(format!(
+            "failed to read .xlsb worksheet data for {sheet_name}: {err}"
+        ))
+    })?;
+    let formulas = matches!(cell_content, CellContentMode::ValuesAndFormulas)
+        .then(|| {
+            xlsb.worksheet_formula(&sheet_name).map_err(|err| {
+                ExcelInspectionError::Message(format!(
+                    "failed to read .xlsb worksheet formulas for {sheet_name}: {err}"
+                ))
+            })
+        })
+        .transpose()?;
+    let dimension = xlsb_range_dimension(&worksheet, formulas.as_ref());
+    let (rows, truncated) =
+        build_xlsb_sheet_preview(&worksheet, formulas.as_ref(), capped_rows, cell_content);
+
+    let mut warnings = Vec::new();
+    if max_rows.unwrap_or(DEFAULT_PREVIEW_ROWS) > MAX_PREVIEW_ROWS {
+        warnings.push(format!(
+            "max_rows capped to {MAX_PREVIEW_ROWS} for excel.read_sheet_preview"
+        ));
+    }
+    if truncated {
+        warnings.push(format!(
+            "sheet preview truncated to {capped_rows} rows and {MAX_PREVIEW_COLUMNS} columns"
+        ));
+    }
+    warnings.push(
+        "excel.read_sheet_preview does not decode .xlsb data validations in this stage".to_string(),
+    );
+    if sheet_part_path.is_empty() {
+        warnings.push(
+            "excel.read_sheet_preview could not resolve an .xlsb worksheet part path in this stage"
+                .to_string(),
+        );
+    }
+
+    Ok(ReadSheetPreviewResult {
+        path: display_path.display().to_string(),
+        sheet: SheetPreview {
+            name: sheet_name,
+            sheet_id: workbook
+                .sheets
+                .get(sheet_index)
+                .and_then(|summary| summary.sheet_id),
+            part_path: sheet_part_path,
+        },
+        dimension,
+        max_rows_applied: capped_rows,
+        cell_content,
+        rows,
+        data_validations: Vec::new(),
+        truncated,
+        warnings,
+    })
+}
+
+pub(crate) fn select_xlsb_sheet(
+    workbook: &Sheets<BufReader<File>>,
+    selector: &SheetSelector,
+    tool_name: &str,
+) -> Result<(usize, String), ExcelInspectionError> {
+    let sheet_names = workbook.sheet_names();
+    match selector {
+        SheetSelector::Name { name } => sheet_names
+            .iter()
+            .position(|sheet_name| sheet_name == name)
+            .map(|index| (index, name.clone()))
+            .ok_or_else(|| {
+                ExcelInspectionError::Message(format!(
+                    "{tool_name} could not find sheet named {name}"
+                ))
+            }),
+        SheetSelector::Index { index } => sheet_names
+            .get(*index)
+            .cloned()
+            .map(|name| (*index, name))
+            .ok_or_else(|| {
+                ExcelInspectionError::Message(format!(
+                    "{tool_name} could not find sheet index {index}"
+                ))
+            }),
+    }
+}
+
+fn build_xlsb_sheet_preview(
+    worksheet: &calamine::Range<Data>,
+    formulas: Option<&calamine::Range<String>>,
+    max_rows: usize,
+    cell_content: CellContentMode,
+) -> (Vec<SheetPreviewRow>, bool) {
+    let mut rows = BTreeMap::<u32, BTreeMap<u32, SheetPreviewCell>>::new();
+    let mut truncated = false;
+    let mut row_count = 0usize;
+    let data_start = worksheet.start().unwrap_or((0, 0));
+
+    for (relative_row, relative_col, value) in worksheet.used_cells() {
+        let Some(value) = calamine_cell_value(value) else {
+            continue;
+        };
+        let absolute_row = data_start.0 + relative_row as u32;
+        let absolute_col = data_start.1 + relative_col as u32;
+        if absolute_col >= MAX_PREVIEW_COLUMNS as u32 {
+            truncated = true;
+            continue;
+        }
+        let row_entry = rows.entry(absolute_row).or_default();
+        row_entry.insert(
+            absolute_col,
+            SheetPreviewCell {
+                reference: zero_based_cell_reference(absolute_row, absolute_col),
+                value: Some(bounded_text(&value, MAX_PREVIEW_CELL_TEXT_CHARS)),
+                formula: None,
+            },
+        );
+    }
+
+    if let Some(formulas) = formulas {
+        let formula_start = formulas.start().unwrap_or((0, 0));
+        for (relative_row, relative_col, formula) in formulas.used_cells() {
+            if formula.is_empty() {
+                continue;
+            }
+            let absolute_row = formula_start.0 + relative_row as u32;
+            let absolute_col = formula_start.1 + relative_col as u32;
+            if absolute_col >= MAX_PREVIEW_COLUMNS as u32 {
+                truncated = true;
+                continue;
+            }
+            let row_entry = rows.entry(absolute_row).or_default();
+            let cell = row_entry
+                .entry(absolute_col)
+                .or_insert_with(|| SheetPreviewCell {
+                    reference: zero_based_cell_reference(absolute_row, absolute_col),
+                    value: None,
+                    formula: None,
+                });
+            if matches!(cell_content, CellContentMode::ValuesAndFormulas) {
+                cell.formula = Some(bounded_text(formula, MAX_PREVIEW_CELL_TEXT_CHARS));
+            }
+        }
+    }
+
+    let mut preview_rows = Vec::new();
+    for (absolute_row, cells) in rows {
+        if cells.is_empty() {
+            continue;
+        }
+        if row_count >= max_rows {
+            truncated = true;
+            break;
+        }
+        preview_rows.push(SheetPreviewRow {
+            row_index: absolute_row + 1,
+            cells: cells.into_values().collect(),
+        });
+        row_count += 1;
+    }
+
+    (preview_rows, truncated)
+}
+
+pub(crate) fn xlsb_range_dimension(
+    worksheet: &calamine::Range<Data>,
+    formulas: Option<&calamine::Range<String>>,
+) -> Option<SheetDimension> {
+    let start = match (worksheet.start(), formulas.and_then(calamine::Range::start)) {
+        (Some(left), Some(right)) => Some((left.0.min(right.0), left.1.min(right.1))),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
+    }?;
+    let end = match (worksheet.end(), formulas.and_then(calamine::Range::end)) {
+        (Some(left), Some(right)) => Some((left.0.max(right.0), left.1.max(right.1))),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
+    }?;
+    Some(SheetDimension {
+        reference: zero_based_range_reference(start, end),
+    })
+}
+
+pub(crate) fn calamine_cell_value(value: &Data) -> Option<String> {
+    (!matches!(value, Data::Empty)).then(|| value.to_string())
+}
+
+pub(crate) fn zero_based_cell_reference(row: u32, col: u32) -> String {
+    format!("{}{}", zero_based_column_letters(col), row + 1)
+}
+
+fn zero_based_range_reference(start: (u32, u32), end: (u32, u32)) -> String {
+    format!(
+        "{}:{}",
+        zero_based_cell_reference(start.0, start.1),
+        zero_based_cell_reference(end.0, end.1)
+    )
+}
+
+fn zero_based_column_letters(mut col: u32) -> String {
+    let mut letters = String::new();
+    loop {
+        let remainder = (col % 26) as u8;
+        letters.insert(0, char::from(b'A' + remainder));
+        if col < 26 {
+            break;
+        }
+        col = col / 26 - 1;
+    }
+    letters
+}
+
+pub(crate) fn parse_sheet_dimension(
     worksheet_xml: &str,
 ) -> Result<Option<SheetDimension>, ExcelInspectionError> {
     let mut reader = Reader::from_str(worksheet_xml);
@@ -761,9 +1020,14 @@ impl DataValidationAccumulator {
             .then(|| bounded_text(self.formula1.as_str(), MAX_DATA_VALIDATION_FORMULA_CHARS));
         let formula2 = (!self.formula2.is_empty())
             .then(|| bounded_text(self.formula2.as_str(), MAX_DATA_VALIDATION_FORMULA_CHARS));
+        let formula_to_resolve = self
+            .validation_type
+            .eq_ignore_ascii_case("list")
+            .then_some(formula1.as_deref())
+            .flatten();
         let (resolved_values_source, resolved_values_sample, resolved_values_truncated) =
             resolve_validation_values(
-                formula1.as_deref(),
+                formula_to_resolve,
                 cell_values,
                 sheet_name,
                 remaining_resolved_values,

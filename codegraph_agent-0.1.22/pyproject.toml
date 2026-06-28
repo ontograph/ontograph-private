@@ -1,0 +1,118 @@
+[tool.poetry]
+name = "codegraph-agent"
+version = "0.1.22"
+description = ""
+authors = ["Team Dotagent <team@dotagent.ai>"]
+readme = "README.md"
+packages = [
+    { include="dotagent", from="." },
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+aiofiles = {version = "^23.1", optional = true}
+aiohttp = "^3.8.4"
+aioresponses = {version = "^0.7.4", optional = true}
+aleph_alpha_client = {version = "^3.2", optional = true}
+anyio = "<4.0"
+apify_client = {version = "^1.3.1", optional = true}
+asyncer = {version = "^0.0.2", optional = true}
+auth0_python = {version = "^4.4", optional = true}
+beautifulsoup4 = {version = "^4.12.2", optional = true}
+bibtexparser = {version = "^1.4", optional = true}
+boto3 = {version = "^1.26", optional = true}
+chainlit = {version = "0.6.2", optional = true}
+chromadb = {version = "^0.3.26", optional = true}
+click = "^8.1.3"
+dataclasses_json = {version = "^0.5.8", optional = true}
+docarray = {version = "^0.37", optional = true}
+docx2txt = {version = "^0.8", optional = true}
+ebooklib = {version = "^0.18", optional = true}
+fastapi = {version = "^0.97.0", optional = true}
+fastapi_socketio = {version = "^0.0.10", optional = true}
+feedparser = {version = "^6.0.10", optional = true}
+filetype = {version = "^1.2", optional = true}
+fitz = {version = "^0.0.1-dev2", optional = true}
+gql = {version = "^3.4.1", optional = true}
+html2text = {version = "^2020.1.16", optional = true}
+httpx = {version = "^0.24", optional = true}
+huggingface_hub = {version = "^0.16.4", optional = true}
+InstructorEmbedding = {version = "^1.0.1", optional = true}
+ipykernel = {version = "^6.25", optional = true}
+ipython = {version = "^8.14", optional = true}
+jsonpatch = "^1.33"
+jsonschema = {version = "^4.18", optional = true}
+lxml = {version = "^4.9.3", optional = true}
+matplotlib = {version = ">=3.7.2,<4.0.0", optional = true}
+metal_sdk = {version = "^2.0.1", optional = true}
+msal = "^1.22"
+nbconvert = {version = "^7.7", optional = true}
+nest_asyncio = "^1.5"
+nltk = {version = "^3.8.1", optional = true}
+numpy = "^1.25.1"
+openai = ">=0.27.8"
+openapi_schema_pydantic = {version = "^1.2.4", optional = true}
+opendal = {version = "^0.39", optional = true}
+pandas = {version = "^1.4.0", optional = true}
+pexpect = {version = "^4.8", optional = true}
+Pillow = {version = "^9.5", optional = true}
+platformdirs = "^3.10"
+playwright = {version = "^1.36", optional = true}
+praw = {version = "^7.7.1", optional = true}
+protobuf = {version = "^4.23", optional = true}
+pydantic = "^1.10"
+pydub = {version = "^0.25", optional = true}
+pygtrie = "^2.5"
+pymilvus = {version = "^2.2", optional = true}
+pyowm = {version = "^3.3", optional = true}
+pyparsing = ">=2.3.1,<3.1"
+pytesseract = {version = "^0.3", optional = true}
+python-dotenv ="^1.0"
+python-socketio = {version = "^5.8", optional = true}
+python_graphql_client = {version = "^0.4.3", optional = true}
+PyYAML = ">=6.0"
+rdflib = {version = "^7.0", optional = true}
+regex = {version = "^2023.6", optional = true}
+reportlab = {version = "^4.0", optional = true}
+responses = {version = "^0.23", optional = true}
+retrying = {version = "^1.3", optional = true}
+requests = "^2"
+scikit_learn = {version = "^1.3", optional = true}
+sentence_transformers = {version = "^2.2", optional = true}
+sentencepiece = {version = "^0.1.99", optional = true}
+spacy = {version = "^3.6", optional = true}
+SQLAlchemy = "^2.0"
+starlette = {version = ">=0.27.0,<0.28.0", optional = true}
+svglib = {version = "^1.5", optional = true}
+syncer = {version = "^2.0", optional = true}
+tenacity = "^8.2"
+tiktoken = "^0.4"
+tomli = {version = "^2.0", optional = true}
+tqdm = {version = "^4.65", optional = true}
+trafilatura = {version = "^1.6", optional = true}
+typing_extensions = {version = "^4.7", optional = true}
+uptrace = {version = "^1.19", optional = true}
+uvicorn = {version = "^0.22.0", optional = true}
+urllib3 = "<2"
+watchfiles = {version = "^0.19", optional = true}
+zep_python = {version = "^0.34", optional = true}
+flask = {version = "^2.3.2", optional = true}
+diskcache = "^5.6.1"
+google-search-results = {version = "^2.4.2", optional = true}
+jupyter = {version = "^1.0.0", optional = true}
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.3.0"
+pytest-cov = "^4.0.0"
+pytest-dotenv = "^0.5.2"
+pytest-watcher = "^0.2.6"
+pytest-asyncio = "^0.20.3"
+pytest-mock  = "^3.10.0"
+pytest-socket = "^0.6.0"
+requests-mock = "^1.11.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

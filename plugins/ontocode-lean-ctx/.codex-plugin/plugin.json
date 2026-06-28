@@ -1,0 +1,28 @@
+{
+  "name": "ontocode-lean-ctx",
+  "version": "0.1.0",
+  "description": "Repo-local plugin for the Ontocode-maintained lean-ctx fork backend.",
+  "author": {
+    "name": "Ontocode"
+  },
+  "keywords": [
+    "lean-ctx",
+    "mcp",
+    "context",
+    "read-only"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Lean Context",
+    "shortDescription": "Bounded read-only lean-ctx tools over the existing plugin and MCP path.",
+    "longDescription": "Expose the maintained-fork lean-ctx read-only MCP surface through the existing Ontocode plugin and Streamable HTTP MCP path.",
+    "developerName": "Ontocode",
+    "category": "Developer Tools",
+    "capabilities": [
+      "mcp"
+    ],
+    "defaultPrompt": [
+      "Use ctx_read, ctx_search, and ctx_summary only when the maintained lean-ctx backend is available and bounded read-only retrieval is the goal."
+    ]
+  }
+}

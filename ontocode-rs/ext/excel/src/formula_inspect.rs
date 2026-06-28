@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
+use calamine::Reader as CalamineReader;
+use calamine::open_workbook_auto;
 use quick_xml::Reader;
 use quick_xml::events::BytesStart;
 use quick_xml::events::Event;
@@ -9,13 +11,17 @@ use zip::ZipArchive;
 
 use crate::backend::ExcelInspectionError;
 use crate::backend::inspect_workbook_with_display_path;
+use crate::formula_ast::parse_formula_ast;
+use crate::formula_sql::plan_formula_sql_preview;
 use crate::preview::attr_value;
 use crate::preview::bounded_text;
+use crate::preview::calamine_cell_value;
 use crate::preview::decode_general_ref;
 use crate::preview::read_shared_strings;
 use crate::preview::read_xml_entry;
 use crate::preview::resolve_cell_value;
 use crate::preview::select_sheet;
+use crate::preview::select_xlsb_sheet;
 use crate::tool::DefinedNameSummary;
 use crate::tool::InspectSheetFormulasResult;
 use crate::tool::SheetFormulaSummary;
@@ -29,8 +35,8 @@ const MAX_WORKBOOK_XML_BYTES: usize = 2 * 1024 * 1024;
 const MAX_WORKSHEET_XML_BYTES: usize = 2 * 1024 * 1024;
 const MAX_STYLES_XML_BYTES: usize = 2 * 1024 * 1024;
 const MAX_FORMULA_TEXT_CHARS: usize = 512;
-const MAX_DEFINED_NAMES: usize = 64;
-const MAX_DEFINED_NAME_CHARS: usize = 512;
+pub(crate) const MAX_DEFINED_NAMES: usize = 64;
+pub(crate) const MAX_DEFINED_NAME_CHARS: usize = 512;
 
 pub(crate) fn inspect_sheet_formulas_with_display_path(
     path: &Path,
@@ -39,12 +45,27 @@ pub(crate) fn inspect_sheet_formulas_with_display_path(
     max_formulas: Option<usize>,
 ) -> Result<InspectSheetFormulasResult, ExcelInspectionError> {
     let workbook = inspect_workbook_with_display_path(path, display_path)?;
-    if !matches!(workbook.format, WorkbookFormat::Xlsx | WorkbookFormat::Xlsm) {
-        return Err(ExcelInspectionError::Message(
-            "excel.inspect_sheet_formulas supports only .xlsx and .xlsm in this stage".to_string(),
-        ));
+    match workbook.format {
+        WorkbookFormat::Xlsx | WorkbookFormat::Xlsm => {
+            inspect_openxml_sheet_formulas(path, display_path, sheet, max_formulas, &workbook)
+        }
+        WorkbookFormat::Xlsb => {
+            inspect_xlsb_sheet_formulas(path, display_path, sheet, max_formulas, &workbook)
+        }
+        WorkbookFormat::Unknown => Err(ExcelInspectionError::Message(
+            "excel.inspect_sheet_formulas supports only .xlsx, .xlsm, or .xlsb in this stage"
+                .to_string(),
+        )),
     }
+}
 
+fn inspect_openxml_sheet_formulas(
+    path: &Path,
+    display_path: &Path,
+    sheet: &SheetSelector,
+    max_formulas: Option<usize>,
+    workbook: &crate::tool::InspectWorkbookResult,
+) -> Result<InspectSheetFormulasResult, ExcelInspectionError> {
     let selected_sheet = select_sheet(&workbook.sheets, sheet)?;
     let sheet_name = selected_sheet.name.clone().ok_or_else(|| {
         ExcelInspectionError::Message(
@@ -76,13 +97,21 @@ pub(crate) fn inspect_sheet_formulas_with_display_path(
     let workbook_xml = read_xml_entry(&mut archive, "xl/workbook.xml", MAX_WORKBOOK_XML_BYTES)?;
     let styles = read_styles(&mut archive)?;
     let worksheet_xml = read_xml_entry(&mut archive, &sheet_part_path, MAX_WORKSHEET_XML_BYTES)?;
-    let (formulas, truncated) = parse_formulas(
+    let (mut formulas, truncated) = parse_formulas(
         &worksheet_xml,
         &shared_strings,
         &styles,
         max_formulas_applied,
     )?;
     let context = parse_workbook_context(&workbook_xml)?;
+    for formula in &mut formulas {
+        formula.sql_preview = plan_formula_sql_preview(
+            sheet_name.as_str(),
+            formula,
+            &context.defined_names,
+            workbook.markers.has_external_links,
+        );
+    }
 
     let mut warnings = Vec::new();
     if max_formulas.unwrap_or(DEFAULT_MAX_FORMULAS) > MAX_FORMULAS {
@@ -114,6 +143,157 @@ pub(crate) fn inspect_sheet_formulas_with_display_path(
         truncated,
         warnings,
     })
+}
+
+fn inspect_xlsb_sheet_formulas(
+    path: &Path,
+    display_path: &Path,
+    sheet: &SheetSelector,
+    max_formulas: Option<usize>,
+    workbook: &crate::tool::InspectWorkbookResult,
+) -> Result<InspectSheetFormulasResult, ExcelInspectionError> {
+    let max_formulas_applied = max_formulas
+        .unwrap_or(DEFAULT_MAX_FORMULAS)
+        .min(MAX_FORMULAS);
+    let mut xlsb = open_workbook_auto(path).map_err(|err| {
+        ExcelInspectionError::Message(format!(
+            "failed to open .xlsb workbook {} for excel.inspect_sheet_formulas: {err}",
+            path.display()
+        ))
+    })?;
+    let (sheet_index, sheet_name) =
+        select_xlsb_sheet(&xlsb, sheet, "excel.inspect_sheet_formulas")?;
+    let sheet_part_path = workbook
+        .sheets
+        .get(sheet_index)
+        .and_then(|summary| summary.part_path.clone())
+        .unwrap_or_default();
+    let worksheet = xlsb.worksheet_range(&sheet_name).map_err(|err| {
+        ExcelInspectionError::Message(format!(
+            "failed to read .xlsb worksheet values for {sheet_name}: {err}"
+        ))
+    })?;
+    let formula_range = xlsb.worksheet_formula(&sheet_name).map_err(|err| {
+        ExcelInspectionError::Message(format!(
+            "failed to read .xlsb worksheet formulas for {sheet_name}: {err}"
+        ))
+    })?;
+    let (mut formulas, truncated) =
+        build_xlsb_formula_inventory(&worksheet, &formula_range, max_formulas_applied);
+    let defined_names = xlsb
+        .defined_names()
+        .iter()
+        .take(MAX_DEFINED_NAMES)
+        .map(|(name, target)| DefinedNameSummary {
+            name: bounded_text(name, 128),
+            sheet_scope: None,
+            local_sheet_id: None,
+            hidden: None,
+            target: bounded_text(target, MAX_DEFINED_NAME_CHARS),
+            truncated: target.chars().count() > MAX_DEFINED_NAME_CHARS,
+        })
+        .collect::<Vec<_>>();
+    let defined_names_sample = xlsb
+        .defined_names()
+        .iter()
+        .take(MAX_DEFINED_NAMES)
+        .map(|(name, target)| bounded_text(&format!("{name}={target}"), MAX_DEFINED_NAME_CHARS))
+        .collect::<Vec<_>>();
+
+    for formula in &mut formulas {
+        formula.sql_preview = plan_formula_sql_preview(
+            sheet_name.as_str(),
+            formula,
+            &defined_names,
+            workbook.markers.has_external_links,
+        );
+    }
+
+    let mut warnings = Vec::new();
+    if max_formulas.unwrap_or(DEFAULT_MAX_FORMULAS) > MAX_FORMULAS {
+        warnings.push(format!(
+            "max_formulas capped to {MAX_FORMULAS} for excel.inspect_sheet_formulas"
+        ));
+    }
+    if truncated {
+        warnings.push(format!(
+            "formula inventory truncated to {max_formulas_applied} formulas"
+        ));
+    }
+    warnings.push(
+        "excel.inspect_sheet_formulas does not decode .xlsb calculation, style, or shared-formula metadata in this stage"
+            .to_string(),
+    );
+    if sheet_part_path.is_empty() {
+        warnings.push(
+            "excel.inspect_sheet_formulas could not resolve an .xlsb worksheet part path in this stage"
+                .to_string(),
+        );
+    }
+
+    Ok(InspectSheetFormulasResult {
+        path: display_path.display().to_string(),
+        sheet: SheetPreview {
+            name: sheet_name,
+            sheet_id: workbook
+                .sheets
+                .get(sheet_index)
+                .and_then(|summary| summary.sheet_id),
+            part_path: sheet_part_path,
+        },
+        max_formulas_applied,
+        formulas,
+        calculation_mode: None,
+        full_calc_on_load: None,
+        force_full_calc: None,
+        defined_names,
+        defined_names_sample,
+        has_external_links: workbook.markers.has_external_links,
+        truncated,
+        warnings,
+    })
+}
+
+fn build_xlsb_formula_inventory(
+    worksheet: &calamine::Range<calamine::Data>,
+    formulas: &calamine::Range<String>,
+    max_formulas: usize,
+) -> (Vec<SheetFormulaSummary>, bool) {
+    let mut summaries = Vec::new();
+    let mut truncated = false;
+    let formula_start = formulas.start().unwrap_or((0, 0));
+
+    for (relative_row, relative_col, formula) in formulas.used_cells() {
+        if formula.is_empty() {
+            continue;
+        }
+        if summaries.len() >= max_formulas {
+            truncated = true;
+            break;
+        }
+        let absolute_row = formula_start.0 + relative_row as u32;
+        let absolute_col = formula_start.1 + relative_col as u32;
+        let formula_was_truncated = formula.chars().count() > MAX_FORMULA_TEXT_CHARS;
+        let bounded_formula = bounded_text(formula, MAX_FORMULA_TEXT_CHARS);
+        summaries.push(SheetFormulaSummary {
+            reference: crate::preview::zero_based_cell_reference(absolute_row, absolute_col),
+            formula: bounded_formula.clone(),
+            cached_value: worksheet
+                .get_value((absolute_row, absolute_col))
+                .and_then(calamine_cell_value),
+            parse: parse_formula_ast(&bounded_formula, formula_was_truncated),
+            sql_preview: Default::default(),
+            warnings: formula_warnings(&bounded_formula),
+            formula_type: None,
+            shared_index: None,
+            shared_range: None,
+            style_index: None,
+            number_format_id: None,
+            number_format_code: None,
+        });
+    }
+
+    (summaries, truncated)
 }
 
 fn read_styles(archive: &mut ZipArchive<File>) -> Result<StyleLookup, ExcelInspectionError> {
@@ -207,16 +387,18 @@ fn push_style_format(
     Ok(())
 }
 
-struct WorkbookContext {
-    calculation_mode: Option<String>,
-    full_calc_on_load: Option<bool>,
-    force_full_calc: Option<bool>,
-    sheet_names: Vec<String>,
-    defined_names: Vec<DefinedNameSummary>,
-    defined_names_sample: Vec<String>,
+pub(crate) struct WorkbookContext {
+    pub(crate) calculation_mode: Option<String>,
+    pub(crate) full_calc_on_load: Option<bool>,
+    pub(crate) force_full_calc: Option<bool>,
+    pub(crate) defined_name_count: usize,
+    pub(crate) defined_names: Vec<DefinedNameSummary>,
+    pub(crate) defined_names_sample: Vec<String>,
+    pub(crate) truncated_defined_name_targets: usize,
+    pub(crate) unresolved_sheet_scope_count: usize,
 }
 
-fn parse_workbook_context(xml: &str) -> Result<WorkbookContext, ExcelInspectionError> {
+pub(crate) fn parse_workbook_context(xml: &str) -> Result<WorkbookContext, ExcelInspectionError> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
     let mut buf = Vec::new();
@@ -224,10 +406,13 @@ fn parse_workbook_context(xml: &str) -> Result<WorkbookContext, ExcelInspectionE
         calculation_mode: None,
         full_calc_on_load: None,
         force_full_calc: None,
-        sheet_names: Vec::new(),
+        defined_name_count: 0,
         defined_names: Vec::new(),
         defined_names_sample: Vec::new(),
+        truncated_defined_name_targets: 0,
+        unresolved_sheet_scope_count: 0,
     };
+    let mut sheet_names = Vec::new();
     let mut current_defined_name = None;
     let mut current_defined_name_local_sheet_id = None;
     let mut current_defined_name_hidden = None;
@@ -236,12 +421,19 @@ fn parse_workbook_context(xml: &str) -> Result<WorkbookContext, ExcelInspectionE
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(event)) => match event.name().as_ref() {
-                b"sheet" => push_sheet_name(&event, &mut context)?,
+                b"sheet" => push_sheet_name(&event, &mut sheet_names)?,
                 b"calcPr" => read_calc_pr(&event, &mut context)?,
                 b"definedName" => {
                     current_defined_name = attr_value(&event, b"name")?;
-                    current_defined_name_local_sheet_id =
-                        attr_value(&event, b"localSheetId")?.and_then(|value| value.parse().ok());
+                    current_defined_name_local_sheet_id = attr_value(&event, b"localSheetId")?
+                        .map(|value| {
+                            value.parse().map_err(|err| {
+                                ExcelInspectionError::Message(format!(
+                                    "failed to parse workbook formula context: invalid definedName localSheetId `{value}`: {err}"
+                                ))
+                            })
+                        })
+                        .transpose()?;
                     current_defined_name_hidden =
                         attr_value(&event, b"hidden")?.and_then(|value| parse_bool(&value));
                     current_defined_name_text.clear();
@@ -249,7 +441,7 @@ fn parse_workbook_context(xml: &str) -> Result<WorkbookContext, ExcelInspectionE
                 _ => {}
             },
             Ok(Event::Empty(event)) if event.name().as_ref() == b"sheet" => {
-                push_sheet_name(&event, &mut context)?;
+                push_sheet_name(&event, &mut sheet_names)?;
             }
             Ok(Event::Empty(event)) if event.name().as_ref() == b"calcPr" => {
                 read_calc_pr(&event, &mut context)?;
@@ -269,15 +461,21 @@ fn parse_workbook_context(xml: &str) -> Result<WorkbookContext, ExcelInspectionE
                 current_defined_name_text.push_str(&decode_general_ref(&reference)?);
             }
             Ok(Event::End(event)) if event.name().as_ref() == b"definedName" => {
+                context.defined_name_count += 1;
+                let name = current_defined_name.take().unwrap_or_default();
+                let target = bounded_text(&current_defined_name_text, MAX_DEFINED_NAME_CHARS);
+                let local_sheet_id = current_defined_name_local_sheet_id.take();
+                let sheet_scope = local_sheet_id
+                    .and_then(|index: u32| usize::try_from(index).ok())
+                    .and_then(|index| sheet_names.get(index).cloned());
+                if local_sheet_id.is_some() && sheet_scope.is_none() {
+                    context.unresolved_sheet_scope_count += 1;
+                }
+                let truncated = current_defined_name_text.chars().count() > MAX_DEFINED_NAME_CHARS;
+                if truncated {
+                    context.truncated_defined_name_targets += 1;
+                }
                 if context.defined_names.len() < MAX_DEFINED_NAMES {
-                    let name = current_defined_name.take().unwrap_or_default();
-                    let target = bounded_text(&current_defined_name_text, MAX_DEFINED_NAME_CHARS);
-                    let local_sheet_id = current_defined_name_local_sheet_id.take();
-                    let sheet_scope = local_sheet_id
-                        .and_then(|index: u32| usize::try_from(index).ok())
-                        .and_then(|index| context.sheet_names.get(index).cloned());
-                    let truncated =
-                        current_defined_name_text.chars().count() > MAX_DEFINED_NAME_CHARS;
                     context.defined_names.push(DefinedNameSummary {
                         name: bounded_text(&name, 128),
                         sheet_scope,
@@ -311,10 +509,10 @@ fn parse_workbook_context(xml: &str) -> Result<WorkbookContext, ExcelInspectionE
 
 fn push_sheet_name(
     event: &BytesStart<'_>,
-    context: &mut WorkbookContext,
+    sheet_names: &mut Vec<String>,
 ) -> Result<(), ExcelInspectionError> {
     if let Some(name) = attr_value(event, b"name")? {
-        context.sheet_names.push(bounded_text(&name, 128));
+        sheet_names.push(bounded_text(&name, 128));
     }
     Ok(())
 }
@@ -466,7 +664,9 @@ impl FormulaAccumulator {
 
     fn finish(self, shared_strings: &[String], styles: &StyleLookup) -> SheetFormulaSummary {
         let (number_format_id, number_format_code) = styles.number_format(self.style_index);
+        let formula_was_truncated = self.formula.chars().count() > MAX_FORMULA_TEXT_CHARS;
         let formula = bounded_text(&self.formula, MAX_FORMULA_TEXT_CHARS);
+        let parse = parse_formula_ast(&formula, formula_was_truncated);
         let warnings = formula_warnings(&formula);
         SheetFormulaSummary {
             reference: bounded_text(&self.reference, 32),
@@ -477,6 +677,8 @@ impl FormulaAccumulator {
                 "",
                 shared_strings,
             ),
+            parse,
+            sql_preview: Default::default(),
             warnings,
             formula_type: self.formula_type,
             shared_index: self.shared_index,

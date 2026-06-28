@@ -13,6 +13,9 @@ use crate::facts::CompactionTrigger;
 use crate::facts::HookRunFact;
 use crate::facts::InvocationType;
 use crate::facts::PluginState;
+use crate::facts::SubAgentInvocationKind;
+use crate::facts::SubAgentTerminalStatus;
+use crate::facts::SubAgentThreadCompletedInput;
 use crate::facts::SubAgentThreadStartedInput;
 use crate::facts::ThreadInitializationMode;
 use crate::facts::TrackEventsContext;
@@ -58,6 +61,7 @@ pub(crate) struct TrackEventsRequest {
 pub(crate) enum TrackEventRequest {
     SkillInvocation(SkillInvocationEventRequest),
     ThreadInitialized(ThreadInitializedEvent),
+    SubAgentThreadCompleted(CodexSubAgentThreadCompletedEventRequest),
     GuardianReview(Box<GuardianReviewEventRequest>),
     AppMentioned(CodexAppMentionedEventRequest),
     AppUsed(CodexAppUsedEventRequest),
@@ -164,6 +168,30 @@ pub(crate) struct ThreadInitializedEventParams {
 pub(crate) struct ThreadInitializedEvent {
     pub(crate) event_type: &'static str,
     pub(crate) event_params: ThreadInitializedEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct CodexSubAgentThreadCompletedEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: CodexSubAgentThreadCompletedEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct CodexSubAgentThreadCompletedEventParams {
+    pub(crate) session_id: String,
+    pub(crate) thread_id: String,
+    pub(crate) parent_thread_id: Option<String>,
+    pub(crate) app_server_client: CodexAppServerClientMetadata,
+    pub(crate) runtime: CodexRuntimeMetadata,
+    pub(crate) requested_model: Option<String>,
+    pub(crate) effective_model: String,
+    pub(crate) invocation_kind: SubAgentInvocationKind,
+    pub(crate) depth: i32,
+    pub(crate) terminal_status: SubAgentTerminalStatus,
+    pub(crate) terminate_reason: Option<String>,
+    pub(crate) duration_ms: u64,
+    pub(crate) result_summary_present: bool,
+    pub(crate) completed_at: u64,
 }
 
 #[derive(Serialize)]
@@ -1064,6 +1092,37 @@ pub(crate) fn subagent_thread_started_event_request(
     };
     ThreadInitializedEvent {
         event_type: "codex_thread_initialized",
+        event_params,
+    }
+}
+
+pub(crate) fn subagent_thread_completed_event_request(
+    input: SubAgentThreadCompletedInput,
+) -> CodexSubAgentThreadCompletedEventRequest {
+    let event_params = CodexSubAgentThreadCompletedEventParams {
+        session_id: input.session_id,
+        thread_id: input.thread_id,
+        parent_thread_id: input.parent_thread_id,
+        app_server_client: CodexAppServerClientMetadata {
+            product_client_id: input.product_client_id,
+            client_name: Some(input.client_name),
+            client_version: Some(input.client_version),
+            rpc_transport: AppServerRpcTransport::InProcess,
+            experimental_api_enabled: None,
+        },
+        runtime: current_runtime_metadata(),
+        requested_model: input.requested_model,
+        effective_model: input.effective_model,
+        invocation_kind: input.invocation_kind,
+        depth: input.depth,
+        terminal_status: input.terminal_status,
+        terminate_reason: input.terminate_reason,
+        duration_ms: input.duration_ms,
+        result_summary_present: input.result_summary_present,
+        completed_at: input.completed_at,
+    };
+    CodexSubAgentThreadCompletedEventRequest {
+        event_type: "codex_subagent_thread_completed",
         event_params,
     }
 }

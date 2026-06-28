@@ -1,0 +1,2 @@
+[console_scripts]
+python-code-graph = python_code_graph.cli:main

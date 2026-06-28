@@ -1,0 +1,24 @@
+{
+  "workbook_path": "tmp/excel/samples/REPLACE_WITH_REAL_ROW041_WORKBOOK.xlsm",
+  "mode": "dry_run",
+  "sheet": "REPLACE_WITH_TARGET_SHEET",
+  "external_links_allowed": false,
+  "results": [
+    {
+      "formula_reference": "REPLACE_WITH_CELL",
+      "original_formula": "REPLACE_WITH_ORIGINAL_FORMULA",
+      "proposed_rewritten_formula": "REPLACE_WITH_REWRITTEN_FORMULA",
+      "matched_mapping_entries": [
+        {
+          "from_ref": "REPLACE_WITH_DIRECT_REFERENCE_PATTERN",
+          "to_name": "REPLACE_WITH_EXISTING_DEFINED_NAME"
+        }
+      ],
+      "blocker_reasons": [],
+      "confidence": "high"
+    }
+  ],
+  "warnings": [
+    "Template only. Replace with real workbook evidence before reopening row 041."
+  ]
+}

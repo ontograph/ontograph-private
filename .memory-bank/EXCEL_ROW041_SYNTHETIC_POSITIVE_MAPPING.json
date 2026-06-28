@@ -1,0 +1,22 @@
+[
+  {
+    "workbook_path": "tmp/excel/generated/row041-positive-minimal.xlsx",
+    "sheet_name": "Main",
+    "formula_targets": [
+      "B2",
+      "B3"
+    ],
+    "from_ref": "Data!$A$1:$A$3",
+    "to_name": "SalesData",
+    "scope_expectation": "workbook",
+    "sheet_name_for_scope": null,
+    "max_replacements_per_formula": 1,
+    "reference_mode": "exact_textual_match_only",
+    "all_or_nothing": true,
+    "notes": [
+      "Synthetic mechanics-only positive case.",
+      "The workbook already contains workbook-scoped defined name SalesData=Data!$A$1:$A$3.",
+      "Target formulas use the direct reference text and can be rewritten to SUM(SalesData) and AVERAGE(SalesData)."
+    ]
+  }
+]

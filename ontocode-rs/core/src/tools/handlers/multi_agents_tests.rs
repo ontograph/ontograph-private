@@ -415,6 +415,134 @@ async fn spawn_agent_rejects_unknown_model_id() {
 }
 
 #[tokio::test]
+async fn spawn_agent_accepts_inherit_model_selector() {
+    #[derive(Debug, Deserialize)]
+    struct SpawnAgentResult {
+        agent_id: String,
+    }
+
+    let (mut session, turn) = make_session_and_context().await;
+    let turn = turn
+        .with_model("gpt-5.4".to_string(), &session.services.models_manager)
+        .await;
+    let manager = thread_manager();
+    let root = manager
+        .start_thread((*turn.config).clone())
+        .await
+        .expect("root thread should start");
+    session.services.agent_control = manager.agent_control();
+    session.thread_id = root.thread_id;
+
+    let output = SpawnAgentHandler::default()
+        .handle(invocation(
+            Arc::new(session),
+            Arc::new(turn),
+            "spawn_agent",
+            function_payload(json!({
+                "message": "inspect this repo",
+                "model": "inherit"
+            })),
+        ))
+        .await
+        .expect("spawn_agent should accept the inherit selector");
+    let (content, _) = expect_text_output(output);
+    let result: SpawnAgentResult =
+        serde_json::from_str(&content).expect("spawn_agent result should be json");
+    let snapshot = manager
+        .get_thread(parse_agent_id(&result.agent_id))
+        .await
+        .expect("spawned agent thread should exist")
+        .config_snapshot()
+        .await;
+
+    assert_eq!(snapshot.model, "gpt-5.4");
+}
+
+#[tokio::test]
+async fn spawn_agent_fast_selector_uses_first_available_preferred_model() {
+    #[derive(Debug, Deserialize)]
+    struct SpawnAgentResult {
+        agent_id: String,
+    }
+
+    let (mut session, turn) = make_session_and_context().await;
+    let manager = thread_manager();
+    let root = manager
+        .start_thread((*turn.config).clone())
+        .await
+        .expect("root thread should start");
+    session.services.agent_control = manager.agent_control();
+    session.thread_id = root.thread_id;
+
+    session.services.models_manager = Arc::new(StaticModelsManager::new(
+        None,
+        ModelsResponse {
+            models: vec![
+                model_info_from_slug("gpt-5-custom-spawn"),
+                model_info_from_slug("gpt-5.4-mini"),
+            ],
+        },
+    ));
+
+    let output = SpawnAgentHandler::default()
+        .handle(invocation(
+            Arc::new(session),
+            Arc::new(turn),
+            "spawn_agent",
+            function_payload(json!({
+                "message": "inspect this repo",
+                "model": "fast"
+            })),
+        ))
+        .await
+        .expect("spawn_agent should resolve the fast selector");
+    let (content, _) = expect_text_output(output);
+    let result: SpawnAgentResult =
+        serde_json::from_str(&content).expect("spawn_agent result should be json");
+    let snapshot = manager
+        .get_thread(parse_agent_id(&result.agent_id))
+        .await
+        .expect("spawned agent thread should exist")
+        .config_snapshot()
+        .await;
+
+    assert_eq!(snapshot.model, "gpt-5.4-mini");
+}
+
+#[tokio::test]
+async fn spawn_agent_fast_selector_rejects_when_no_preferred_model_is_available() {
+    let (mut session, turn) = make_session_and_context().await;
+    session.services.models_manager = Arc::new(StaticModelsManager::new(
+        None,
+        ModelsResponse {
+            models: vec![model_info_from_slug("gpt-5-custom-spawn")],
+        },
+    ));
+
+    let err = SpawnAgentHandler::default()
+        .handle(invocation(
+            Arc::new(session),
+            Arc::new(turn),
+            "spawn_agent",
+            function_payload(json!({
+                "message": "inspect this repo",
+                "model": "fast"
+            })),
+        ))
+        .await
+        .err()
+        .expect("fast selector should be rejected without a preferred model");
+
+    assert_eq!(
+        err,
+        FunctionCallError::RespondToModel(
+            "Requested model selector `fast` for spawn_agent, but none of the preferred worker models are available. Preferred models: gemini-3.5-flash-low, gemini-3-flash-agent, gemini-pro-agent, claude-sonnet-4-6, gpt-5.3-codex-spark, gpt-5.4-mini. Available models: gpt-5-custom-spawn"
+                .to_string()
+        )
+    );
+}
+
+#[tokio::test]
 async fn multi_agent_v2_spawn_fork_turns_all_rejects_agent_type_override() {
     let (mut session, mut turn) = make_session_and_context().await;
     let role_name = install_role_with_model_override(&mut turn).await;

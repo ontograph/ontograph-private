@@ -9848,6 +9848,35 @@ async fn usage_limit_runtime_stops_active_goal_and_prevents_idle_continuation() 
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn active_goal_idle_continuation_marks_turn_read_only_for_tools() -> anyhow::Result<()> {
+    let (sess, tc, _rx, _codex_home) = make_goal_session_and_context_with_rx().await;
+    sess.set_thread_goal(
+        tc.as_ref(),
+        SetGoalRequest {
+            objective: Some("Keep improving the benchmark".to_string()),
+            status: Some(ThreadGoalStatus::Active),
+            token_budget: None,
+        },
+    )
+    .await?;
+
+    sess.goal_runtime_apply(GoalRuntimeEvent::MaybeContinueIfIdle)
+        .await?;
+
+    {
+        let active_turn = sess.active_turn.lock().await;
+        let active_turn = active_turn
+            .as_ref()
+            .expect("idle continuation should reserve an active turn");
+        let turn_state = active_turn.turn_state.lock().await;
+        assert!(turn_state.unattended_read_only_filesystem());
+    }
+    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn external_goal_mutation_accounts_active_turn_before_status_change() -> anyhow::Result<()> {
     let (sess, tc, _rx, _codex_home) = make_goal_session_and_context_with_rx().await;
     sess.set_thread_goal(

@@ -144,6 +144,37 @@ build-for-release:
 mcp-server-run *args:
     cargo run -p ontocode-mcp-server -- {args}
 
+[no-cd]
+[unix]
+lean-ctx-plugin-backend-build:
+    CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} cargo build --release --manifest-path {{ justfile_directory() }}/third_party/lean-ctx-fork/rust/Cargo.toml --bin lean-ctx
+
+[no-cd]
+[unix]
+lean-ctx-plugin-backend-run *args:
+    {{ justfile_directory() }}/scripts/run_lean_ctx_plugin_backend.sh "$@"
+
+[no-cd]
+[unix]
+lean-ctx-plugin-backend-start:
+    {{ justfile_directory() }}/scripts/run_lean_ctx_plugin_backend.sh --daemon
+
+[no-cd]
+[unix]
+lean-ctx-plugin-backend-status:
+    {{ justfile_directory() }}/scripts/run_lean_ctx_plugin_backend.sh --status
+
+[no-cd]
+[unix]
+lean-ctx-plugin-backend-stop:
+    {{ justfile_directory() }}/scripts/run_lean_ctx_plugin_backend.sh --stop
+
+[no-cd]
+[unix]
+lean-ctx-plugin-backend-smoke:
+    CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-8} cargo build --release --manifest-path {{ justfile_directory() }}/third_party/lean-ctx-fork/rust/Cargo.toml --bin lean-ctx
+    {{ justfile_directory() }}/scripts/smoke_lean_ctx_plugin_backend.sh
+
 # Regenerate the json schema for config.toml from the current config types.
 write-config-schema:
     cargo run -p ontocode-core --bin ontocode-write-config-schema

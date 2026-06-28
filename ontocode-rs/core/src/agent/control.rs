@@ -13,6 +13,9 @@ use crate::shell_snapshot::ShellSnapshot;
 use crate::thread_manager::ResumeThreadWithHistoryOptions;
 use crate::thread_manager::ThreadManagerState;
 use crate::thread_rollout_truncation::truncate_rollout_to_last_n_fork_turns;
+use ontocode_analytics::SubAgentInvocationKind;
+use ontocode_analytics::SubAgentTerminalStatus;
+use ontocode_analytics::SubAgentThreadCompletedInput;
 use ontocode_protocol::AgentPath;
 use ontocode_protocol::SessionId;
 use ontocode_protocol::ThreadId;
@@ -39,6 +42,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::Weak;
+use std::time::Instant;
 use tokio::sync::watch;
 use tracing::warn;
 
@@ -57,6 +61,13 @@ pub(crate) struct SpawnAgentOptions {
     pub(crate) fork_mode: Option<SpawnAgentForkMode>,
     pub(crate) parent_thread_id: Option<ThreadId>,
     pub(crate) environments: Option<Vec<TurnEnvironmentSelection>>,
+    pub(crate) requested_model: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct SubAgentCompletionTelemetryMetadata {
+    requested_model: Option<String>,
+    invocation_kind: SubAgentInvocationKind,
 }
 
 struct SpawnAgentThreadInheritance {
@@ -368,6 +379,10 @@ impl AgentControl {
                 notification_source,
                 child_reference,
                 agent_metadata.agent_path.clone(),
+                Some(SubAgentCompletionTelemetryMetadata {
+                    requested_model: options.requested_model.clone(),
+                    invocation_kind: SubAgentInvocationKind::Spawn,
+                }),
             );
         }
 
@@ -699,6 +714,10 @@ impl AgentControl {
                 Some(notification_source.clone()),
                 child_reference,
                 agent_metadata.agent_path.clone(),
+                Some(SubAgentCompletionTelemetryMetadata {
+                    requested_model: None,
+                    invocation_kind: SubAgentInvocationKind::Resume,
+                }),
             );
         }
         self.persist_thread_spawn_edge_for_source(
@@ -1047,14 +1066,18 @@ impl AgentControl {
         session_source: Option<SessionSource>,
         child_reference: String,
         child_agent_path: Option<AgentPath>,
+        telemetry_metadata: Option<SubAgentCompletionTelemetryMetadata>,
     ) {
         let Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id, ..
+            parent_thread_id,
+            depth,
+            ..
         })) = session_source
         else {
             return;
         };
         let control = self.clone();
+        let started_at = Instant::now();
         tokio::spawn(async move {
             let status = match control.subscribe_status(child_thread_id).await {
                 Ok(mut status_rx) => {
@@ -1078,6 +1101,72 @@ impl AgentControl {
                 return;
             };
             let child_thread = state.get_thread(child_thread_id).await.ok();
+            if let (Some(child_thread), Some(telemetry_metadata)) =
+                (child_thread.as_ref(), telemetry_metadata.as_ref())
+            {
+                let client_metadata = child_thread
+                    .codex
+                    .session
+                    .app_server_client_metadata()
+                    .await;
+                if let (Some(client_name), Some(client_version)) =
+                    (client_metadata.client_name, client_metadata.client_version)
+                {
+                    let thread_config = child_thread.codex.thread_config_snapshot().await;
+                    let (terminal_status, terminate_reason) = match &status {
+                        AgentStatus::Completed(_) => (SubAgentTerminalStatus::Completed, None),
+                        AgentStatus::Interrupted => (
+                            SubAgentTerminalStatus::Interrupted,
+                            Some("interrupted".to_string()),
+                        ),
+                        AgentStatus::Errored(error) => {
+                            (SubAgentTerminalStatus::Errored, Some(error.clone()))
+                        }
+                        AgentStatus::Shutdown => (
+                            SubAgentTerminalStatus::Shutdown,
+                            Some("shutdown".to_string()),
+                        ),
+                        AgentStatus::NotFound => (
+                            SubAgentTerminalStatus::NotFound,
+                            Some("not_found".to_string()),
+                        ),
+                        AgentStatus::PendingInit | AgentStatus::Running => return,
+                    };
+                    child_thread
+                        .codex
+                        .session
+                        .services
+                        .analytics_events_client
+                        .track_subagent_thread_completed(SubAgentThreadCompletedInput {
+                            session_id: child_thread.codex.session.session_id().to_string(),
+                            thread_id: child_thread_id.to_string(),
+                            parent_thread_id: Some(parent_thread_id.to_string()),
+                            product_client_id: client_name.clone(),
+                            client_name,
+                            client_version,
+                            requested_model: telemetry_metadata
+                                .requested_model
+                                .clone()
+                                .filter(|model| !model.trim().is_empty()),
+                            effective_model: thread_config.model,
+                            invocation_kind: telemetry_metadata.invocation_kind,
+                            depth,
+                            terminal_status,
+                            terminate_reason,
+                            duration_ms: u64::try_from(started_at.elapsed().as_millis())
+                                .unwrap_or(u64::MAX),
+                            result_summary_present: matches!(
+                                &status,
+                                AgentStatus::Completed(Some(summary)) if !summary.trim().is_empty()
+                            ),
+                            completed_at: ontocode_analytics::now_unix_seconds(),
+                        });
+                } else {
+                    tracing::warn!(
+                        "skipping subagent completion analytics: missing inherited client metadata"
+                    );
+                }
+            }
             let message = format_subagent_notification_message(child_reference.as_str(), &status);
             let child_uses_multi_agent_v2 = match child_thread.as_ref() {
                 Some(child_thread) => {

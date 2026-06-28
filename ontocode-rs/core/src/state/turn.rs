@@ -93,6 +93,7 @@ pub(crate) struct TurnState {
     mailbox_delivery_phase: MailboxDeliveryPhase,
     granted_permissions_by_environment_id: HashMap<String, AdditionalPermissionProfile>,
     strict_auto_review_enabled: bool,
+    unattended_read_only_filesystem: bool,
     pub(crate) tool_calls: u64,
     pub(crate) has_memory_citation: bool,
     pub(crate) token_usage_at_turn_start: TokenUsage,
@@ -236,5 +237,13 @@ impl TurnState {
 
     pub(crate) fn strict_auto_review_enabled(&self) -> bool {
         self.strict_auto_review_enabled
+    }
+
+    pub(crate) fn enable_unattended_read_only_filesystem(&mut self) {
+        self.unattended_read_only_filesystem = true;
+    }
+
+    pub(crate) fn unattended_read_only_filesystem(&self) -> bool {
+        self.unattended_read_only_filesystem
     }
 }

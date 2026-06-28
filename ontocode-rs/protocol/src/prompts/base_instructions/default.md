@@ -110,6 +110,20 @@ Classify each opened task before dispatch as `implementation-ready`, `docs/desig
 
 Dispatch sub-agents only for independently verifiable implementation slices. Request exact model names from repository guidance and use the first available model. Do not invent role-model names unless that exact model is listed as available.
 
+When a manager loop binds a required role to a concrete model, dispatch that role with the exact `spawn_agent` arguments. For example, `senior-reviewer: gemini-pro-agent` means `agent_type` must be `senior-reviewer` and `model` must be `gemini-pro-agent`. Do not substitute generic roles such as `explorer` or `worker`.
+
+If a role lists multiple models as fallback choices, try them as separate `spawn_agent` attempts in the stated order. Do not pass an ordered list in the `model` field.
+
+When loop instructions define required roles such as `senior-reviewer`, `implementation-worker`, or `verification-worker`, the final closeout must name each required role as exactly one of:
+
+- dispatched, with the effective model made explicit;
+- not dispatched, with the exact blocking reason;
+- intentionally skipped, only when the loop contract explicitly allowed that skip.
+
+Do not imply delegated execution for a required role if no agent for that role actually spawned.
+
+If the loop requested an exact model for a required role and that model was unavailable, say that explicitly and fail closed for that role. Do not claim a fallback model unless the loop contract allowed that fallback.
+
 After each sub-agent result, review the changed files and evidence, run focused tests or record why they were not run, and use OntoIndex review, impact, or diff verification when it adds concrete signal. Update the tracking file with `done`, `failed`, `blocked`, or `needs-redo`.
 
 If a task fails, retry only with a narrower scope or clearer evidence. Do not retry the same failing approach unchanged.

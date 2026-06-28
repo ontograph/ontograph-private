@@ -71,6 +71,8 @@ fn spawn_agent_tool_v2_requires_task_name_and_lists_visible_models() {
     assert!(description.contains("The spawned agent will have the same tools as you"));
     assert!(description.contains("`max_concurrent_threads_per_session = 4`"));
     assert!(description.contains(SPAWN_AGENT_INHERITED_MODEL_GUIDANCE));
+    assert!(description.contains("`inherit`"));
+    assert!(description.contains("`fast`"));
     assert!(
         description
             .contains("Available model overrides (optional; inherited parent model is preferred):")
@@ -78,7 +80,7 @@ fn spawn_agent_tool_v2_requires_task_name_and_lists_visible_models() {
     assert!(description.contains(
         "- `visible-model`: visible description Reasoning efforts: medium (default). Service tiers: priority."
     ));
-    assert!(description.contains(SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE));
+    assert!(description.contains(&spawn_agent_model_priority_guidance()));
     assert!(!description.contains("hidden-model"));
     assert!(properties.contains_key("task_name"));
     assert!(properties.contains_key("message"));
@@ -150,6 +152,8 @@ fn spawn_agent_tool_preserves_exact_visible_model_string_and_namespace() {
     assert_eq!(name, "spawn_agent");
     assert!(description.contains("`provider/alpha/gpt-5.4-mini`"));
     assert!(!description.contains("`provider/beta/gpt-4.1`"));
+    assert!(description.contains("`inherit`"));
+    assert!(description.contains("`fast`"));
 
     let tool = create_spawn_agent_tool_v2(SpawnAgentToolOptions {
         available_models,
@@ -169,6 +173,8 @@ fn spawn_agent_tool_preserves_exact_visible_model_string_and_namespace() {
     assert_eq!(name, "spawn_agent");
     assert!(description.contains("`provider/alpha/gpt-5.4-mini`"));
     assert!(!description.contains("`provider/beta/gpt-4.1`"));
+    assert!(description.contains("`inherit`"));
+    assert!(description.contains("`fast`"));
 }
 
 #[test]
@@ -236,7 +242,7 @@ fn spawn_agent_tool_v1_lists_model_priority_guidance() {
         panic!("spawn_agent should be a namespace function tool");
     };
 
-    assert!(description.contains(SPAWN_AGENT_MODEL_PRIORITY_GUIDANCE));
+    assert!(description.contains(&spawn_agent_model_priority_guidance()));
 }
 
 #[test]

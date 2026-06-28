@@ -45,6 +45,11 @@ The active direction is to keep native GPT/Codex reliable while supporting other
 - Extend existing hook and shell owners instead of adding a second hook registry, permission parser, shell launcher, or sandbox policy evaluator.
 - Inject diagnostics into model context only through bounded context-fragment architecture with hard caps.
 - Preserve compatibility boundaries for persisted state, CLI commands, package metadata, app-server APIs, config keys, rollout/session data, and external integrations.
+- External third-party tool migration means removing upstream runtime
+  dependencies, not replacing them with hidden shell-outs or required external
+  checkouts. Adopt only the required legacy code into repo-owned plugins or
+  existing plugin/backend owners, keep normal use self-contained, and leave
+  native-core ports behind an ADR.
 
 ## High-Level Flows
 
@@ -109,6 +114,7 @@ external-agent config/session source
 | TUI user-facing behavior | `ontocode-rs/tui/` |
 | App-server API behavior | `ontocode-rs/app-server*` |
 | Ontocode identity migration | `ONTOCODE_*.md`, compatibility owner crates, affected surface owners |
+| Third-party tool migration | repo-owned plugin package or existing plugin/backend owner; donor repositories are source evidence until adopted |
 
 ## Non-Negotiable Architecture Rules
 
@@ -116,6 +122,9 @@ external-agent config/session source
 - Prefer existing owners and test harnesses.
 - Keep changes small and reviewable.
 - Do not broaden `codex-core` without first checking whether another crate is the right owner.
+- Do not add required runtime dependencies on third-party tools, upstream source
+  checkouts, hosted services, or release streams when migrating donor
+  functionality; adopt the minimum code into a repo-owned plugin/backend path.
 - Do not create new public API/config/schema surfaces without ADR and compatibility tests.
 - Security diagnostics must reuse or extend shared redaction behavior and include no-secret assertions.
 - New model-context content must be bounded, capped, and implemented as context fragments.

@@ -1326,6 +1326,10 @@ impl Session {
                 .await;
             return;
         }
+        {
+            let mut ts = turn_state.lock().await;
+            ts.enable_unattended_read_only_filesystem();
+        }
         self.start_task(turn_context, Vec::new(), RegularTask::new())
             .await;
     }

@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 async-trait = { workspace = true }
 base64 = { workspace = true }
+calamine = "0.35.0"
 ontocode-extension-api = { workspace = true }
 ontocode-core = { workspace = true }
 ontocode-tools = { workspace = true }

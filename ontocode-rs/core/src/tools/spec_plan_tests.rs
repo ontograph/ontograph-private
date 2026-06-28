@@ -472,6 +472,13 @@ async fn request_user_input_tool_respects_experimental_config_gate() {
 }
 
 #[tokio::test]
+async fn manager_loop_next_is_visible_and_registered_by_default() {
+    let plan = probe(|_| {}).await;
+    plan.assert_visible_contains(&["manager_loop_next"]);
+    plan.assert_registered_contains(&["manager_loop_next"]);
+}
+
+#[tokio::test]
 async fn shell_family_registers_visible_unified_exec_and_hidden_legacy_shell() {
     let plan = probe(|turn| {
         set_features(turn, &[Feature::ShellTool, Feature::UnifiedExec]);
@@ -613,12 +620,14 @@ async fn environment_count_controls_environment_backed_tools() {
         "exec_command",
         "apply_patch",
         "view_image",
+        "manager_loop_next",
     ]);
     no_environment.assert_registered_lacks(&[
         "shell_command",
         "exec_command",
         "apply_patch",
         "view_image",
+        "manager_loop_next",
     ]);
 
     let multiple_environments = probe(|turn| {

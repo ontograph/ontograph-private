@@ -10,8 +10,16 @@ use ontocode_extension_api::ToolExecutor;
 use ontocode_extension_api::TurnInputContext;
 use ontocode_extension_api::TurnInputContributor;
 
+use crate::formula_cte_pipeline::ExcelInspectFormulaCtePipelineTool;
+use crate::formula_sql_readiness::ExcelInspectFormulaSqlReadinessTool;
+use crate::named_range_rewrite::ExcelNamedRangeRewriteDryRunTool;
+use crate::pivot_report_metadata::ExcelInspectPivotReportMetadataTool;
 use crate::powerquery_extract::ExcelExtractPowerQueryQueriesTool;
+use crate::powerquery_review_bundle::ExcelGeneratePowerQueryReviewBundleTool;
 use crate::powerquery_translate::ExcelTranslatePowerQueryToSqlPreviewTool;
+use crate::sheet_layout_metadata::ExcelInspectSheetLayoutMetadataTool;
+use crate::slider_query::ExcelGenerateSliderQueryPackageTool;
+use crate::slider_query::ExcelScanSheetFormulasDependencyTool;
 use crate::tool::ExcelExportSheetToCsvTool;
 use crate::tool::ExcelInspectSheetFormulasTool;
 use crate::tool::ExcelInspectionTool;
@@ -21,7 +29,15 @@ use crate::vba_extract::ExcelExtractVbaModulesTool;
 use crate::vba_onlyoffice_analyze::ExcelAnalyzeVbaOnlyofficeMigrationTool;
 use crate::vba_onlyoffice_translate::ExcelTranslateVbaToOnlyofficeJsPreviewTool;
 use crate::vba_onlyoffice_workbook_review::ExcelReviewVbaOnlyofficeWorkbookTool;
+use crate::vba_project_metadata::ExcelInspectVbaProjectMetadataTool;
 use crate::vba_translate::ExcelTranslateVbaToMPreviewTool;
+use crate::workbook_connections::ExcelInspectWorkbookConnectionsTool;
+use crate::workbook_defined_names::ExcelInspectWorkbookDefinedNamesTool;
+use crate::workbook_external_links::ExcelInspectWorkbookExternalLinksTool;
+use crate::workbook_graph::ExcelInspectWorkbookGraphTool;
+use crate::workbook_migration_manifest::ExcelGenerateWorkbookMigrationManifestTool;
+use crate::workbook_tables::ExcelInspectWorkbookTablesTool;
+use crate::workbook_used_ranges::ExcelInspectWorkbookUsedRangesTool;
 
 #[derive(Clone, Default)]
 struct ExcelExtension;
@@ -37,9 +53,51 @@ impl ToolContributor for ExcelExtension {
             Arc::new(ExcelInspectionTool::new(thread_state.clone())),
             Arc::new(ExcelReadSheetPreviewTool::new(thread_state.clone())),
             Arc::new(ExcelInspectSheetFormulasTool::new(thread_state.clone())),
+            Arc::new(ExcelInspectWorkbookDefinedNamesTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectWorkbookExternalLinksTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectWorkbookUsedRangesTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectFormulaSqlReadinessTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectFormulaCtePipelineTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelScanSheetFormulasDependencyTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelGenerateSliderQueryPackageTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectPivotReportMetadataTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectWorkbookConnectionsTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectWorkbookTablesTool::new(thread_state.clone())),
+            Arc::new(ExcelInspectSheetLayoutMetadataTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelInspectWorkbookGraphTool::new(thread_state.clone())),
+            Arc::new(ExcelNamedRangeRewriteDryRunTool::new(thread_state.clone())),
             Arc::new(ExcelExportSheetToCsvTool::new(thread_state.clone())),
             Arc::new(ExcelExtractPowerQueryQueriesTool::new(thread_state.clone())),
+            Arc::new(ExcelGeneratePowerQueryReviewBundleTool::new(
+                thread_state.clone(),
+            )),
+            Arc::new(ExcelGenerateWorkbookMigrationManifestTool::new(
+                thread_state.clone(),
+            )),
             Arc::new(ExcelExtractVbaModulesTool::new(thread_state.clone())),
+            Arc::new(ExcelInspectVbaProjectMetadataTool::new(
+                thread_state.clone(),
+            )),
             Arc::new(ExcelTranslatePowerQueryToSqlPreviewTool::new(
                 thread_state.clone(),
             )),

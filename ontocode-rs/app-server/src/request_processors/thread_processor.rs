@@ -623,11 +623,11 @@ impl ThreadRequestProcessor {
 
     pub(crate) async fn thread_turns_items_list(
         &self,
-        _params: ThreadTurnsItemsListParams,
+        params: ThreadTurnsItemsListParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        Err(method_not_found(
-            "thread/turns/items/list is not supported yet",
-        ))
+        self.thread_turns_items_list_response_inner(params)
+            .await
+            .map(|response| Some(response.into()))
     }
 
     pub(crate) async fn thread_shell_command(
@@ -2227,40 +2227,61 @@ impl ThreadRequestProcessor {
             .load_thread_turns_list_history(thread_uuid)
             .await
             .map_err(thread_read_view_error)?;
-        // This API optimizes network transfer by letting clients page through a
-        // thread's turns incrementally, but it still replays the entire rollout on
-        // every request. Rollback and compaction events can change earlier turns, so
-        // the server has to rebuild the full turn list until turn metadata is indexed
-        // separately.
-        let loaded_thread = self.thread_manager.get_thread(thread_uuid).await.ok();
-        let has_live_running_thread = match loaded_thread.as_ref() {
-            Some(thread) => matches!(thread.agent_status().await, AgentStatus::Running),
-            None => false,
-        };
-        let active_turn = if loaded_thread.is_some() {
-            // Persisted history may not yet include the currently running turn. The
-            // app-server listener has already projected live turn events into ThreadState,
-            // so merge that in-memory snapshot before paginating.
-            let thread_state = self.thread_state_manager.thread_state(thread_uuid).await;
-            let state = thread_state.lock().await;
-            state.active_turn_snapshot()
-        } else {
-            None
-        };
-        build_thread_turns_page_response(
-            &items,
-            self.thread_watch_manager
-                .loaded_status_for_thread(&thread_uuid.to_string())
-                .await,
-            has_live_running_thread,
-            active_turn,
-            ThreadTurnsPageOptions {
-                cursor: cursor.as_deref(),
-                limit,
-                sort_direction: sort_direction.unwrap_or(SortDirection::Desc),
-                items_view: items_view.unwrap_or(TurnItemsView::Summary),
-            },
-        )
+        let mut turns = self
+            .reconstruct_thread_turns_from_history_items(thread_uuid, &items)
+            .await;
+        apply_thread_turns_items_view(&mut turns, items_view.unwrap_or(TurnItemsView::Summary));
+        let page = paginate_thread_turns(
+            turns,
+            cursor.as_deref(),
+            limit,
+            sort_direction.unwrap_or(SortDirection::Desc),
+        )?;
+        Ok(ThreadTurnsListResponse {
+            data: page.turns,
+            next_cursor: page.next_cursor,
+            backwards_cursor: page.backwards_cursor,
+        })
+    }
+
+    async fn thread_turns_items_list_response_inner(
+        &self,
+        params: ThreadTurnsItemsListParams,
+    ) -> Result<ThreadTurnsItemsListResponse, JSONRPCErrorError> {
+        let ThreadTurnsItemsListParams {
+            thread_id,
+            turn_id,
+            cursor,
+            limit,
+            sort_direction,
+        } = params;
+        let thread_uuid = ThreadId::from_string(&thread_id)
+            .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
+
+        let items = self
+            .load_thread_turns_items_list_history(thread_uuid)
+            .await
+            .map_err(thread_read_view_error)?;
+        let turns = self
+            .reconstruct_thread_turns_from_history_items(thread_uuid, &items)
+            .await;
+        let turn = turns
+            .into_iter()
+            .find(|turn| turn.id == turn_id)
+            .ok_or_else(|| {
+                invalid_request(format!("turn not found in thread {thread_id}: {turn_id}"))
+            })?;
+        let page = paginate_thread_turn_items(
+            turn.items,
+            cursor.as_deref(),
+            limit,
+            sort_direction.unwrap_or(SortDirection::Asc),
+        )?;
+        Ok(ThreadTurnsItemsListResponse {
+            data: page.items,
+            next_cursor: page.next_cursor,
+            backwards_cursor: page.backwards_cursor,
+        })
     }
 
     async fn load_thread_turns_list_history(
@@ -2318,6 +2339,92 @@ impl ThreadRequestProcessor {
             .await
             .map(|history| history.items)
             .map_err(|err| thread_turns_list_history_load_error(thread_id, err))
+    }
+
+    async fn load_thread_turns_items_list_history(
+        &self,
+        thread_id: ThreadId,
+    ) -> Result<Vec<RolloutItem>, ThreadReadViewError> {
+        match self
+            .thread_store
+            .read_thread(StoreReadThreadParams {
+                thread_id,
+                include_archived: true,
+                include_history: true,
+            })
+            .await
+        {
+            Ok(stored_thread) => {
+                let history = stored_thread.history.ok_or_else(|| {
+                    ThreadReadViewError::Internal(format!(
+                        "thread store did not return history for thread {thread_id}"
+                    ))
+                })?;
+                return Ok(history.items);
+            }
+            Err(ThreadStoreError::InvalidRequest { message })
+                if message == format!("no rollout found for thread id {thread_id}") => {}
+            Err(ThreadStoreError::ThreadNotFound {
+                thread_id: missing_thread_id,
+            }) if missing_thread_id == thread_id => {}
+            Err(ThreadStoreError::InvalidRequest { message }) => {
+                return Err(ThreadReadViewError::InvalidRequest(message));
+            }
+            Err(err) => {
+                return Err(ThreadReadViewError::Internal(format!(
+                    "failed to read thread: {err}"
+                )));
+            }
+        }
+
+        let thread = self
+            .thread_manager
+            .get_thread(thread_id)
+            .await
+            .map_err(|_| {
+                ThreadReadViewError::InvalidRequest(format!("thread not loaded: {thread_id}"))
+            })?;
+        let config_snapshot = thread.config_snapshot().await;
+        if config_snapshot.ephemeral {
+            return Err(ThreadReadViewError::InvalidRequest(
+                "ephemeral threads do not support thread/turns/items/list".to_string(),
+            ));
+        }
+
+        thread
+            .load_history(/*include_archived*/ true)
+            .await
+            .map(|history| history.items)
+            .map_err(|err| thread_turns_items_list_history_load_error(thread_id, err))
+    }
+
+    async fn reconstruct_thread_turns_from_history_items(
+        &self,
+        thread_id: ThreadId,
+        items: &[RolloutItem],
+    ) -> Vec<Turn> {
+        // Rollback and compaction can still rewrite earlier turns, so rebuild the
+        // turn list from rollout history on every read.
+        let loaded_thread = self.thread_manager.get_thread(thread_id).await.ok();
+        let has_live_running_thread = match loaded_thread.as_ref() {
+            Some(thread) => matches!(thread.agent_status().await, AgentStatus::Running),
+            None => false,
+        };
+        let active_turn = if loaded_thread.is_some() {
+            let thread_state = self.thread_state_manager.thread_state(thread_id).await;
+            let state = thread_state.lock().await;
+            state.active_turn_snapshot()
+        } else {
+            None
+        };
+        reconstruct_thread_turns_for_turns_list(
+            items,
+            self.thread_watch_manager
+                .loaded_status_for_thread(&thread_id.to_string())
+                .await,
+            has_live_running_thread,
+            active_turn,
+        )
     }
 
     pub(crate) fn thread_created_receiver(&self) -> broadcast::Receiver<ThreadId> {
@@ -3562,6 +3669,8 @@ fn xcode_26_4_mcp_elicitations_auto_deny(
 
 const THREAD_TURNS_DEFAULT_LIMIT: usize = 25;
 const THREAD_TURNS_MAX_LIMIT: usize = 100;
+const THREAD_TURN_ITEMS_DEFAULT_LIMIT: usize = 100;
+const THREAD_TURN_ITEMS_MAX_LIMIT: usize = 100;
 
 fn thread_backwards_cursor_for_sort_key(
     thread: &StoredThread,
@@ -3587,10 +3696,23 @@ struct ThreadTurnsPage {
     pub(super) backwards_cursor: Option<String>,
 }
 
+struct ThreadTurnItemsPage {
+    pub(super) items: Vec<ThreadItem>,
+    pub(super) next_cursor: Option<String>,
+    pub(super) backwards_cursor: Option<String>,
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ThreadTurnsCursor {
     turn_id: String,
+    include_anchor: bool,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ThreadTurnsItemsCursor {
+    item_id: String,
     include_anchor: bool,
 }
 
@@ -3685,6 +3807,106 @@ fn serialize_thread_turns_cursor(
 }
 
 fn parse_thread_turns_cursor(cursor: &str) -> Result<ThreadTurnsCursor, JSONRPCErrorError> {
+    serde_json::from_str(cursor).map_err(|_| invalid_request(format!("invalid cursor: {cursor}")))
+}
+
+fn paginate_thread_turn_items(
+    items: Vec<ThreadItem>,
+    cursor: Option<&str>,
+    limit: Option<u32>,
+    sort_direction: SortDirection,
+) -> Result<ThreadTurnItemsPage, JSONRPCErrorError> {
+    if items.is_empty() {
+        return Ok(ThreadTurnItemsPage {
+            items: Vec::new(),
+            next_cursor: None,
+            backwards_cursor: None,
+        });
+    }
+
+    let anchor = cursor.map(parse_thread_turn_items_cursor).transpose()?;
+    let page_size = limit
+        .map(|value| value as usize)
+        .unwrap_or(THREAD_TURN_ITEMS_DEFAULT_LIMIT)
+        .clamp(1, THREAD_TURN_ITEMS_MAX_LIMIT);
+
+    let anchor_index = anchor
+        .as_ref()
+        .and_then(|anchor| items.iter().position(|item| item.id() == anchor.item_id));
+    if anchor.is_some() && anchor_index.is_none() {
+        return Err(invalid_request(
+            "invalid cursor: anchor item is no longer present",
+        ));
+    }
+
+    let mut keyed_items: Vec<_> = items.into_iter().enumerate().collect();
+    match sort_direction {
+        SortDirection::Asc => {
+            if let (Some(anchor), Some(anchor_index)) = (anchor.as_ref(), anchor_index) {
+                keyed_items.retain(|(index, _)| {
+                    if anchor.include_anchor {
+                        *index >= anchor_index
+                    } else {
+                        *index > anchor_index
+                    }
+                });
+            }
+        }
+        SortDirection::Desc => {
+            keyed_items.reverse();
+            if let (Some(anchor), Some(anchor_index)) = (anchor.as_ref(), anchor_index) {
+                keyed_items.retain(|(index, _)| {
+                    if anchor.include_anchor {
+                        *index <= anchor_index
+                    } else {
+                        *index < anchor_index
+                    }
+                });
+            }
+        }
+    }
+
+    let more_items_available = keyed_items.len() > page_size;
+    keyed_items.truncate(page_size);
+    let backwards_cursor = keyed_items
+        .first()
+        .map(|(_, item)| {
+            serialize_thread_turn_items_cursor(item.id(), /*include_anchor*/ true)
+        })
+        .transpose()?;
+    let next_cursor = if more_items_available {
+        keyed_items
+            .last()
+            .map(|(_, item)| {
+                serialize_thread_turn_items_cursor(item.id(), /*include_anchor*/ false)
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    let items = keyed_items.into_iter().map(|(_, item)| item).collect();
+
+    Ok(ThreadTurnItemsPage {
+        items,
+        next_cursor,
+        backwards_cursor,
+    })
+}
+
+fn serialize_thread_turn_items_cursor(
+    item_id: &str,
+    include_anchor: bool,
+) -> Result<String, JSONRPCErrorError> {
+    serde_json::to_string(&ThreadTurnsItemsCursor {
+        item_id: item_id.to_string(),
+        include_anchor,
+    })
+    .map_err(|err| internal_error(format!("failed to serialize cursor: {err}")))
+}
+
+fn parse_thread_turn_items_cursor(
+    cursor: &str,
+) -> Result<ThreadTurnsItemsCursor, JSONRPCErrorError> {
     serde_json::from_str(cursor).map_err(|_| invalid_request(format!("invalid cursor: {cursor}")))
 }
 
@@ -3866,6 +4088,33 @@ fn thread_turns_list_history_load_error(
                 "thread {thread_id} is not materialized yet; thread/turns/list is unavailable before first user message"
             ))
         }
+        ThreadStoreError::InvalidRequest { message } => {
+            ThreadReadViewError::InvalidRequest(message)
+        }
+        ThreadStoreError::Unsupported { operation } => ThreadReadViewError::Unsupported(operation),
+        err => ThreadReadViewError::Internal(format!(
+            "failed to load thread history for thread {thread_id}: {err}"
+        )),
+    }
+}
+
+fn thread_turns_items_list_history_load_error(
+    thread_id: ThreadId,
+    err: ThreadStoreError,
+) -> ThreadReadViewError {
+    match err {
+        ThreadStoreError::InvalidRequest { message }
+            if message.starts_with("failed to resolve rollout path `") =>
+        {
+            ThreadReadViewError::InvalidRequest(format!(
+                "thread {thread_id} is not materialized yet; thread/turns/items/list is unavailable before first user message"
+            ))
+        }
+        ThreadStoreError::ThreadNotFound {
+            thread_id: missing_thread_id,
+        } if missing_thread_id == thread_id => ThreadReadViewError::InvalidRequest(format!(
+            "thread {thread_id} is not materialized yet; thread/turns/items/list is unavailable before first user message"
+        )),
         ThreadStoreError::InvalidRequest { message } => {
             ThreadReadViewError::InvalidRequest(message)
         }

@@ -22,6 +22,7 @@ use serde_json::to_value;
 use crate::backend::ExcelInspectionError;
 use crate::backend::inspect_workbook_with_display_path;
 use crate::export::export_sheet_to_csv_with_display_path;
+use crate::formula_ast::FormulaAstSummary;
 use crate::formula_inspect::inspect_sheet_formulas_with_display_path;
 use crate::preview::read_sheet_preview_with_display_path;
 
@@ -245,11 +246,48 @@ pub(crate) struct ReadSheetPreviewResult {
     pub warnings: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum FormulaSqlPreviewState {
+    ReviewOnly,
+    #[default]
+    Blocked,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum FormulaSqlReferenceKind {
+    Cell,
+    Range,
+    DefinedName,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub(crate) struct FormulaSqlReferenceSummary {
+    pub kind: FormulaSqlReferenceKind,
+    pub reference: String,
+    pub sheet_name: Option<String>,
+    pub same_row: Option<bool>,
+    pub sql_identifier: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+pub(crate) struct FormulaSqlPreviewSummary {
+    pub state: FormulaSqlPreviewState,
+    pub sql_expression: Option<String>,
+    pub references: Vec<FormulaSqlReferenceSummary>,
+    pub blocker_reasons: Vec<String>,
+    pub cached_value_present: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub(crate) struct SheetFormulaSummary {
     pub reference: String,
     pub formula: String,
     pub cached_value: Option<String>,
+    pub parse: FormulaAstSummary,
+    #[serde(default)]
+    pub sql_preview: FormulaSqlPreviewSummary,
     pub warnings: Vec<String>,
     pub formula_type: Option<String>,
     pub shared_index: Option<u32>,

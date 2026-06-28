@@ -480,6 +480,42 @@ fn spawn_tool_spec_lists_user_defined_roles_before_built_ins() {
 }
 
 #[test]
+fn spawn_tool_spec_lists_manager_loop_roles() {
+    let user_defined_roles = BTreeMap::from([
+        (
+            "implementation-worker".to_string(),
+            AgentRoleConfig {
+                description: Some("Implementation worker".to_string()),
+                config_file: None,
+                nickname_candidates: None,
+            },
+        ),
+        (
+            "senior-reviewer".to_string(),
+            AgentRoleConfig {
+                description: Some("Senior reviewer".to_string()),
+                config_file: None,
+                nickname_candidates: None,
+            },
+        ),
+        (
+            "verification-worker".to_string(),
+            AgentRoleConfig {
+                description: Some("Verification worker".to_string()),
+                config_file: None,
+                nickname_candidates: None,
+            },
+        ),
+    ]);
+
+    let spec = spawn_tool_spec::build(&user_defined_roles);
+
+    assert!(spec.contains("senior-reviewer: {\nSenior reviewer\n}"));
+    assert!(spec.contains("implementation-worker: {\nImplementation worker\n}"));
+    assert!(spec.contains("verification-worker: {\nVerification worker\n}"));
+}
+
+#[test]
 fn spawn_tool_spec_marks_role_locked_model_and_reasoning_effort() {
     let tempdir = TempDir::new().expect("create temp dir");
     let role_path = tempdir.path().join("researcher.toml");

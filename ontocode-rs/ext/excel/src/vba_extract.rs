@@ -14,6 +14,7 @@ use ontocode_extension_api::ToolOutput;
 use ontocode_extension_api::ToolSpec;
 use ontocode_extension_api::parse_tool_input_schema;
 use ovba::ModuleType;
+use ovba::Project;
 use ovba::open_project;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -76,6 +77,13 @@ pub(crate) struct ExtractVbaModulesResult {
     pub warnings: Vec<String>,
 }
 
+pub(crate) struct ParsedVbaProjectResult {
+    pub has_vba_project: bool,
+    pub code_page: Option<u16>,
+    pub project: Option<Project>,
+    pub warnings: Vec<String>,
+}
+
 #[async_trait::async_trait]
 impl ToolExecutor<ToolCall> for ExcelExtractVbaModulesTool {
     fn tool_name(&self) -> ToolName {
@@ -125,7 +133,8 @@ impl ToolExecutor<ToolCall> for ExcelExtractVbaModulesTool {
                     .to_string(),
             )
         })?;
-        let workbook_path = resolve_workbook_path_from_model_arg(&args.path, &cwd)?;
+        let workbook_path =
+            resolve_workbook_path_from_model_arg("excel.extract_vba_modules", &args.path, &cwd)?;
         let result = extract_vba_modules_from_workbook(&workbook_path, Path::new(args.path.trim()));
         let value = to_value(result).map_err(|err| {
             FunctionCallError::RespondToModel(format!(
@@ -146,51 +155,14 @@ pub(crate) fn extract_vba_modules_from_workbook(
     path: &Path,
     display_path: &Path,
 ) -> ExtractVbaModulesResult {
-    let mut warnings = Vec::new();
-    let mut has_vba_project = false;
     let mut modules = Vec::new();
-    let mut code_page = None;
-
-    let file = match File::open(path) {
-        Ok(file) => file,
-        Err(err) => {
-            warnings.push(format!(
-                "failed to open workbook {}: {err}",
-                display_path.display()
-            ));
-            return ExtractVbaModulesResult {
-                mode: "read_only_extraction".to_string(),
-                path: display_path.display().to_string(),
-                has_vba_project,
-                code_page,
-                module_count: 0,
-                modules,
-                warnings,
-            };
-        }
-    };
-
-    let mut archive = match ZipArchive::new(file) {
-        Ok(archive) => archive,
-        Err(err) => {
-            warnings.push(format!(
-                "failed to read workbook archive {}: {err}",
-                display_path.display()
-            ));
-            return ExtractVbaModulesResult {
-                mode: "read_only_extraction".to_string(),
-                path: display_path.display().to_string(),
-                has_vba_project,
-                code_page,
-                module_count: 0,
-                modules,
-                warnings,
-            };
-        }
-    };
-
-    let Some(vba_project_bin) = read_vba_project_bin(&mut archive, display_path, &mut warnings)
-    else {
+    let ParsedVbaProjectResult {
+        has_vba_project,
+        code_page,
+        project,
+        mut warnings,
+    } = parse_vba_project_from_workbook(path, display_path);
+    let Some(project) = project else {
         return ExtractVbaModulesResult {
             mode: "read_only_extraction".to_string(),
             path: display_path.display().to_string(),
@@ -202,39 +174,6 @@ pub(crate) fn extract_vba_modules_from_workbook(
         };
     };
 
-    has_vba_project = true;
-    if vba_project_bin.len() > MAX_VBA_PROJECT_BIN_BYTES {
-        warnings.push(format!(
-            "vbaProject.bin exceeds {MAX_VBA_PROJECT_BIN_BYTES} bytes and was not parsed"
-        ));
-        return ExtractVbaModulesResult {
-            mode: "read_only_extraction".to_string(),
-            path: display_path.display().to_string(),
-            has_vba_project,
-            code_page,
-            module_count: 0,
-            modules,
-            warnings,
-        };
-    }
-
-    let project = match open_project(vba_project_bin) {
-        Ok(project) => project,
-        Err(err) => {
-            warnings.push(format!("failed to parse vbaProject.bin: {err}"));
-            return ExtractVbaModulesResult {
-                mode: "read_only_extraction".to_string(),
-                path: display_path.display().to_string(),
-                has_vba_project,
-                code_page,
-                module_count: 0,
-                modules,
-                warnings,
-            };
-        }
-    };
-
-    code_page = Some(project.information.code_page);
     let module_total = project.modules.len();
     if module_total > MAX_EXTRACTED_MODULES {
         warnings.push(format!(
@@ -295,7 +234,96 @@ pub(crate) fn extract_vba_modules_from_workbook(
     }
 }
 
-fn parse_tool_args<T: serde::de::DeserializeOwned>(
+pub(crate) fn parse_vba_project_from_workbook(
+    path: &Path,
+    display_path: &Path,
+) -> ParsedVbaProjectResult {
+    let mut warnings = Vec::new();
+    let mut has_vba_project = false;
+    let mut code_page = None;
+
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(err) => {
+            warnings.push(format!(
+                "failed to open workbook {}: {err}",
+                display_path.display()
+            ));
+            return ParsedVbaProjectResult {
+                has_vba_project,
+                code_page,
+                project: None,
+                warnings,
+            };
+        }
+    };
+
+    let mut archive = match ZipArchive::new(file) {
+        Ok(archive) => archive,
+        Err(err) => {
+            warnings.push(format!(
+                "failed to read workbook archive {}: {err}",
+                display_path.display()
+            ));
+            return ParsedVbaProjectResult {
+                has_vba_project,
+                code_page,
+                project: None,
+                warnings,
+            };
+        }
+    };
+
+    let Some(vba_project_bin) = read_vba_project_bin(&mut archive, display_path, &mut warnings)
+    else {
+        warnings.truncate(MAX_WARNINGS);
+        return ParsedVbaProjectResult {
+            has_vba_project,
+            code_page,
+            project: None,
+            warnings,
+        };
+    };
+
+    has_vba_project = true;
+    if vba_project_bin.len() > MAX_VBA_PROJECT_BIN_BYTES {
+        warnings.push(format!(
+            "vbaProject.bin exceeds {MAX_VBA_PROJECT_BIN_BYTES} bytes and was not parsed"
+        ));
+        warnings.truncate(MAX_WARNINGS);
+        return ParsedVbaProjectResult {
+            has_vba_project,
+            code_page,
+            project: None,
+            warnings,
+        };
+    }
+
+    let project = match open_project(vba_project_bin) {
+        Ok(project) => project,
+        Err(err) => {
+            warnings.push(format!("failed to parse vbaProject.bin: {err}"));
+            warnings.truncate(MAX_WARNINGS);
+            return ParsedVbaProjectResult {
+                has_vba_project,
+                code_page,
+                project: None,
+                warnings,
+            };
+        }
+    };
+
+    code_page = Some(project.information.code_page);
+    warnings.truncate(MAX_WARNINGS);
+    ParsedVbaProjectResult {
+        has_vba_project,
+        code_page,
+        project: Some(project),
+        warnings,
+    }
+}
+
+pub(crate) fn parse_tool_args<T: serde::de::DeserializeOwned>(
     call: &ToolCall,
     tool_name: &str,
 ) -> Result<T, FunctionCallError> {
@@ -343,20 +371,21 @@ fn read_vba_project_bin(
     None
 }
 
-fn resolve_workbook_path_from_model_arg(
+pub(crate) fn resolve_workbook_path_from_model_arg(
+    tool_name: &str,
     path: &str,
     cwd: &Path,
 ) -> Result<PathBuf, FunctionCallError> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
-        return Err(FunctionCallError::RespondToModel(
-            "excel.extract_vba_modules path must not be empty".to_string(),
-        ));
+        return Err(FunctionCallError::RespondToModel(format!(
+            "{tool_name} path must not be empty"
+        )));
     }
     if trimmed.contains('\0') || trimmed.contains("://") {
-        return Err(FunctionCallError::RespondToModel(
-            "excel.extract_vba_modules path must be a local workbook path".to_string(),
-        ));
+        return Err(FunctionCallError::RespondToModel(format!(
+            "{tool_name} path must be a local workbook path"
+        )));
     }
 
     let path = Path::new(trimmed);
@@ -366,10 +395,9 @@ fn resolve_workbook_path_from_model_arg(
             Component::ParentDir | Component::RootDir | Component::Prefix(_)
         )
     }) {
-        return Err(FunctionCallError::RespondToModel(
-            "excel.extract_vba_modules path must be relative and stay within the current working directory"
-                .to_string(),
-        ));
+        return Err(FunctionCallError::RespondToModel(format!(
+            "{tool_name} path must be relative and stay within the current working directory"
+        )));
     }
 
     let Some(extension) = path
@@ -377,14 +405,14 @@ fn resolve_workbook_path_from_model_arg(
         .and_then(|extension| extension.to_str())
         .map(str::to_ascii_lowercase)
     else {
-        return Err(FunctionCallError::RespondToModel(
-            "excel.extract_vba_modules path must end in .xlsx, .xlsm, or .xlsb".to_string(),
-        ));
+        return Err(FunctionCallError::RespondToModel(format!(
+            "{tool_name} path must end in .xlsx, .xlsm, or .xlsb"
+        )));
     };
     if !matches!(extension.as_str(), "xlsx" | "xlsm" | "xlsb") {
-        return Err(FunctionCallError::RespondToModel(
-            "excel.extract_vba_modules path must end in .xlsx, .xlsm, or .xlsb".to_string(),
-        ));
+        return Err(FunctionCallError::RespondToModel(format!(
+            "{tool_name} path must end in .xlsx, .xlsm, or .xlsb"
+        )));
     }
 
     let resolved_path = cwd.join(path);
@@ -398,9 +426,9 @@ fn resolve_workbook_path_from_model_arg(
             break;
         };
         if metadata.file_type().is_symlink() {
-            return Err(FunctionCallError::RespondToModel(
-                "excel.extract_vba_modules path must not traverse symlinks".to_string(),
-            ));
+            return Err(FunctionCallError::RespondToModel(format!(
+                "{tool_name} path must not traverse symlinks"
+            )));
         }
     }
 

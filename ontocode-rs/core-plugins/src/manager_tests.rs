@@ -1461,6 +1461,128 @@ async fn install_plugin_updates_config_with_relative_path_and_plugin_key() {
 }
 
 #[tokio::test]
+async fn install_repo_local_lean_ctx_plugin_loads_required_bearer_http_server() {
+    let tmp = tempfile::tempdir().unwrap();
+    let repo_root = tmp.path().join("repo");
+    fs::create_dir_all(repo_root.join(".git")).unwrap();
+    write_file(
+        &repo_root.join("plugins/ontocode-lean-ctx/.codex-plugin/plugin.json"),
+        r#"{
+  "name": "ontocode-lean-ctx",
+  "version": "0.1.0",
+  "description": "Repo-local plugin for the Ontocode-maintained lean-ctx fork backend.",
+  "author": {
+    "name": "Ontocode"
+  },
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Lean Context",
+    "shortDescription": "Bounded read-only lean-ctx tools over the existing plugin and MCP path.",
+    "longDescription": "Expose the maintained-fork lean-ctx read-only MCP surface through the existing Ontocode plugin and Streamable HTTP MCP path.",
+    "developerName": "Ontocode",
+    "category": "Developer Tools",
+    "capabilities": [
+      "mcp"
+    ]
+  }
+}"#,
+    );
+    write_file(
+        &repo_root.join("plugins/ontocode-lean-ctx/.mcp.json"),
+        r#"{
+  "mcpServers": {
+    "lean-ctx": {
+      "type": "http",
+      "url": "http://127.0.0.1:7777",
+      "bearer_token_env_var": "LEANCTX_TOKEN",
+      "required": true,
+      "enabled_tools": [
+        "ctx_read",
+        "ctx_search",
+        "ctx_summary"
+      ]
+    }
+  }
+}"#,
+    );
+    write_file(
+        &repo_root.join(".agents/plugins/marketplace.json"),
+        r#"{
+  "name": "repo-local",
+  "interface": {
+    "displayName": "Repo Local"
+  },
+  "plugins": [
+    {
+      "name": "ontocode-lean-ctx",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ontocode-lean-ctx"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}"#,
+    );
+
+    let manager = PluginsManager::new(tmp.path().to_path_buf());
+    let install = manager
+        .install_plugin(PluginInstallRequest {
+            plugin_name: "ontocode-lean-ctx".to_string(),
+            marketplace_path: AbsolutePathBuf::try_from(
+                repo_root.join(".agents/plugins/marketplace.json"),
+            )
+            .unwrap(),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        install.plugin_id,
+        PluginId::new("ontocode-lean-ctx".to_string(), "repo-local".to_string()).unwrap()
+    );
+    assert_eq!(install.plugin_version, "0.1.0");
+    assert!(install.installed_path.as_path().is_dir());
+
+    let config = fs::read_to_string(tmp.path().join("config.toml")).unwrap();
+    assert!(config.contains(r#"[plugins."ontocode-lean-ctx@repo-local"]"#));
+    assert!(config.contains("enabled = true"));
+
+    let config = load_config(tmp.path(), tmp.path()).await;
+    let outcome = manager.plugins_for_config(&config).await;
+
+    assert_eq!(outcome.plugins().len(), 1);
+    assert_eq!(outcome.plugins()[0].error, None);
+
+    let effective_mcp_servers = outcome.effective_mcp_servers();
+    let server = effective_mcp_servers
+        .get("lean-ctx")
+        .expect("lean-ctx server should load through the plugin flow");
+    assert_eq!(
+        server.transport,
+        McpServerTransportConfig::StreamableHttp {
+            url: "http://127.0.0.1:7777".to_string(),
+            bearer_token_env_var: Some("LEANCTX_TOKEN".to_string()),
+            http_headers: None,
+            env_http_headers: None,
+        }
+    );
+    assert!(server.required);
+    assert_eq!(
+        server.enabled_tools.as_ref(),
+        Some(&vec![
+            "ctx_read".to_string(),
+            "ctx_search".to_string(),
+            "ctx_summary".to_string()
+        ])
+    );
+}
+
+#[tokio::test]
 async fn install_openai_curated_plugin_uses_short_sha_cache_version() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());

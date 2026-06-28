@@ -212,7 +212,7 @@ Next actions:
 
 ### Five Concurrent Coding Sub-Agents
 
-Status: `active-reopened`.
+Status: `closed-no-dispatch`.
 
 Authority:
 - `ADR_FIVE_CONCURRENT_CODING_SUBAGENTS.md`
@@ -220,7 +220,7 @@ Authority:
 
 ### Modular Tool Boundaries Next Phase
 
-Status: `proposed-no-dispatch`.
+Status: `closed-complete`.
 
 Authority:
 - `ADR_MODULAR_TOOL_BOUNDARIES.md`
@@ -249,14 +249,53 @@ Next actions:
 - Keep broad `tools/registry.rs` modularization blocked until a separate senior
   challenge proves one smaller internal seam.
 
+### Lean-ctx Maintained Fork Plugin Backend
+
+Status: `closed-complete`.
+
+Authority:
+- `ADR_LEAN_CTX_TRANSLATION_3D_PROPOSAL.md`
+- `ADR_LEAN_CTX_TRANSLATION_3D_PROPOSAL_DETAILED_PROJECT_PLAN.md`
+- `ADR_LEAN_CTX_TRANSLATION_3D_PROPOSAL_DETAILED_PROJECT_PLAN_TRACKING.md`
+
 Outcome:
-- Allow five simultaneous direct coding sub-agents through the existing multi-agent v2 cap and close path.
-- Remove recursive `spawn_agent` access from ordinary coding sub-agents.
-- Keep scheduler, SQLite task tables, worker pools, default worktrees, and nested fan-out out of phase one.
+- The maintained-fork contract is explicit.
+- The maintained backend source now lives in `third_party/lean-ctx-fork/`.
+- The repo-local plugin package and marketplace entry were restored.
+- Focused install/load proof coverage passed through existing
+  `ontocode-core-plugins` owners.
+- Current guidance restores only the bounded read-only maintained-fork path and
+  keeps OntoIndex/native tooling as the baseline elsewhere.
 
 Next actions:
-- No remaining dispatch tasks from this ADR.
-- Reopen only with a concrete failing fixture in the existing multi-agent v2 owners.
+- None in this project.
+- Reopen only if the maintained-fork contract changes materially or the current
+  bounded read-only surface proves insufficient.
+
+### RTK Donor Native Lean-ctx Backend
+
+Status: `proposed-no-dispatch`.
+
+Authority:
+- `RTK_DONOR_2000_USEFUL_TOOLS_FOR_LEAN_CTX_PLUGIN.md`
+- `RTK_DONOR_2000_USEFUL_TOOLS_FOR_LEAN_CTX_PLUGIN_PROJECT_PLAN.md`
+
+Outcome so far:
+- RTK donor ideas were narrowed to native backend-only candidates for
+  `ctx_read`, `ctx_search`, `ctx_summary`, backend allowlist/capability, and
+  provenance/claim guards.
+- Plugin wrappers, preflight scripts, docs validators, shell rewrites,
+  telemetry, TOML filters, and package validator wrappers remain rejected.
+- Direct source review proved exactly one implementation-worthy native gap:
+  backend-native allowlist enforcement for the carried read-only surface.
+- The maintained fork now has an `ontocode` tool profile that advertises and
+  dispatches only `ctx_read`, `ctx_search`, and `ctx_summary`; `ctx_call`
+  no longer reopens the broader surface in that mode.
+
+Next actions:
+- None in this project.
+- Reopen only with new failing source/test evidence for `ctx_read`,
+  `ctx_search`, `ctx_summary`, or backend-native profile enforcement.
 
 ### Alpha Release Readiness
 

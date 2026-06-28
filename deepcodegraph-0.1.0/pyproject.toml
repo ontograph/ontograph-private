@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepcodegraph"
+version = "0.1.0"
+description = "An LLM agent that generates UML and activity diagrams from code."
+readme = "README.md"
+authors = [{ name = "Robert Hochgraf", email = "rob@mail.rit.edu" }]
+license = { text = "MIT" }
+dependencies = [
+    "litellm>=1.0.0",
+    "requests>=2.25.0",
+]
+requires-python = ">=3.11"
+keywords = ["code analysis", "dependency graph", "uml", "visualization", "repository", "activity diagram", "agent", "llm", "graph", "codegraph", "deepcodegraph", "dcg"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Documentation"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=6.0.0", "pytest-cov>=2.10.0", "black>=20.8b1", "isort>=5.7.0", "mypy>=0.800", "pylint>=2.6.0"]
+
+[project.scripts]
+codegraph = "codegraph.cli:main"
+dcg = "codegraph.cli:main"
+
+[project.urls]
+Repository = "https://github.com/rhochgraf21/DeepCodeGraph.git"
+Issues = "https://github.com/rhochgraf21/DeepCodeGraph/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["codegraph*"]
+
+[tool.setuptools.package-data]
+codegraph = ["prompts/*.txt"]

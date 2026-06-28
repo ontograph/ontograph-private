@@ -1,0 +1,37 @@
+{
+  "workbook_path": "tmp/excel/generated/row041-positive-minimal.xlsx",
+  "mode": "dry_run",
+  "sheet": "Main",
+  "external_links_allowed": false,
+  "results": [
+    {
+      "formula_reference": "B2",
+      "original_formula": "SUM(Data!$A$1:$A$3)",
+      "proposed_rewritten_formula": "SUM(SalesData)",
+      "matched_mapping_entries": [
+        {
+          "from_ref": "Data!$A$1:$A$3",
+          "to_name": "SalesData"
+        }
+      ],
+      "blocker_reasons": [],
+      "confidence": "high"
+    },
+    {
+      "formula_reference": "B3",
+      "original_formula": "AVERAGE(Data!$A$1:$A$3)",
+      "proposed_rewritten_formula": "AVERAGE(SalesData)",
+      "matched_mapping_entries": [
+        {
+          "from_ref": "Data!$A$1:$A$3",
+          "to_name": "SalesData"
+        }
+      ],
+      "blocker_reasons": [],
+      "confidence": "high"
+    }
+  ],
+  "warnings": [
+    "Synthetic mechanics-only positive case. Real workbook evidence is still preferred before reopening production implementation."
+  ]
+}

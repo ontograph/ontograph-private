@@ -59,6 +59,9 @@ use crate::facts::PluginStateChangedInput;
 use crate::facts::PluginUsedInput;
 use crate::facts::SkillInvocation;
 use crate::facts::SkillInvokedInput;
+use crate::facts::SubAgentInvocationKind;
+use crate::facts::SubAgentTerminalStatus;
+use crate::facts::SubAgentThreadCompletedInput;
 use crate::facts::SubAgentThreadStartedInput;
 use crate::facts::ThreadInitializationMode;
 use crate::facts::TrackEventsContext;
@@ -2717,6 +2720,94 @@ async fn subagent_thread_started_inherits_parent_connection_for_new_thread() {
         payload[0]["event_params"]["parent_thread_id"],
         "44444444-4444-4444-4444-444444444444"
     );
+}
+
+#[tokio::test]
+async fn subagent_thread_completed_publishes_requested_and_effective_models() {
+    let mut reducer = AnalyticsReducer::default();
+    let mut events = Vec::new();
+
+    reducer
+        .ingest(
+            AnalyticsFact::Custom(CustomAnalyticsFact::SubAgentThreadCompleted(Box::new(
+                SubAgentThreadCompletedInput {
+                    session_id: "session-root".to_string(),
+                    thread_id: "thread-subagent".to_string(),
+                    parent_thread_id: Some("thread-parent".to_string()),
+                    product_client_id: "ontocode-tui".to_string(),
+                    client_name: "ontocode-tui".to_string(),
+                    client_version: "1.0.0".to_string(),
+                    requested_model: Some("fast".to_string()),
+                    effective_model: "gemini-3.5-flash-low".to_string(),
+                    invocation_kind: SubAgentInvocationKind::Spawn,
+                    depth: 2,
+                    terminal_status: SubAgentTerminalStatus::Completed,
+                    terminate_reason: None,
+                    duration_ms: 1200,
+                    result_summary_present: true,
+                    completed_at: 211,
+                },
+            ))),
+            &mut events,
+        )
+        .await;
+
+    let payload = serde_json::to_value(&events).expect("serialize events");
+    assert_eq!(payload.as_array().expect("events array").len(), 1);
+    assert_eq!(payload[0]["event_type"], "codex_subagent_thread_completed");
+    assert_eq!(payload[0]["event_params"]["requested_model"], "fast");
+    assert_eq!(
+        payload[0]["event_params"]["effective_model"],
+        "gemini-3.5-flash-low"
+    );
+    assert_eq!(payload[0]["event_params"]["invocation_kind"], "spawn");
+    assert_eq!(payload[0]["event_params"]["terminal_status"], "completed");
+    assert_eq!(payload[0]["event_params"]["result_summary_present"], true);
+}
+
+#[tokio::test]
+async fn subagent_thread_completed_publishes_terminal_reason_for_failed_outcome() {
+    let mut reducer = AnalyticsReducer::default();
+    let mut events = Vec::new();
+
+    reducer
+        .ingest(
+            AnalyticsFact::Custom(CustomAnalyticsFact::SubAgentThreadCompleted(Box::new(
+                SubAgentThreadCompletedInput {
+                    session_id: "session-root".to_string(),
+                    thread_id: "thread-subagent".to_string(),
+                    parent_thread_id: Some("thread-parent".to_string()),
+                    product_client_id: "ontocode-tui".to_string(),
+                    client_name: "ontocode-tui".to_string(),
+                    client_version: "1.0.0".to_string(),
+                    requested_model: None,
+                    effective_model: "gpt-5.4-mini".to_string(),
+                    invocation_kind: SubAgentInvocationKind::Resume,
+                    depth: 1,
+                    terminal_status: SubAgentTerminalStatus::Errored,
+                    terminate_reason: Some("provider unavailable".to_string()),
+                    duration_ms: 55,
+                    result_summary_present: false,
+                    completed_at: 212,
+                },
+            ))),
+            &mut events,
+        )
+        .await;
+
+    let payload = serde_json::to_value(&events).expect("serialize events");
+    assert_eq!(payload[0]["event_type"], "codex_subagent_thread_completed");
+    assert_eq!(
+        payload[0]["event_params"]["requested_model"],
+        serde_json::Value::Null
+    );
+    assert_eq!(payload[0]["event_params"]["invocation_kind"], "resume");
+    assert_eq!(payload[0]["event_params"]["terminal_status"], "errored");
+    assert_eq!(
+        payload[0]["event_params"]["terminate_reason"],
+        "provider unavailable"
+    );
+    assert_eq!(payload[0]["event_params"]["result_summary_present"], false);
 }
 
 #[tokio::test]

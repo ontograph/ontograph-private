@@ -1,0 +1,244 @@
+Metadata-Version: 2.1
+Name: codegraph-agent
+Version: 0.1.22
+Summary: 
+Author: Team Dotagent
+Author-email: team@dotagent.ai
+Requires-Python: >=3.9,<4.0
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Dist: InstructorEmbedding (>=1.0.1,<2.0.0)
+Requires-Dist: Pillow (>=9.5,<10.0)
+Requires-Dist: PyYAML (>=6.0)
+Requires-Dist: SQLAlchemy (>=2.0,<3.0)
+Requires-Dist: aiofiles (>=23.1,<24.0)
+Requires-Dist: aiohttp (>=3.8.4,<4.0.0)
+Requires-Dist: aioresponses (>=0.7.4,<0.8.0)
+Requires-Dist: aleph_alpha_client (>=3.2,<4.0)
+Requires-Dist: anyio (<4.0)
+Requires-Dist: apify_client (>=1.3.1,<2.0.0)
+Requires-Dist: asyncer (>=0.0.2,<0.0.3)
+Requires-Dist: auth0_python (>=4.4,<5.0)
+Requires-Dist: beautifulsoup4 (>=4.12.2,<5.0.0)
+Requires-Dist: bibtexparser (>=1.4,<2.0)
+Requires-Dist: boto3 (>=1.26,<2.0)
+Requires-Dist: chainlit (==0.6.2)
+Requires-Dist: chromadb (>=0.3.26,<0.4.0)
+Requires-Dist: click (>=8.1.3,<9.0.0)
+Requires-Dist: dataclasses_json (>=0.5.8,<0.6.0)
+Requires-Dist: diskcache (>=5.6.1,<6.0.0)
+Requires-Dist: docarray (>=0.37,<0.38)
+Requires-Dist: docx2txt (>=0.8,<0.9)
+Requires-Dist: ebooklib (>=0.18,<0.19)
+Requires-Dist: fastapi (>=0.97.0,<0.98.0)
+Requires-Dist: fastapi_socketio (>=0.0.10,<0.0.11)
+Requires-Dist: feedparser (>=6.0.10,<7.0.0)
+Requires-Dist: filetype (>=1.2,<2.0)
+Requires-Dist: fitz (>=0.0.1-dev2,<0.0.2)
+Requires-Dist: flask (>=2.3.2,<3.0.0)
+Requires-Dist: google-search-results (>=2.4.2,<3.0.0)
+Requires-Dist: gql (>=3.4.1,<4.0.0)
+Requires-Dist: html2text (>=2020.1.16,<2021.0.0)
+Requires-Dist: httpx (>=0.24,<0.25)
+Requires-Dist: huggingface_hub (>=0.16.4,<0.17.0)
+Requires-Dist: ipykernel (>=6.25,<7.0)
+Requires-Dist: ipython (>=8.14,<9.0)
+Requires-Dist: jsonpatch (>=1.33,<2.0)
+Requires-Dist: jsonschema (>=4.18,<5.0)
+Requires-Dist: jupyter (>=1.0.0,<2.0.0)
+Requires-Dist: lxml (>=4.9.3,<5.0.0)
+Requires-Dist: matplotlib (>=3.7.2,<4.0.0)
+Requires-Dist: metal_sdk (>=2.0.1,<3.0.0)
+Requires-Dist: msal (>=1.22,<2.0)
+Requires-Dist: nbconvert (>=7.7,<8.0)
+Requires-Dist: nest_asyncio (>=1.5,<2.0)
+Requires-Dist: nltk (>=3.8.1,<4.0.0)
+Requires-Dist: numpy (>=1.25.1,<2.0.0)
+Requires-Dist: openai (>=0.27.8)
+Requires-Dist: openapi_schema_pydantic (>=1.2.4,<2.0.0)
+Requires-Dist: opendal (>=0.39,<0.40)
+Requires-Dist: pandas (>=1.4.0,<2.0.0)
+Requires-Dist: pexpect (>=4.8,<5.0)
+Requires-Dist: platformdirs (>=3.10,<4.0)
+Requires-Dist: playwright (>=1.36,<2.0)
+Requires-Dist: praw (>=7.7.1,<8.0.0)
+Requires-Dist: protobuf (>=4.23,<5.0)
+Requires-Dist: pydantic (>=1.10,<2.0)
+Requires-Dist: pydub (>=0.25,<0.26)
+Requires-Dist: pygtrie (>=2.5,<3.0)
+Requires-Dist: pymilvus (>=2.2,<3.0)
+Requires-Dist: pyowm (>=3.3,<4.0)
+Requires-Dist: pyparsing (>=2.3.1,<3.1)
+Requires-Dist: pytesseract (>=0.3,<0.4)
+Requires-Dist: python-dotenv (>=1.0,<2.0)
+Requires-Dist: python-socketio (>=5.8,<6.0)
+Requires-Dist: python_graphql_client (>=0.4.3,<0.5.0)
+Requires-Dist: rdflib (>=7.0,<8.0)
+Requires-Dist: regex (>=2023.6,<2024.0)
+Requires-Dist: reportlab (>=4.0,<5.0)
+Requires-Dist: requests (>=2,<3)
+Requires-Dist: responses (>=0.23,<0.24)
+Requires-Dist: retrying (>=1.3,<2.0)
+Requires-Dist: scikit_learn (>=1.3,<2.0)
+Requires-Dist: sentence_transformers (>=2.2,<3.0)
+Requires-Dist: sentencepiece (>=0.1.99,<0.2.0)
+Requires-Dist: spacy (>=3.6,<4.0)
+Requires-Dist: starlette (>=0.27.0,<0.28.0)
+Requires-Dist: svglib (>=1.5,<2.0)
+Requires-Dist: syncer (>=2.0,<3.0)
+Requires-Dist: tenacity (>=8.2,<9.0)
+Requires-Dist: tiktoken (>=0.4,<0.5)
+Requires-Dist: tomli (>=2.0,<3.0)
+Requires-Dist: tqdm (>=4.65,<5.0)
+Requires-Dist: trafilatura (>=1.6,<2.0)
+Requires-Dist: typing_extensions (>=4.7,<5.0)
+Requires-Dist: uptrace (>=1.19,<2.0)
+Requires-Dist: urllib3 (<2)
+Requires-Dist: uvicorn (>=0.22.0,<0.23.0)
+Requires-Dist: watchfiles (>=0.19,<0.20)
+Requires-Dist: zep_python (>=0.34,<0.35)
+Description-Content-Type: text/markdown
+
+```diff
++ Looking for 'openagent'? Because of a little name clash, it's now called 'dotagent'. 🤖+
+```
+<p align="center"> 
+<img src="https://res.cloudinary.com/dzznkbdrb/image/upload/c_scale,e_art:primavera,r_30,w_2294/a_0/v1697338678/github-cover-min_exhq8b.webp" />
+
+</p>
+
+## Question:
+
+**I stumbled upon this repository. Is it production ready?**
+
+## Answer:
+
+Kudos on discovering this hidden treasure box! 🧭  While it's fairly stable and we're battle-testing it in our own production, we'd advise a bit of caution for immediate production use. It's got its quirks, and some of them have taken a cozy spot on our *'we'll-look-at-this-later'* list. Jump in, play with it, or use any part of our code. It's all good with the MIT license. 
+
+---
+
+**I'm diving in, quirks and all!**
+
+Ahoy, adventurer! 🏴‍☠️ We're thrilled to have another daring coder join the fray. Here's to creating some coding magic together! ✨ 
+
+<h1 id="-why-we-started-dotagent-"><strong>The Origin Tale of dotagent</strong></h1>
+
+<p>Here's our dream: An open and democratic AGI, untouched by the sneaky controls and hush-hush censorship of corporate overlords masquerading under 'alignment'. Remember the good ol' web days? We lost that freedom to the mobile moguls and their cheeky 30% 'because-we-said-so' tax. 🙄</p>
+<p>Our moonshot? 🚀 A harmonious ensemble of domain-specific AI agents, working in unison so well, you'd think it's AGI. Join us in opening up the LAST tech frontier for all!</p>
+
+![-----------------------------------------------------](https://res.cloudinary.com/dzznkbdrb/image/upload/v1694798498/divider_1_rej288.gif)
+
+
+<h1 id="what-is-dotagent-">Meet World's first AMS!</h1>
+
+<p>Ever heard of an Agent Management System (AMS)? No? Well, probably because we believe we came up with it! 🎩✨ dotagent proudly wears the badge of being the world's first AMS (yep, we're patting ourselves on the back here). Drawing inspiration from the nifty microservices, it equips developers with a treasure trove of tools to craft sturdy, trusty AI applications and those cool experimental autonomous agents.</p>
+
+
+
+
+<h2 id="modularity"> 🧱 Modularity</h2>
+<ul>
+<li><em><strong>Multiplatform:</strong></em> Agents do not have to run on a single location or machine. Different components can run across various platforms, including the cloud, personal computers, or mobile devices.</li>
+<li><em><strong>Extensible:</strong></em> If you know how to do something in Python or plain English, you can integrate it with dotagent.</li>
+</ul>
+<h2 id="guardrails"> 🚧 Guardrails</h2>
+<ul>
+<li><em><strong>Set clear boundaries:</strong></em> Users can precisely outline what their agent can and cannot do. This safeguard guarantees that the agent remains a dynamic, self-improving system without overstepping defined boundaries.</li>
+</ul>
+<h2 id="greater-control-with-structured-outputs">🏗️ Greater control with Structured outputs</h2>
+<ul>
+<li><em><strong>More Effective Than Chaining or Prompting:</strong></em> The prompt compiler unlocks the next level of prompt engineering, providing far greater control over LLMs than few-shot prompting or traditional chaining methods.</li>
+<li><em><strong>Superpowers to Prompt Engineers:</strong></em> It gives full power of prompt engineering, aligning with how LLMs actually process text. This understanding enables you to precisely control the output, defining the exact response structure and instructing LLMs on how to generate responses.</li>
+</ul>
+<h2 id="powerful-prompt-compiler">🏭 Powerful Prompt Compiler</h2>
+<p>The philosophy is to handle more processing at compile time and maintain better session with LLMs.</p>
+<ul>
+<li><em><strong>Pre-compiling prompts:</strong></em> By handling basic prompt processing at compile time, unnecessary redundant LLM processing are eliminated.</li>
+<li><em><strong>Session state with LLM:</strong></em> Maintaining state with LLMs and reusing KV caches can eliminate many redundant generations and significantly speed up the process for longer and more complex prompts. <em>(only for opensource models)</em></li>
+<li><em><strong>Optimized tokens:</strong></em> Compiler can transform many output tokens into prompt token batches, which are cheaper and faster. The structure of the template can dynamically guide the probabilities of subsequent tokens, ensuring alignment with the template and optimized tokenization . <em><strong>(only for opensource models)</strong></em></li>
+<li><em><strong><strong>Speculative sampling (WIP):</strong></strong></em> You can enhance token generation speed in a large language model by using a smaller model as an assistant. The method relies on an algorithm that generates multiple tokens per transformer call using a faster draft model. This can lead to upto 3x speedup in token generation .</li>
+</ul>
+<h2 id="-containerized-scalable-"><strong>📦 Containerized &amp; Scalable</strong></h2>
+<ul>
+<li>.🤖 <em><strong>files :</strong></em> Agents can be effortlessly exported into a simple .agent or .🤖 file, allowing them to run in any environment.</li>
+<li><em><strong>Agentbox (optional):</strong></em> Agents should be able to optimize computing resources inside a sandbox. You can use Agentbox locally or on a cloud with a simple API, with cloud agentbox offering additional control and safety.</li>
+</ul>
+
+![-----------------------------------------------------](https://res.cloudinary.com/dzznkbdrb/image/upload/v1694798498/divider_1_rej288.gif)
+## Installation
+
+
+`pip install dotagent` 
+
+## Common Errors
+
+### SQLite3 Version Error
+
+If you encounter an error like:
+
+
+
+`Your system has an unsupported version of sqlite3. Chroma requires sqlite3 >= 3.35.0.` 
+
+This is a very common issue with Chroma DB. You can find instructions to resolve this in the [Chroma DB tutorial](https://docs.trychroma.com/troubleshooting#sqlite).
+
+### Here's the code for a full stack chat app with UI, all in a single Python file! (37 lines)
+
+ ```python
+import dotagent.compiler as compiler
+from dotagent.compiler._program import Log
+from dotagent import memory
+import chainlit as ui
+from dotenv import load_dotenv
+load_dotenv()
+
+@ui.on_chat_start
+def start_chat():
+    compiler.llm = compiler.llms.OpenAI(model="gpt-3.5-turbo")
+
+
+class ChatLog(Log):
+    def append(self, entry):
+        super().append(entry)
+        print(entry)
+        is_end = entry["type"] == "end"
+        is_assistant = entry["name"] == "assistant"
+        if is_end and is_assistant:
+            ui.run_sync(ui.Message(content=entry["new_prefix"]).send())
+
+
+memory = memory.SimpleMemory()
+
+@ui.on_message
+async def main(message: str):
+    program = compiler(
+        """
+        {{#system~}}
+        You are a helpful assistant
+        {{~/system}}
+
+        {{~#geneach 'conversation' stop=False}}
+        {{#user~}}
+        {{set 'this.user_text' (await 'user_text')  hidden=False}}
+        {{~/user}}
+
+        {{#assistant~}}
+        {{gen 'this.ai_text' temperature=0 max_tokens=300}}
+        {{~/assistant}}
+        {{~/geneach}}""", memory = memory
+    )
+
+    program(user_text=message, log=ChatLog())
+
+
+```
+The UI will look something like this:
+![-----------------------------------------------------](https://res.cloudinary.com/dzznkbdrb/image/upload/v1694798498/chatapp_1_o3dypp.png)
+
+
+
+<hr>
+

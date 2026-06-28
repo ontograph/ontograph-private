@@ -99,14 +99,17 @@ Likewise, when reviewing code, do not hesitate to push back on PRs that would un
 
 Before implementing provider, auth, MCP, hooks, shell, session/context, diagnostics, or external-agent import work:
 
-- For sub-agent coding tasks in this repository, request models in this order:
-  `gemini-3.5-flash-low`, `gemini-3-flash-agent`, `gemini-pro-agent`,
-  `claude-sonnet-4-6`, `gpt-5.3-codex-spark`, `gpt-5.4-mini`.
-  You must use the exact model names listed above; do not truncate them (e.g. do not ask for `gemini-3-flash`).
-  When requesting `gemini-3.5-flash-low`, omit `reasoning_effort` unless the active spawn tool explicitly advertises supported effort values for that model.
-  Use the first available model. If an exact model fails today, do not retry that
-  same model again until tomorrow; use the next available model in the order
-  for today's next attempt.
+- For all development tasks in this repository, default to a bounded manager loop using OntoIndex.
+  Bind roles exactly as follows:
+  - manager: current session
+  - senior-reviewer: `gemini-pro-agent`
+  - implementation-worker: `gpt-5.3-codex-spark` high, then `gpt-5.4-mini` high
+  - verification-worker: `gpt-5.4-mini` high
+  Use the exact model names listed above; do not truncate them.
+  Continue in this order:
+  - if `active_next_task` exists, execute it
+  - else if the last decision was no-dispatch, reply with the exact reopen gate
+  - else refuse to rewrite tracking without new evidence
 - Treat every proposed change or refactor as invalid until it passes both checks:
   - it adds real new functionality, behavior, safety, compatibility, or operational value rather than cosmetic churn or duplicate plumbing
   - it extends the existing core solution and stays inline with the current architecture instead of introducing a parallel owner or side stack
@@ -120,6 +123,29 @@ Before implementing provider, auth, MCP, hooks, shell, session/context, diagnost
 - Public config keys, app-server APIs, SDK behavior, schemas, dashboards, wizards, support bundles, and export paths require an ADR and compatibility tests before implementation.
 - Security-sensitive diagnostics must reuse or extend shared sanitization/redaction behavior. Tests must fail if a token, cookie, authorization header, keychain path, or raw credential value appears in output.
 - Anything injected into model context must use bounded context fragment architecture with hard caps.
+
+## Third-Party Tool Migration Rule
+
+The current project goal for external tool migration is to remove runtime
+dependencies on third-party tools and upstream projects. Donor repositories are
+source evidence only unless this repo explicitly adopts the code.
+
+- Do not add a required runtime dependency on an external third-party CLI,
+  daemon, package, hosted service, source checkout, or release stream.
+- When moving external functionality into Ontocode, adopt the minimum required
+  legacy code into this repository and expose it through a repo-owned plugin or
+  existing plugin/backend owner.
+- The adopted plugin must be self-contained from Ontocode's perspective: no
+  dependency on the upstream project staying available, no plugin shell-out to
+  an external checkout, and no hidden download step for normal use.
+- Keep the plugin boundary unless an ADR proves that the functionality belongs
+  in an existing native owner. Do not copy a donor runtime into `ontocode-core`
+  as a shortcut.
+- Strip or replace donor features that require external accounts, telemetry,
+  update channels, background services, broad shell execution, or unrelated
+  package managers unless a bounded ADR explicitly approves that surface.
+- Preserve compatibility shims and provenance notes when adopting legacy code,
+  but make the maintained Ontocode path the authority.
 
 ## Ontocode Rename Rule
 
@@ -385,7 +411,7 @@ This project is indexed by GitNexus as **codex** (72144 symbols, 164215 relation
 <!-- ontoindex:start -->
 # OntoIndex — Code Intelligence
 
-This project is indexed by OntoIndex as **codex** (79861 symbols, 209267 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by OntoIndex as **codex** (82466 symbols, 214973 relationships, 300 execution flows). Use the OntoIndex MCP tools to understand code, assess impact, and navigate safely.
 
 > If any OntoIndex tool warns the index is stale, coordinate first; exactly one process should run `ontoindex analyze`.
 

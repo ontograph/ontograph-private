@@ -34,6 +34,7 @@ use ontocode_app_server_protocol::ThreadStartParams;
 use ontocode_app_server_protocol::ThreadStartResponse;
 use ontocode_app_server_protocol::ThreadStatus;
 use ontocode_app_server_protocol::ThreadTurnsItemsListParams;
+use ontocode_app_server_protocol::ThreadTurnsItemsListResponse;
 use ontocode_app_server_protocol::ThreadTurnsListParams;
 use ontocode_app_server_protocol::ThreadTurnsListResponse;
 use ontocode_app_server_protocol::TurnItemsView;
@@ -1137,7 +1138,91 @@ async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> 
 }
 
 #[tokio::test]
-async fn thread_turns_items_list_returns_unsupported() -> Result<()> {
+async fn thread_turns_items_list_returns_paginated_full_turn_items() -> Result<()> {
+    let server = create_mock_responses_server_repeating_assistant("Done").await;
+    let codex_home = TempDir::new()?;
+    create_config_toml(codex_home.path(), &server.uri())?;
+
+    let filename_ts = "2025-01-05T12-00-00";
+    let conversation_id = create_fake_rollout_with_text_elements(
+        codex_home.path(),
+        filename_ts,
+        "2025-01-05T12:00:00Z",
+        "first",
+        Vec::new(),
+        Some("mock_provider"),
+        None,
+    )?;
+    let rollout_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    append_agent_message(rollout_path.as_path(), "2025-01-05T12:01:00Z", "draft")?;
+    append_agent_message(rollout_path.as_path(), "2025-01-05T12:02:00Z", "final")?;
+
+    let mut mcp = TestAppServer::new(codex_home.path()).await?;
+    timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
+
+    let full_turn =
+        read_single_turn_items_view(&mut mcp, &conversation_id, Some(TurnItemsView::Full)).await?;
+    assert_eq!(full_turn.items.len(), 3);
+
+    let read_id = mcp
+        .send_thread_turns_items_list_request(ThreadTurnsItemsListParams {
+            thread_id: conversation_id.clone(),
+            turn_id: full_turn.id.clone(),
+            cursor: None,
+            limit: Some(2),
+            sort_direction: Some(SortDirection::Asc),
+        })
+        .await?;
+    let read_resp: JSONRPCResponse = timeout(
+        DEFAULT_READ_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
+    )
+    .await??;
+    let ThreadTurnsItemsListResponse {
+        data,
+        next_cursor,
+        backwards_cursor,
+    } = to_response::<ThreadTurnsItemsListResponse>(read_resp)?;
+
+    assert_eq!(data, full_turn.items[..2].to_vec());
+    assert!(next_cursor.is_some(), "expected second page cursor");
+    assert!(
+        backwards_cursor.is_some(),
+        "expected backwards cursor for returned page"
+    );
+
+    let read_id = mcp
+        .send_thread_turns_items_list_request(ThreadTurnsItemsListParams {
+            thread_id: conversation_id,
+            turn_id: full_turn.id,
+            cursor: next_cursor,
+            limit: Some(2),
+            sort_direction: Some(SortDirection::Asc),
+        })
+        .await?;
+    let read_resp: JSONRPCResponse = timeout(
+        DEFAULT_READ_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
+    )
+    .await??;
+    let ThreadTurnsItemsListResponse {
+        data,
+        next_cursor,
+        backwards_cursor,
+    } = to_response::<ThreadTurnsItemsListResponse>(read_resp)?;
+
+    assert_eq!(data, full_turn.items[2..].to_vec());
+    assert_eq!(next_cursor, None);
+    assert!(
+        backwards_cursor.is_some(),
+        "expected backwards cursor for returned page"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn thread_turns_items_list_rejects_unmaterialized_loaded_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
@@ -1145,10 +1230,28 @@ async fn thread_turns_items_list_returns_unsupported() -> Result<()> {
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
+    let start_id = mcp
+        .send_thread_start_request(ThreadStartParams {
+            model: Some("mock-model".to_string()),
+            ..Default::default()
+        })
+        .await?;
+    let start_resp: JSONRPCResponse = timeout(
+        DEFAULT_READ_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
+    )
+    .await??;
+    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let thread_path = thread.path.clone().expect("thread path");
+    assert!(
+        !thread_path.exists(),
+        "fresh thread rollout should not be materialized yet"
+    );
+
     let read_id = mcp
         .send_thread_turns_items_list_request(ThreadTurnsItemsListParams {
-            thread_id: "thr_123".to_string(),
-            turn_id: "turn_456".to_string(),
+            thread_id: thread.id,
+            turn_id: "turn_missing".to_string(),
             cursor: None,
             limit: None,
             sort_direction: None,
@@ -1160,10 +1263,13 @@ async fn thread_turns_items_list_returns_unsupported() -> Result<()> {
     )
     .await??;
 
-    assert_eq!(read_err.error.code, -32601);
-    assert_eq!(
-        read_err.error.message,
-        "thread/turns/items/list is not supported yet"
+    assert!(
+        read_err
+            .error
+            .message
+            .contains("thread/turns/items/list is unavailable before first user message"),
+        "unexpected error: {}",
+        read_err.error.message
     );
 
     Ok(())

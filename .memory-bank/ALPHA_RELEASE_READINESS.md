@@ -25,7 +25,7 @@ Prepare the repository for an alpha release cut while preserving the existing `0
 - Keep npm/Python source manifests on their dev placeholders unless the release process explicitly requires a committed version bump.
 - Use release tooling to inject the concrete alpha version at staging time.
 - Remove hardcoded runtime placeholders that would survive a release cut and leak incorrect metadata.
-- Use the next unused private prerelease identifier for new cuts. As of 2026-06-26, private GitHub releases exist through `0.1.0-alpha.3`; local checkout tag names for `rust-v0.1.0-alpha.3` and `rust-v0.1.0-alpha.4` are occupied by fetched upstream/OpenAI tag objects, so the safe next private alpha candidate is `0.1.0-alpha.5`.
+- Use the next unused private prerelease identifier for new cuts. As of 2026-06-28, private GitHub releases and tags exist through `0.1.0-alpha.6`, so the safe next private alpha candidate is `0.1.0-alpha.7`.
 
 ## Completed In This Slice
 
@@ -48,6 +48,11 @@ Prepare the repository for an alpha release cut while preserving the existing `0
   - `origin` points at `openai/codex`; fetched local tag names include upstream `rust-v0.1.0-alpha.4`, so do not reuse that tag name from this mixed checkout.
   - Added `release-notes-v0.1.0-alpha.5.md`.
   - `.github/workflows/private-alpha-release.yml` now uses `release-notes-v<version>.md` as prerelease notes when the file exists.
+- 2026-06-28 alpha.7 preparation
+  - Private GitHub releases checked with `gh release list --repo ontograph/ontograph-private --limit 20`: published releases currently stop at `0.1.0-alpha.6`.
+  - Private git tags checked with `git ls-remote --tags ontograph 'rust-v0.1.0-alpha.*'`: private tags currently stop at `rust-v0.1.0-alpha.6`.
+  - Release distribution packaging no longer accepts or auto-detects `lean-ctx` as a package resource.
+  - Added `release-notes-v0.1.0-alpha.7.md`.
 - `ontocode-rs/core/src/native_provider/copilot.rs`
   - `Copilot` user-agent and editor version headers now derive from `env!("CARGO_PKG_VERSION")`.
 - `ontocode-rs/core/src/native_provider/copilot_tests.rs`
@@ -82,7 +87,7 @@ Prepare the repository for an alpha release cut while preserving the existing `0
 ## Alpha Cut Checklist
 
 1. Choose the concrete release version.
-   - Preferred next private candidate: `0.1.0-alpha.5`.
+   - Preferred next private candidate: `0.1.0-alpha.7`.
    - Already supported by installer tooling: `0.1.0`, `0.1.0-alpha`, `0.1.0-alpha.1`.
 2. Decide release-branch version policy.
    - Option A: leave source manifests on placeholders and stage all packages with `--release-version`.

@@ -1,0 +1,3 @@
+[console_scripts]
+codegraph = codegraph.cli:app
+codegraph-mcp = codegraph.mcp:main

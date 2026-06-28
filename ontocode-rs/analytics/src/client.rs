@@ -16,6 +16,7 @@ use crate::facts::PluginState;
 use crate::facts::PluginStateChangedInput;
 use crate::facts::SkillInvocation;
 use crate::facts::SkillInvokedInput;
+use crate::facts::SubAgentThreadCompletedInput;
 use crate::facts::SubAgentThreadStartedInput;
 use crate::facts::TrackEventsContext;
 use crate::facts::TurnCodexErrorFact;
@@ -167,6 +168,12 @@ impl AnalyticsEventsClient {
     pub fn track_subagent_thread_started(&self, input: SubAgentThreadStartedInput) {
         self.record_fact(AnalyticsFact::Custom(
             CustomAnalyticsFact::SubAgentThreadStarted(input),
+        ));
+    }
+
+    pub fn track_subagent_thread_completed(&self, input: SubAgentThreadCompletedInput) {
+        self.record_fact(AnalyticsFact::Custom(
+            CustomAnalyticsFact::SubAgentThreadCompleted(Box::new(input)),
         ));
     }
 

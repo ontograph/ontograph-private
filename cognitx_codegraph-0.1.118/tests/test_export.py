@@ -1,0 +1,355 @@
+"""Tests for :mod:`codegraph.export` — HTML, JSON, GraphML, Cypher exports."""
+from __future__ import annotations
+
+import json
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import pytest
+
+from codegraph.export import (
+    LABEL_COLORS,
+    MAX_NODES_FOR_VIZ,
+    _cypher_escape,
+    _sanitize_label,
+    to_cypher,
+    to_graphml,
+    to_html,
+    to_json,
+)
+
+
+# ── fixtures ──────────────────────────────────────────────────────
+
+_FIXTURE_NODES: list[dict] = [
+    {
+        "id": "n1",
+        "labels": ["Class"],
+        "properties": {"name": "UserService", "file": "src/app.ts"},
+    },
+    {
+        "id": "n2",
+        "labels": ["Function"],
+        "properties": {"name": "getUser", "file": "src/app.ts"},
+    },
+    {
+        "id": "n3",
+        "labels": ["File"],
+        "properties": {"path": "src/app.ts"},
+    },
+    {
+        "id": "n4",
+        "labels": ["Endpoint"],
+        "properties": {"name": "/users", "file": "src/app.ts"},
+    },
+]
+
+_FIXTURE_EDGES: list[dict] = [
+    {"src": "n3", "dst": "n1", "type": "DEFINES_CLASS", "properties": {}},
+    {"src": "n3", "dst": "n2", "type": "DEFINES_FUNCTION", "properties": {}},
+    {"src": "n1", "dst": "n2", "type": "CALLS", "properties": {}},
+]
+
+_FIXTURE_COMMUNITY_NODES: list[dict] = _FIXTURE_NODES + [
+    {"id": "n5", "labels": ["Function"],
+     "properties": {"name": "deleteUser", "file": "src/app.ts"}},
+    {"id": "n6", "labels": ["Method"],
+     "properties": {"name": "validate", "file": "src/app.ts"}},
+    {"id": "eg1", "labels": ["EdgeGroup"],
+     "properties": {"id": "community:0", "kind": "community",
+                    "label": "app-core", "node_count": 3}},
+    {"id": "eg2", "labels": ["EdgeGroup"],
+     "properties": {"id": "community:1", "kind": "community",
+                    "label": "app-util", "node_count": 2}},
+    {"id": "eg3", "labels": ["EdgeGroup"],
+     "properties": {"id": "community:2", "kind": "community",
+                    "label": "app-api", "node_count": 1}},
+]
+
+_FIXTURE_COMMUNITY_EDGES: list[dict] = _FIXTURE_EDGES + [
+    {"src": "n1", "dst": "eg1", "type": "MEMBER_OF", "properties": {"cid": 0}},
+    {"src": "n2", "dst": "eg1", "type": "MEMBER_OF", "properties": {"cid": 0}},
+    {"src": "n5", "dst": "eg1", "type": "MEMBER_OF", "properties": {"cid": 0}},
+    {"src": "n3", "dst": "eg2", "type": "MEMBER_OF", "properties": {"cid": 1}},
+    {"src": "n4", "dst": "eg2", "type": "MEMBER_OF", "properties": {"cid": 1}},
+    {"src": "n6", "dst": "eg3", "type": "MEMBER_OF", "properties": {"cid": 2}},
+]
+
+
+# ── HTML tests ────────────────────────────────────────────────────
+
+
+def test_to_html_contains_vis_js(tmp_path: Path) -> None:
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert "vis.Network" in content
+
+
+def test_to_html_contains_node_labels(tmp_path: Path) -> None:
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert "UserService" in content
+    assert "getUser" in content
+    assert "src/app.ts" in content
+
+
+def test_to_html_self_contained(tmp_path: Path) -> None:
+    """No external <script src=...> tags — everything is inline."""
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert '<script src=' not in content
+
+
+def test_to_html_xss_safety(tmp_path: Path) -> None:
+    nodes = [
+        {
+            "id": "xss1",
+            "labels": ["Class"],
+            "properties": {"name": "<script>alert(1)</script>", "file": "x.ts"},
+        },
+    ]
+    out = tmp_path / "graph.html"
+    to_html(nodes, [], out)
+    content = out.read_text()
+    # Raw <script>alert should NOT appear — must be escaped
+    assert "<script>alert" not in content
+    # The name should appear somewhere (escaped in JSON as \u003c or in HTML as &lt;)
+    assert "alert(1)" in content
+
+
+def test_to_html_max_nodes_guard(tmp_path: Path) -> None:
+    nodes = [{"id": f"n{i}", "labels": ["Class"], "properties": {}} for i in range(MAX_NODES_FOR_VIZ + 1)]
+    out = tmp_path / "graph.html"
+    with pytest.raises(ValueError, match="too large"):
+        to_html(nodes, [], out)
+
+
+def test_to_html_empty_graph(tmp_path: Path) -> None:
+    out = tmp_path / "graph.html"
+    to_html([], [], out)
+    content = out.read_text()
+    assert "<!DOCTYPE html>" in content
+    assert "0 nodes" in content
+
+
+def test_to_html_has_sidebar_elements(tmp_path: Path) -> None:
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert 'id="search"' in content
+    assert 'id="info-panel"' in content
+    assert 'id="legend"' in content
+    assert 'id="stats"' in content
+
+
+def test_to_html_community_sidebar(tmp_path: Path) -> None:
+    """Community checkboxes rendered when EdgeGroup nodes present."""
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_COMMUNITY_NODES, _FIXTURE_COMMUNITY_EDGES, out)
+    content = out.read_text()
+    assert 'id="communities"' in content
+    assert 'class="community-item"' in content
+    assert "app-core" in content
+    assert "app-util" in content
+    assert "app-api" in content
+    # Should have 3 community checkboxes
+    assert content.count('class="community-item"') == 3
+
+
+def test_to_html_community_hulls(tmp_path: Path) -> None:
+    """Convex hull JS present when communities exist."""
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_COMMUNITY_NODES, _FIXTURE_COMMUNITY_EDGES, out)
+    content = out.read_text()
+    assert "convexHull" in content
+    assert "afterDrawing" in content
+
+
+def test_to_html_no_communities_graceful(tmp_path: Path) -> None:
+    """No crash and no community checkboxes when no EdgeGroup nodes."""
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert 'class="community-item"' not in content
+    # Graph still renders
+    assert "vis.Network" in content
+
+
+def test_to_html_diacritic_search(tmp_path: Path) -> None:
+    """Search handler includes NFD normalization for diacritic insensitivity."""
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert "normalize('NFD')" in content or 'normalize("NFD")' in content
+    # The diacritics regex should be present
+    assert "\\u0300-\\u036f" in content
+
+
+def test_to_html_community_label_xss(tmp_path: Path) -> None:
+    """Community labels containing HTML/JS are escaped."""
+    xss_nodes = _FIXTURE_NODES + [
+        {"id": "eg_xss", "labels": ["EdgeGroup"],
+         "properties": {"id": "community:xss", "kind": "community",
+                        "label": '<script>alert("xss")</script>', "node_count": 1}},
+    ]
+    xss_edges = _FIXTURE_EDGES + [
+        {"src": "n1", "dst": "eg_xss", "type": "MEMBER_OF", "properties": {"cid": 0}},
+    ]
+    out = tmp_path / "graph.html"
+    to_html(xss_nodes, xss_edges, out)
+    content = out.read_text()
+    # Raw <script> must NOT appear — it should be escaped
+    assert '<script>alert("xss")</script>' not in content
+    # Escaped form should be present somewhere in the sidebar
+    assert "&lt;script&gt;" in content or "\\x3c" in content
+
+
+def test_to_html_hidden_reasons_coordination(tmp_path: Path) -> None:
+    """Search, legend, and community controls use hiddenReasons so they
+    don't overwrite each other's hidden state (GH-285)."""
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_COMMUNITY_NODES, _FIXTURE_COMMUNITY_EDGES, out)
+    content = out.read_text()
+    # The hiddenReasons infrastructure must be present
+    assert "hiddenReasons" in content
+    assert "setHidden" in content
+    # Each handler must use setHidden with its own reason namespace
+    assert "setHidden(n.id, 'search'" in content
+    assert "setHidden(n.id, 'legend:'" in content
+    assert "setHidden(n.id, 'community:'" in content
+    # The old absolute hidden=false pattern must NOT appear in the search clear path
+    assert "nodes.update({id: n.id, hidden: false})" not in content
+    # hiddenCommunities must still exist — the hull renderer reads it
+    assert "hiddenCommunities" in content
+
+
+def test_to_html_community_excludes_edgegroup_nodes(tmp_path: Path) -> None:
+    """EdgeGroup synthetic nodes should not appear as vis.js nodes."""
+    out = tmp_path / "graph.html"
+    to_html(_FIXTURE_COMMUNITY_NODES, _FIXTURE_COMMUNITY_EDGES, out)
+    content = out.read_text()
+    # EdgeGroup label should not appear in the legend (it's not a real node label)
+    assert 'data-label="EdgeGroup"' not in content
+    # The stats line should count only regular nodes, not EdgeGroup nodes
+    assert "6 nodes" in content  # 4 original + 2 extra, not 9
+
+
+# ── JSON tests ────────────────────────────────────────────────────
+
+
+def test_to_json_roundtrip(tmp_path: Path) -> None:
+    out = tmp_path / "graph.json"
+    to_json(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    doc = json.loads(out.read_text())
+    assert len(doc["nodes"]) == len(_FIXTURE_NODES)
+    assert len(doc["edges"]) == len(_FIXTURE_EDGES)
+
+
+def test_to_json_has_meta(tmp_path: Path) -> None:
+    out = tmp_path / "graph.json"
+    to_json(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    doc = json.loads(out.read_text())
+    meta = doc["meta"]
+    assert meta["node_count"] == len(_FIXTURE_NODES)
+    assert meta["edge_count"] == len(_FIXTURE_EDGES)
+    assert "exported_at" in meta
+    # Verify ISO 8601 format
+    from datetime import datetime
+    datetime.fromisoformat(meta["exported_at"])
+
+
+# ── GraphML tests ─────────────────────────────────────────────────
+
+
+def test_to_graphml_valid_xml(tmp_path: Path) -> None:
+    out = tmp_path / "graph.graphml"
+    to_graphml(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    # Should parse without error
+    ET.parse(out)
+
+
+def test_to_graphml_node_count(tmp_path: Path) -> None:
+    out = tmp_path / "graph.graphml"
+    to_graphml(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    tree = ET.parse(out)
+    ns = {"g": "http://graphml.graphstruct.org/xmlns"}
+    node_elements = tree.findall(".//g:node", ns)
+    assert len(node_elements) == len(_FIXTURE_NODES)
+
+
+def test_to_graphml_edge_count(tmp_path: Path) -> None:
+    out = tmp_path / "graph.graphml"
+    to_graphml(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    tree = ET.parse(out)
+    ns = {"g": "http://graphml.graphstruct.org/xmlns"}
+    edge_elements = tree.findall(".//g:edge", ns)
+    assert len(edge_elements) == len(_FIXTURE_EDGES)
+
+
+# ── Cypher tests ──────────────────────────────────────────────────
+
+
+def test_to_cypher_merge_statements(tmp_path: Path) -> None:
+    out = tmp_path / "graph.cypher"
+    to_cypher(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert "MERGE (n:Class" in content
+    assert "MERGE (n:Function" in content
+    assert "MERGE (n:File" in content
+    assert "MERGE (n:Endpoint" in content
+
+
+def test_to_cypher_edge_statements(tmp_path: Path) -> None:
+    out = tmp_path / "graph.cypher"
+    to_cypher(_FIXTURE_NODES, _FIXTURE_EDGES, out)
+    content = out.read_text()
+    assert "MERGE (a)-[:DEFINES_CLASS]->(b)" in content
+    assert "MERGE (a)-[:CALLS]->(b)" in content
+
+
+def test_to_cypher_escapes_quotes(tmp_path: Path) -> None:
+    nodes = [
+        {
+            "id": "q1",
+            "labels": ["Class"],
+            "properties": {"name": "it's", "file": "x.ts"},
+        },
+    ]
+    out = tmp_path / "graph.cypher"
+    to_cypher(nodes, [], out)
+    content = out.read_text()
+    assert "it\\'s" in content
+
+
+# ── Utility tests ─────────────────────────────────────────────────
+
+
+def test_label_colors_complete() -> None:
+    """Every label used in fixtures gets a real color, not fallback."""
+    for node in _FIXTURE_NODES:
+        for lbl in node["labels"]:
+            assert lbl in LABEL_COLORS, f"Missing color for label {lbl!r}"
+
+
+def test_cypher_escape() -> None:
+    assert _cypher_escape("it's") == "it\\'s"
+    assert _cypher_escape("a\\b") == "a\\\\b"
+
+
+def test_to_graphml_quotes_in_id(tmp_path: Path) -> None:
+    """Node IDs containing quotes must not break XML attribute values."""
+    nodes = [{"id": 'n"1', "labels": ["Class"], "properties": {"name": "Foo"}}]
+    out = tmp_path / "graph.graphml"
+    to_graphml(nodes, [], out)
+    tree = ET.parse(out)  # Would fail if quote breaks XML
+    ns = {"g": "http://graphml.graphstruct.org/xmlns"}
+    assert len(tree.findall(".//g:node", ns)) == 1
+
+
+def test_sanitize_label() -> None:
+    assert _sanitize_label("Class") == "Class"
+    assert _sanitize_label("My-Label!") == "MyLabel"
+    assert _sanitize_label("!!!") == "Node"

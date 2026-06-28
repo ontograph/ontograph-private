@@ -253,7 +253,7 @@ pub(crate) fn analyze_vba_onlyoffice_migration(
     while index < lines.len() {
         let raw_line = &lines[index];
         let line_number = index + 1;
-        let line_buf = strip_comment(&raw_line);
+        let line_buf = strip_comment(raw_line);
         let line = line_buf.trim();
         if line.is_empty() {
             index += 1;
@@ -302,7 +302,7 @@ pub(crate) fn analyze_vba_onlyoffice_migration(
             while body_index < end_index {
                 let body_line_number = body_index + 1;
                 let body_raw = &lines[body_index];
-                let body_buf = strip_comment(&body_raw);
+                let body_buf = strip_comment(body_raw);
                 let body_line = body_buf.trim();
                 if body_line.is_empty() {
                     body_index += 1;

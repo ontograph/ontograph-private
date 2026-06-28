@@ -12,6 +12,7 @@ use serde_json::Value;
 use serde_json::json;
 use std::fs;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
@@ -25,14 +26,23 @@ struct AgentJobsResponder {
     spawn_args_json: String,
     seen_main: AtomicBool,
     call_counter: AtomicUsize,
+    worker_requests: Arc<Mutex<Vec<Value>>>,
 }
 
 impl AgentJobsResponder {
     fn new(spawn_args_json: String) -> Self {
+        Self::with_worker_requests(spawn_args_json, Arc::new(Mutex::new(Vec::new())))
+    }
+
+    fn with_worker_requests(
+        spawn_args_json: String,
+        worker_requests: Arc<Mutex<Vec<Value>>>,
+    ) -> Self {
         Self {
             spawn_args_json,
             seen_main: AtomicBool::new(false),
             call_counter: AtomicUsize::new(0),
+            worker_requests,
         }
     }
 }
@@ -113,6 +123,10 @@ impl Respond for AgentJobsResponder {
         }
 
         if let Some((job_id, item_id)) = extract_job_and_item(&body) {
+            self.worker_requests
+                .lock()
+                .expect("worker request capture")
+                .push(body.clone());
             let call_id = format!(
                 "call-worker-{}",
                 self.call_counter.fetch_add(1, Ordering::SeqCst)
@@ -323,6 +337,70 @@ async fn spawn_agents_on_csv_runs_and_exports() -> Result<()> {
     assert!(output.contains("result_json"));
     assert!(output.contains("item_id"));
     assert!(output.contains("\"item_id\""));
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawn_agents_on_csv_workers_include_output_schema() -> Result<()> {
+    let server = start_mock_server().await;
+    let mut builder = test_codex().with_config(|config| {
+        config
+            .features
+            .enable(Feature::SpawnCsv)
+            .expect("test config should allow feature update");
+        config
+            .features
+            .enable(Feature::Sqlite)
+            .expect("test config should allow feature update");
+    });
+    let test = builder.build(&server).await?;
+
+    let input_path = test.cwd_path().join("agent_jobs_schema_input.csv");
+    let output_path = test.cwd_path().join("agent_jobs_schema_output.csv");
+    fs::write(&input_path, "path\nfile-1\n")?;
+
+    let output_schema = json!({
+        "type": "object",
+        "properties": {
+            "item_id": { "type": "string" }
+        },
+        "required": ["item_id"],
+        "additionalProperties": false
+    });
+    let args = json!({
+        "csv_path": input_path.display().to_string(),
+        "instruction": "Return {path}",
+        "output_csv_path": output_path.display().to_string(),
+        "output_schema": output_schema.clone(),
+    });
+    let args_json = serde_json::to_string(&args)?;
+
+    let worker_requests = Arc::new(Mutex::new(Vec::new()));
+    let responder = AgentJobsResponder::with_worker_requests(args_json, worker_requests.clone());
+    Mock::given(method("POST"))
+        .and(path_regex(".*/responses$"))
+        .respond_with(responder)
+        .mount(&server)
+        .await;
+
+    test.submit_turn("run structured job").await?;
+
+    let worker_requests = worker_requests.lock().expect("worker requests");
+    let worker_request = worker_requests.first().expect("worker request");
+    let format = worker_request
+        .get("text")
+        .and_then(|text| text.get("format"))
+        .expect("worker request missing text.format");
+    assert_eq!(
+        format,
+        &json!({
+            "name": "codex_output_schema",
+            "type": "json_schema",
+            "strict": true,
+            "schema": output_schema,
+        })
+    );
+
     Ok(())
 }
 

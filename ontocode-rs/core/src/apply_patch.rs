@@ -5,6 +5,8 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::sandboxing::ExecApprovalRequirement;
 use ontocode_apply_patch::ApplyPatchAction;
 use ontocode_apply_patch::ApplyPatchFileChange;
+use ontocode_protocol::models::PermissionProfile;
+use ontocode_protocol::protocol::AskForApproval;
 use ontocode_protocol::protocol::FileChange;
 use ontocode_protocol::protocol::FileSystemSandboxPolicy;
 use ontocode_utils_absolute_path::AbsolutePathBuf;
@@ -39,10 +41,18 @@ pub(crate) async fn apply_patch(
     action: ApplyPatchAction,
 ) -> InternalApplyPatchInvocation {
     let generated_file_warning_paths = generated_file_warning_paths(&action);
+    let approval_policy = turn_context.approval_policy.value();
+    let permission_profile = turn_context.permission_profile();
+    let generated_file_warning_requires_approval = generated_file_warning_requires_approval(
+        &generated_file_warning_paths,
+        approval_policy,
+        &permission_profile,
+        file_system_sandbox_policy,
+    );
     match assess_patch_safety(
         &action,
-        turn_context.approval_policy.value(),
-        &turn_context.permission_profile(),
+        approval_policy,
+        &permission_profile,
         file_system_sandbox_policy,
         &action.cwd,
         turn_context.windows_sandbox_level,
@@ -50,7 +60,7 @@ pub(crate) async fn apply_patch(
         SafetyCheck::AutoApprove {
             user_explicitly_approved,
             ..
-        } if generated_file_warning_paths.is_empty() => {
+        } if !generated_file_warning_requires_approval => {
             InternalApplyPatchInvocation::DelegateToRuntime(ApplyPatchRuntimeInvocation {
                 action,
                 auto_approved: !user_explicitly_approved,
@@ -87,6 +97,18 @@ pub(crate) async fn apply_patch(
             FunctionCallError::RespondToModel(format!("patch rejected: {reason}")),
         )),
     }
+}
+
+fn generated_file_warning_requires_approval(
+    generated_file_warning_paths: &[AbsolutePathBuf],
+    approval_policy: AskForApproval,
+    permission_profile: &PermissionProfile,
+    file_system_sandbox_policy: &FileSystemSandboxPolicy,
+) -> bool {
+    !generated_file_warning_paths.is_empty()
+        && !(matches!(approval_policy, AskForApproval::Never)
+            && (matches!(permission_profile, PermissionProfile::Disabled)
+                || file_system_sandbox_policy.has_full_disk_write_access()))
 }
 
 pub(crate) fn generated_file_warning_paths(action: &ApplyPatchAction) -> Vec<AbsolutePathBuf> {

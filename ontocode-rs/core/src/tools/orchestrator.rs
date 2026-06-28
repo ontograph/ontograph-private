@@ -34,6 +34,10 @@ use ontocode_otel::ToolDecisionSource;
 use ontocode_protocol::error::CodexErr;
 use ontocode_protocol::error::SandboxErr;
 use ontocode_protocol::exec_output::ExecToolCallOutput;
+use ontocode_protocol::models::PermissionProfile;
+use ontocode_protocol::permissions::FileSystemAccessMode;
+use ontocode_protocol::permissions::FileSystemSandboxKind;
+use ontocode_protocol::permissions::FileSystemSandboxPolicy;
 use ontocode_protocol::protocol::AskForApproval;
 use ontocode_protocol::protocol::NetworkPolicyRuleAction;
 use ontocode_protocol::protocol::ReviewDecision;
@@ -142,13 +146,23 @@ impl ToolOrchestrator {
         let otel_tn = flat_tool_name(&tool_ctx.tool_name).into_owned();
         let otel_ci = &tool_ctx.call_id;
         let strict_auto_review = tool_ctx.session.strict_auto_review_enabled_for_turn().await;
+        let unattended_read_only_filesystem = tool_ctx
+            .session
+            .unattended_read_only_filesystem_for_turn()
+            .await;
         let use_guardian = routes_approval_to_guardian(turn_ctx) || strict_auto_review;
 
         // 1) Approval
         let mut already_approved = false;
 
-        let file_system_sandbox_policy = turn_ctx.file_system_sandbox_policy();
-        let network_sandbox_policy = turn_ctx.network_sandbox_policy();
+        let base_permission_profile = turn_ctx.permission_profile();
+        let unattended_permission_profile = unattended_read_only_filesystem
+            .then(|| unattended_read_only_permission_profile(&base_permission_profile));
+        let effective_permission_profile = unattended_permission_profile
+            .as_ref()
+            .unwrap_or(&base_permission_profile);
+        let file_system_sandbox_policy = effective_permission_profile.file_system_sandbox_policy();
+        let network_sandbox_policy = effective_permission_profile.network_sandbox_policy();
         let requirement = tool.exec_approval_requirement(req).unwrap_or_else(|| {
             default_exec_approval_requirement(approval_policy, &file_system_sandbox_policy)
         });
@@ -241,7 +255,7 @@ impl ToolOrchestrator {
         let workspace_roots = turn_ctx.config.effective_workspace_roots();
         let initial_attempt = SandboxAttempt {
             sandbox: initial_sandbox,
-            permissions: &turn_ctx.permission_profile,
+            permissions: effective_permission_profile,
             enforce_managed_network: managed_network_active,
             manager: &self.sandbox,
             sandbox_cwd,
@@ -384,7 +398,7 @@ impl ToolOrchestrator {
                 };
                 let retry_attempt = SandboxAttempt {
                     sandbox: retry_sandbox,
-                    permissions: &turn_ctx.permission_profile,
+                    permissions: effective_permission_profile,
                     enforce_managed_network: managed_network_active,
                     manager: &self.sandbox,
                     sandbox_cwd,
@@ -409,6 +423,25 @@ impl ToolOrchestrator {
                 })
             }
             Err(err) => Err(err),
+        }
+    }
+
+    fn clamp_file_system_policy_to_read_only(
+        policy: &FileSystemSandboxPolicy,
+    ) -> FileSystemSandboxPolicy {
+        match policy.kind {
+            FileSystemSandboxKind::Restricted => {
+                let mut read_only = policy.clone();
+                for entry in &mut read_only.entries {
+                    if entry.access == FileSystemAccessMode::Write {
+                        entry.access = FileSystemAccessMode::Read;
+                    }
+                }
+                read_only
+            }
+            FileSystemSandboxKind::Unrestricted | FileSystemSandboxKind::ExternalSandbox => {
+                FileSystemSandboxPolicy::read_only()
+            }
         }
     }
 
@@ -508,6 +541,23 @@ impl ToolOrchestrator {
         }
     }
 }
+
+fn unattended_read_only_permission_profile(
+    permission_profile: &PermissionProfile,
+) -> PermissionProfile {
+    let read_only_file_system = ToolOrchestrator::clamp_file_system_policy_to_read_only(
+        &permission_profile.file_system_sandbox_policy(),
+    );
+    PermissionProfile::from_runtime_permissions_with_enforcement(
+        permission_profile.enforcement(),
+        &read_only_file_system,
+        permission_profile.network_sandbox_policy(),
+    )
+}
+
+#[cfg(test)]
+#[path = "orchestrator_tests.rs"]
+mod tests;
 
 fn build_denial_reason_from_output(_output: &ExecToolCallOutput) -> String {
     // Keep approval reason terse and stable for UX/tests, but accept the

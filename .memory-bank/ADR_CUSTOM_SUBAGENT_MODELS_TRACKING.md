@@ -18,8 +18,10 @@ Status: complete
 | CSM-6 | Refresh OntoIndex after slice | done | manager | Refreshed after the accepted code/test slice. |
 | CSM-7 | Close ADR decisions | done | manager | ADR accepted; hidden-schema fallback and provider-qualified id ownership are now explicit decisions. |
 | CSM-8 | Expose spawn model fields by default | done | manager | Flipped `hide_spawn_agent_metadata` default to `false`; explicit config can still hide metadata. |
+| CSM-9 | Add symbolic model selectors | done | manager | `spawn_agent.model` now accepts `inherit` and `fast` inside the existing model-catalog resolver; no new registry or provider parser added. |
 
 ## Notes
 
 - Existing sessions that loaded the old schema may still not expose `model`; rebuilt/restarted runtimes use the source default that exposes spawn model fields.
 - Code inspection shows `SpawnAgentArgs` already accepts `model`, `reasoning_effort`, and `service_tier`; custom-model acceptance, hidden schema metadata, unknown model rejection, and full-history fork rejection now have focused coverage or existing tests.
+- 2026-06-26: Follow-up `QSM-K1` closed under the same owner path. `inherit` explicitly preserves the parent model contract, `fast` resolves through the existing preferred-worker model order, suite/spec expectations were updated, and focused `spawn_agent` coverage passed.

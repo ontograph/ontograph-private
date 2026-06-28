@@ -2501,6 +2501,19 @@ impl Session {
         ts.strict_auto_review_enabled()
     }
 
+    #[expect(
+        clippy::await_holding_invalid_type,
+        reason = "active turn reads must stay consistent with the matching turn state"
+    )]
+    pub(crate) async fn unattended_read_only_filesystem_for_turn(&self) -> bool {
+        let active = self.active_turn.lock().await;
+        let Some(active) = active.as_ref() else {
+            return false;
+        };
+        let ts = active.turn_state.lock().await;
+        ts.unattended_read_only_filesystem()
+    }
+
     pub(crate) async fn granted_session_permissions(
         &self,
         environment_id: &str,

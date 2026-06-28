@@ -1,3 +1,4 @@
+use super::agent_job_output_schema::validate_result_against_output_schema;
 use super::*;
 use crate::model::AgentJobItemRow;
 
@@ -445,6 +446,11 @@ WHERE job_id = ? AND item_id = ? AND status = ?
         reporting_thread_id: &str,
         result_json: &Value,
     ) -> anyhow::Result<bool> {
+        if let Some(job) = self.get_agent_job(job_id).await?
+            && let Some(output_schema_json) = job.output_schema_json.as_ref()
+        {
+            validate_result_against_output_schema(output_schema_json, result_json)?;
+        }
         let now = Utc::now().timestamp();
         let serialized = serde_json::to_string(result_json)?;
         let result = sqlx::query(
@@ -591,6 +597,7 @@ mod tests {
 
     async fn create_running_single_item_job(
         runtime: &StateRuntime,
+        output_schema_json: Option<Value>,
     ) -> anyhow::Result<(String, String, String)> {
         let job_id = "job-1".to_string();
         let item_id = "item-1".to_string();
@@ -603,7 +610,7 @@ mod tests {
                     instruction: "Return a result".to_string(),
                     auto_export: true,
                     max_runtime_seconds: None,
-                    output_schema_json: None,
+                    output_schema_json,
                     input_headers: vec!["path".to_string()],
                     input_csv_path: "/tmp/in.csv".to_string(),
                     output_csv_path: "/tmp/out.csv".to_string(),
@@ -632,7 +639,8 @@ mod tests {
     async fn report_agent_job_item_result_completes_item_atomically() -> anyhow::Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
-        let (job_id, item_id, thread_id) = create_running_single_item_job(runtime.as_ref()).await?;
+        let (job_id, item_id, thread_id) =
+            create_running_single_item_job(runtime.as_ref(), /*output_schema_json*/ None).await?;
 
         let accepted = runtime
             .report_agent_job_item_result(
@@ -672,7 +680,8 @@ mod tests {
     async fn report_agent_job_item_result_rejects_late_reports() -> anyhow::Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
-        let (job_id, item_id, thread_id) = create_running_single_item_job(runtime.as_ref()).await?;
+        let (job_id, item_id, thread_id) =
+            create_running_single_item_job(runtime.as_ref(), /*output_schema_json*/ None).await?;
 
         let marked_failed = runtime
             .mark_agent_job_item_failed(job_id.as_str(), item_id.as_str(), "missing report")
@@ -699,11 +708,84 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn report_agent_job_item_result_rejects_schema_invalid_results() -> anyhow::Result<()> {
+        let codex_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "item_id": { "type": "string" }
+            },
+            "required": ["item_id"],
+            "additionalProperties": false
+        });
+        let (job_id, item_id, thread_id) =
+            create_running_single_item_job(runtime.as_ref(), Some(schema)).await?;
+
+        let err = runtime
+            .report_agent_job_item_result(
+                job_id.as_str(),
+                item_id.as_str(),
+                thread_id.as_str(),
+                &json!({"wrong": true}),
+            )
+            .await
+            .expect_err("invalid schema result should fail");
+        assert!(
+            err.to_string()
+                .contains("missing required property `item_id`"),
+            "unexpected error: {err}"
+        );
+
+        let item = runtime
+            .get_agent_job_item(job_id.as_str(), item_id.as_str())
+            .await?
+            .expect("job item should exist");
+        assert_eq!(item.status, AgentJobItemStatus::Running);
+        assert_eq!(item.result_json, None);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn report_agent_job_item_result_accepts_schema_valid_results() -> anyhow::Result<()> {
+        let codex_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "item_id": { "type": "string" }
+            },
+            "required": ["item_id"],
+            "additionalProperties": false
+        });
+        let (job_id, item_id, thread_id) =
+            create_running_single_item_job(runtime.as_ref(), Some(schema)).await?;
+
+        let accepted = runtime
+            .report_agent_job_item_result(
+                job_id.as_str(),
+                item_id.as_str(),
+                thread_id.as_str(),
+                &json!({"item_id": item_id}),
+            )
+            .await?;
+        assert!(accepted);
+
+        let item = runtime
+            .get_agent_job_item(job_id.as_str(), item_id.as_str())
+            .await?
+            .expect("job item should exist");
+        assert_eq!(item.status, AgentJobItemStatus::Completed);
+        assert_eq!(item.result_json, Some(json!({"item_id": "item-1"})));
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn mark_agent_job_completed_preserves_final_summary_on_resume() -> anyhow::Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
         let (job_id, _item_id, _thread_id) =
-            create_running_single_item_job(runtime.as_ref()).await?;
+            create_running_single_item_job(runtime.as_ref(), /*output_schema_json*/ None).await?;
 
         runtime
             .mark_agent_job_completed(job_id.as_str(), Some("done before resume"))

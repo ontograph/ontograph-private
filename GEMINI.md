@@ -14,6 +14,21 @@ Use `.memory-bank/` as the project memory layer for this repository.
 - Do not store secrets, tokens, credentials, cookies, authorization headers, keychain paths, or raw private user data in memory-bank files.
 - When memory-bank content conflicts with code, GitNexus, ADRs, or tracking files, verify from the authoritative source and update the stale memory entry.
 
+<!-- lean-ctx -->
+## lean-ctx
+
+Optional maintained-fork path only.
+
+Use the repo-local lean-ctx plugin for `ctx_read`, `ctx_search`, and
+`ctx_summary` only when the backend from `third_party/lean-ctx-fork` is
+running and `LEANCTX_TOKEN` is set.
+
+Default to OntoIndex, native `rg`, and native shell outside that bounded
+read-only path.
+
+Full rules: @LEAN-CTX.md
+<!-- /lean-ctx -->
+
 In the ontocode-rs folder where the rust code lives:
 
 - Current source names may still use the legacy `codex-*` prefix, but the active rename goal is to move them to `ontocode-*` as compatibility allows.
@@ -321,13 +336,6 @@ This project uses Python 3+. You should not use the `__future__` module.
 
 If you need to worry about feature compatibility between different 3.xx point releases, check the
 closest `pyproject.toml`'s `requires-python` field to see what minimum runtime version is supported.
-
-<!-- lean-ctx -->
-## lean-ctx
-
-Prefer lean-ctx MCP tools over native equivalents for token savings.
-Full rules: @LEAN-CTX.md
-<!-- /lean-ctx -->
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence

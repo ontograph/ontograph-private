@@ -359,6 +359,42 @@ pub struct SubAgentThreadStartedInput {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum SubAgentInvocationKind {
+    Spawn,
+    Resume,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SubAgentTerminalStatus {
+    Completed,
+    Interrupted,
+    Errored,
+    Shutdown,
+    NotFound,
+}
+
+#[derive(Clone)]
+pub struct SubAgentThreadCompletedInput {
+    pub session_id: String,
+    pub thread_id: String,
+    pub parent_thread_id: Option<String>,
+    pub product_client_id: String,
+    pub client_name: String,
+    pub client_version: String,
+    pub requested_model: Option<String>,
+    pub effective_model: String,
+    pub invocation_kind: SubAgentInvocationKind,
+    pub depth: i32,
+    pub terminal_status: SubAgentTerminalStatus,
+    pub terminate_reason: Option<String>,
+    pub duration_ms: u64,
+    pub result_summary_present: bool,
+    pub completed_at: u64,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CompactionTrigger {
     Manual,
     Auto,
@@ -471,6 +507,7 @@ pub(crate) enum AnalyticsFact {
 
 pub(crate) enum CustomAnalyticsFact {
     SubAgentThreadStarted(SubAgentThreadStartedInput),
+    SubAgentThreadCompleted(Box<SubAgentThreadCompletedInput>),
     Compaction(Box<CodexCompactionEvent>),
     GuardianReview(Box<GuardianReviewEventParams>),
     TurnResolvedConfig(Box<TurnResolvedConfigFact>),

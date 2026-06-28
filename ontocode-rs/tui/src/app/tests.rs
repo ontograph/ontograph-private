@@ -5809,6 +5809,108 @@ async fn replay_thread_snapshot_replays_turn_history_in_order() {
 }
 
 #[tokio::test]
+async fn replay_thread_snapshot_preserves_agentgym_style_thought_action_messages() {
+    let (mut app, mut app_event_rx, _op_rx) = make_test_app_with_channels().await;
+    let thread_id = ThreadId::new();
+    let first_action = "search[men's shorts elastic waist navy x-large]";
+    let first_agent_message =
+        format!("Thought:\nI should search for the requested shorts.\n\nAction:\n{first_action}");
+    let second_action = "click[Buy Now]";
+    let second_agent_message =
+        format!("Thought:\nI found the right item.\n\nAction:\n{second_action}");
+    app.replay_thread_snapshot(
+        ThreadEventSnapshot {
+            session: Some(test_thread_session(
+                thread_id,
+                test_path_buf("/home/user/project"),
+            )),
+            turns: vec![
+                Turn {
+                    id: "turn-1".to_string(),
+                    items_view: ontocode_app_server_protocol::TurnItemsView::Full,
+                    items: vec![
+                        ThreadItem::UserMessage {
+                            id: "user-1".to_string(),
+                            client_id: None,
+                            content: vec![AppServerUserInput::Text {
+                                text: "WebShop [SEP] Instruction: find men's shorts".to_string(),
+                                text_elements: Vec::new(),
+                            }],
+                        },
+                        ThreadItem::AgentMessage {
+                            id: "assistant-1".to_string(),
+                            text: first_agent_message.to_string(),
+                            phase: None,
+                            memory_citation: None,
+                        },
+                    ],
+                    status: TurnStatus::Completed,
+                    error: None,
+                    started_at: None,
+                    completed_at: None,
+                    duration_ms: None,
+                },
+                Turn {
+                    id: "turn-2".to_string(),
+                    items_view: ontocode_app_server_protocol::TurnItemsView::Full,
+                    items: vec![
+                        ThreadItem::UserMessage {
+                            id: "user-2".to_string(),
+                            client_id: None,
+                            content: vec![AppServerUserInput::Text {
+                                text: "Observation: product page with Buy Now".to_string(),
+                                text_elements: Vec::new(),
+                            }],
+                        },
+                        ThreadItem::AgentMessage {
+                            id: "assistant-2".to_string(),
+                            text: second_agent_message.to_string(),
+                            phase: None,
+                            memory_citation: None,
+                        },
+                    ],
+                    status: TurnStatus::Completed,
+                    error: None,
+                    started_at: None,
+                    completed_at: None,
+                    duration_ms: None,
+                },
+            ],
+            events: Vec::new(),
+            input_state: None,
+        },
+        /*resume_restored_queue*/ false,
+    );
+
+    let mut replayed_history = String::new();
+    while let Ok(event) = app_event_rx.try_recv() {
+        if let AppEvent::InsertHistoryCell(cell) = event {
+            let cell: Arc<dyn HistoryCell> = cell.into();
+            app.transcript_cells.push(cell);
+        }
+    }
+
+    for cell in &app.transcript_cells {
+        replayed_history.push_str(&lines_to_single_string(
+            &cell.transcript_lines(/*width*/ 120),
+        ));
+        replayed_history.push('\n');
+    }
+
+    let first_index = replayed_history
+        .find(first_action)
+        .expect("first AgentGym-style action should replay");
+    let second_index = replayed_history
+        .find(second_action)
+        .expect("second AgentGym-style action should replay");
+
+    assert!(
+        first_index < second_index,
+        "expected AgentGym-style thought/action messages to replay in order"
+    );
+}
+
+#[tokio::test]
 async fn replace_chat_widget_reseeds_collab_agent_metadata_for_replay() {
     let (mut app, mut app_event_rx, _op_rx) = make_test_app_with_channels().await;
     let receiver_thread_id =

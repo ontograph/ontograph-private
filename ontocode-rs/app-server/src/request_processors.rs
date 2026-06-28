@@ -235,6 +235,7 @@ use ontocode_app_server_protocol::ThreadStartResponse;
 use ontocode_app_server_protocol::ThreadStartedNotification;
 use ontocode_app_server_protocol::ThreadStatus;
 use ontocode_app_server_protocol::ThreadTurnsItemsListParams;
+use ontocode_app_server_protocol::ThreadTurnsItemsListResponse;
 use ontocode_app_server_protocol::ThreadTurnsListParams;
 use ontocode_app_server_protocol::ThreadTurnsListResponse;
 use ontocode_app_server_protocol::ThreadUnarchiveParams;

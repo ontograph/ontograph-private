@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "lean-ctx": {
+      "type": "http",
+      "url": "http://127.0.0.1:7777",
+      "bearer_token_env_var": "LEANCTX_TOKEN",
+      "required": true,
+      "enabled_tools": [
+        "ctx_read",
+        "ctx_search",
+        "ctx_summary"
+      ]
+    }
+  }
+}

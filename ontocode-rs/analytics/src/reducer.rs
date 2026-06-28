@@ -56,6 +56,7 @@ use crate::events::codex_plugin_metadata;
 use crate::events::codex_plugin_used_metadata;
 use crate::events::plugin_state_event_type;
 use crate::events::subagent_source_name;
+use crate::events::subagent_thread_completed_event_request;
 use crate::events::subagent_thread_started_event_request;
 use crate::facts::AnalyticsFact;
 use crate::facts::AnalyticsJsonRpcError;
@@ -68,6 +69,7 @@ use crate::facts::PluginState;
 use crate::facts::PluginStateChangedInput;
 use crate::facts::PluginUsedInput;
 use crate::facts::SkillInvokedInput;
+use crate::facts::SubAgentThreadCompletedInput;
 use crate::facts::SubAgentThreadStartedInput;
 use crate::facts::ThreadInitializationMode;
 use crate::facts::TurnCodexError;
@@ -452,6 +454,9 @@ impl AnalyticsReducer {
                 CustomAnalyticsFact::SubAgentThreadStarted(input) => {
                     self.ingest_subagent_thread_started(input, out);
                 }
+                CustomAnalyticsFact::SubAgentThreadCompleted(input) => {
+                    self.ingest_subagent_thread_completed(*input, out);
+                }
                 CustomAnalyticsFact::Compaction(input) => {
                     self.ingest_compaction(*input, out);
                 }
@@ -539,6 +544,16 @@ impl AnalyticsReducer {
         }
         out.push(TrackEventRequest::ThreadInitialized(
             subagent_thread_started_event_request(input),
+        ));
+    }
+
+    fn ingest_subagent_thread_completed(
+        &mut self,
+        input: SubAgentThreadCompletedInput,
+        out: &mut Vec<TrackEventRequest>,
+    ) {
+        out.push(TrackEventRequest::SubAgentThreadCompleted(
+            subagent_thread_completed_event_request(input),
         ));
     }
 

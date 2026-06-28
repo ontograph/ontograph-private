@@ -57,6 +57,7 @@ use std::time::Duration;
 use std::time::Instant;
 use tracing::warn;
 
+mod agent_job_output_schema;
 mod agent_jobs;
 mod backfill;
 mod goals;
