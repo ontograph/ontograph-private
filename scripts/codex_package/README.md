@@ -14,6 +14,7 @@ The builder creates a canonical Codex package directory:
 ├── codex-resources
 │   ├── bwrap                             # Linux only
 │   ├── zsh/bin/zsh                       # supported Unix targets only
+│   ├── lean-ctx[.exe]                    # optional maintained backend
 │   ├── ontocode-command-runner.exe          # Windows only
 │   └── ontocode-windows-sandbox-setup.exe   # Windows only
 └── codex-path
@@ -55,6 +56,11 @@ corresponding resource flags: `--bwrap-bin` for Linux packages, and
 `--ontocode-command-runner-bin` plus `--ontocode-windows-sandbox-setup-bin` for
 Windows packages. This keeps package archive creation as a pure staging step
 after signing instead of rebuilding resources.
+
+Packages can include the maintained lean-ctx backend by passing
+`--lean-ctx-bin <path>`. The executable is installed under
+`codex-resources/lean-ctx[.exe]` and recorded in `codex-package.json` as
+`leanCtxBackend`.
 
 When the builder source-builds an entrypoint for a Darwin or Linux target, it
 downloads and verifies the matching Codex-built V8 release pair before invoking

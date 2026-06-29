@@ -11,6 +11,7 @@ Usage: build-codex-package-archive.sh \
   [--bwrap-bin <path>] \
   [--ontocode-command-runner-bin <path>] \
   [--ontocode-windows-sandbox-setup-bin <path>] \
+  [--lean-ctx-bin <path>] \
   [--target-suffixed-entrypoint]
 EOF
 }
@@ -24,6 +25,7 @@ resource_args=()
 bwrap_bin_provided="false"
 command_runner_bin_provided="false"
 sandbox_setup_bin_provided="false"
+lean_ctx_bin_provided="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -62,6 +64,11 @@ while [[ $# -gt 0 ]]; do
         "${2:?--ontocode-windows-sandbox-setup-bin requires a value}"
       )
       sandbox_setup_bin_provided="true"
+      shift 2
+      ;;
+    --lean-ctx-bin)
+      resource_args+=(--lean-ctx-bin "${2:?--lean-ctx-bin requires a value}")
+      lean_ctx_bin_provided="true"
       shift 2
       ;;
     --target-suffixed-entrypoint)
@@ -132,6 +139,13 @@ case "$target" in
     fi
     ;;
 esac
+
+if [[ "$bundle" == "primary" && "$lean_ctx_bin_provided" == "false" ]]; then
+  lean_ctx_bin="${entrypoint_dir%/}/lean-ctx${exe_suffix}"
+  if [[ -f "$lean_ctx_bin" ]]; then
+    resource_args+=(--lean-ctx-bin "$lean_ctx_bin")
+  fi
+fi
 
 repo_root="${GITHUB_WORKSPACE:-}"
 if [[ -z "$repo_root" ]]; then

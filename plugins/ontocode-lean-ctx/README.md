@@ -49,6 +49,16 @@ Defaults:
 
 Override host or port with `LEAN_CTX_HOST` and `LEAN_CTX_PORT`.
 
+To run a packaged backend binary instead of the repo build output, set
+`LEAN_CTX_BIN` to the packaged resource:
+
+```bash
+LEAN_CTX_BIN=/path/to/package/codex-resources/lean-ctx just lean-ctx-plugin-backend-start
+```
+
+When `LEAN_CTX_BIN` is set, the launcher requires that path to already exist
+and be executable.
+
 Do not use the inherited upstream downloader or onboarding path inside
 `third_party/lean-ctx-fork/`; Ontocode supports the maintained backend through
 the repo-owned commands above.

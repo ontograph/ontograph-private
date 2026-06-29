@@ -135,6 +135,12 @@ Upcoming work depends on:
   `just lean-ctx-plugin-backend-{build,start,status,stop,smoke}` uses the
   in-repo fork, pins `LEAN_CTX_TOOL_PROFILE=ontocode`, and smoke-checks the
   live `tools/list` allowlist without any upstream checkout.
+- Package staging can carry a prebuilt maintained backend via
+  `--lean-ctx-bin` as `codex-resources/lean-ctx[.exe]`; the repo-owned
+  launcher can run that packaged resource with explicit `LEAN_CTX_BIN`.
+- Release CI does not yet build/sign/stage lean-ctx for all primary package
+  targets, and plugin-owned backend spawning remains out of scope without ADR
+  or explicit product approval.
 - The adopted fork now fail-closes the inherited external release-download
   bootstrap path and treats the repo-owned runtime flow as the only supported
   Ontocode operator path.

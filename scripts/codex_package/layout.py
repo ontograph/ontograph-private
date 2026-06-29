@@ -70,6 +70,13 @@ def build_package_dir(
     if inputs.bwrap_bin is not None:
         copy_executable(inputs.bwrap_bin, resources_dir / "bwrap", is_windows=False)
 
+    if inputs.lean_ctx_bin is not None:
+        copy_executable(
+            inputs.lean_ctx_bin,
+            resources_dir / f"lean-ctx{spec.exe_suffix}",
+            is_windows=spec.is_windows,
+        )
+
     if inputs.codex_command_runner_bin is not None:
         copy_executable(
             inputs.codex_command_runner_bin,
@@ -104,6 +111,8 @@ def build_package_dir(
         "resourcesDir": "codex-resources",
         "pathDir": "codex-path",
     }
+    if inputs.lean_ctx_bin is not None:
+        metadata["leanCtxBackend"] = f"codex-resources/lean-ctx{spec.exe_suffix}"
     write_json(package_dir / "codex-package.json", metadata)
 
 
@@ -163,6 +172,12 @@ def validate_package_dir(
     if spec.is_linux:
         required_files.append(Path("codex-resources") / "bwrap")
         executable_files.append(Path("codex-resources") / "bwrap")
+
+    lean_ctx_backend = metadata.get("leanCtxBackend")
+    if isinstance(lean_ctx_backend, str):
+        lean_ctx_path = Path(lean_ctx_backend)
+        required_files.append(lean_ctx_path)
+        executable_files.append(lean_ctx_path)
 
     if spec.is_windows:
         required_files.extend(

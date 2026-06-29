@@ -220,7 +220,7 @@ Authority:
 
 ### Modular Tool Boundaries Next Phase
 
-Status: `closed-complete`.
+Status: `completed-with-gates`.
 
 Authority:
 - `ADR_MODULAR_TOOL_BOUNDARIES.md`
@@ -266,11 +266,16 @@ Outcome:
   `ontocode-core-plugins` owners.
 - Current guidance restores only the bounded read-only maintained-fork path and
   keeps OntoIndex/native tooling as the baseline elsewhere.
+- Package-builder support for a prebuilt maintained backend resource is
+  complete, and the repo-owned backend launcher can use that packaged binary
+  through explicit `LEAN_CTX_BIN`.
 
 Next actions:
-- None in this project.
-- Reopen only if the maintained-fork contract changes materially or the current
-  bounded read-only surface proves insufficient.
+- No dependency-ready implementation task remains.
+- Release CI inclusion stays gated until a release-infrastructure slice covers
+  build/sign/notarization or signed handoff for every primary target family.
+- Plugin-owned backend spawning stays gated until an ADR or explicit product
+  decision changes the current HTTP MCP contract.
 
 ### RTK Donor Native Lean-ctx Backend
 

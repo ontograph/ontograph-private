@@ -71,6 +71,7 @@ Keep this file short. Each entry should be one line in the form:
 - [Lean-ctx Pre-Junior Project Plan](LEAN_CTX_PRE_JUNIOR_PROJECT_PLAN.md) — Junior-safe Stage 0 plan for the approved read-only lean-ctx-inspired repository helper script
 - [Lean-ctx Pre-Junior Tracking](LEAN_CTX_PRE_JUNIOR_TRACKING.md) — Dispatch and verification ledger for the repository-only memory helper script
 - [Lean-ctx Plugin Backend Runtime Proof](audit_session-2026-06-28-lean-ctx-plugin-backend-runtime-proof.md) — Repo-owned launcher and smoke proof for the maintained-fork plugin backend without upstream checkout dependence
+- [Lean-ctx Native Adoption Refactor Tracking](LEAN_CTX_NATIVE_ADOPTION_REFACTOR_TRACKING.md) — Active ledger for maintained-fork native backend adoption, package-builder support, and gated release/runtime follow-ups
 - [GitNexus Code-Graph Adoption Pre-Junior Project Plan](GITNEXUS_CODE_GRAPH_ADOPTION_PRE_JUNIOR_PROJECT_PLAN.md) — Junior-safe staged plan for the Rust operational evidence backbone
 - [GitNexus Code-Graph Adoption Tracking](GITNEXUS_CODE_GRAPH_ADOPTION_TRACKING.md) — Dispatch and verification ledger for operational evidence backbone implementation
 - [Gemini CLI Donor Pre-Junior Project Plan](GEMINI_CLI_DONOR_CONTEXT_TOOLS_AGENTS_EVALS_PRE_JUNIOR_PROJECT_PLAN.md) — Closed no-dispatch after OntoIndex review found no new core-extension slice

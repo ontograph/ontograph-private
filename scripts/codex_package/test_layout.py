@@ -17,7 +17,7 @@ from codex_package.targets import TARGET_SPECS
 
 
 class PackageLayoutTest(unittest.TestCase):
-    def test_primary_package_does_not_include_neighboring_lean_ctx_backend(self) -> None:
+    def test_primary_package_can_include_lean_ctx_backend_resource(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             package_dir = root / "package"
@@ -30,8 +30,8 @@ class PackageLayoutTest(unittest.TestCase):
                 bwrap_bin=None,
                 codex_command_runner_bin=None,
                 codex_windows_sandbox_setup_bin=None,
+                lean_ctx_bin=executable(root / "lean-ctx"),
             )
-            executable(root / "lean-ctx")
             executable(root / "ontocode")
 
             build_package_dir(
@@ -49,8 +49,11 @@ class PackageLayoutTest(unittest.TestCase):
             )
 
             metadata = json.loads((package_dir / "codex-package.json").read_text())
-            self.assertNotIn("leanCtxBackend", metadata)
-            self.assertFalse((package_dir / "codex-resources" / "lean-ctx").exists())
+            self.assertEqual(
+                metadata["leanCtxBackend"],
+                "codex-resources/lean-ctx",
+            )
+            self.assertTrue((package_dir / "codex-resources" / "lean-ctx").is_file())
 
 
 def executable(path: Path) -> Path:

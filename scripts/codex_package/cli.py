@@ -116,6 +116,14 @@ def parse_args() -> argparse.Namespace:
             "scripts/codex_package/rg."
         ),
     )
+    parser.add_argument(
+        "--lean-ctx-bin",
+        type=Path,
+        help=(
+            "Optional prebuilt maintained lean-ctx backend executable to include "
+            "in package resources."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -164,6 +172,11 @@ def main() -> int:
         bwrap_bin=source_outputs.bwrap_bin,
         codex_command_runner_bin=source_outputs.codex_command_runner_bin,
         codex_windows_sandbox_setup_bin=source_outputs.codex_windows_sandbox_setup_bin,
+        lean_ctx_bin=resolve_optional_input_path(
+            args.lean_ctx_bin,
+            "prebuilt lean-ctx backend executable",
+            "--lean-ctx-bin",
+        ),
     )
     prepare_package_dir(package_dir, force=args.force)
     build_package_dir(package_dir, version, variant, spec, inputs)
