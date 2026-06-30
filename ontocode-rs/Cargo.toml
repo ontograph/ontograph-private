@@ -50,7 +50,9 @@ members = [
     "ext/guardian",
     "ext/image-generation",
     "ext/excel",
+    "ext/lctx",
     "ext/memories",
+    "ext/ontograph",
     "ext/skills",
     "ext/web-search",
     "external-agent-migration",
@@ -123,7 +125,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0-alpha.8"
 # Track the edition for all workspace crates in one place. Individual
 # crates can still override this value, but keeping it here means new
 # crates created with `cargo new -w ...` automatically inherit the 2024
@@ -175,6 +177,7 @@ ontocode-excel-extension = { path = "ext/excel" }
 ontocode-goal-extension = { path = "ext/goal" }
 ontocode-guardian = { path = "ext/guardian" }
 ontocode-image-generation-extension = { path = "ext/image-generation" }
+ontocode-lctx-extension = { path = "ext/lctx" }
 ontocode-external-agent-migration = { path = "external-agent-migration" }
 ontocode-external-agent-sessions = { path = "external-agent-sessions" }
 ontocode-experimental-api-macros = { path = "codex-experimental-api-macros" }
@@ -191,6 +194,7 @@ ontocode-lmstudio = { path = "lmstudio" }
 ontocode-login = { path = "login" }
 ontocode-message-history = { path = "message-history" }
 ontocode-memories-extension = { path = "ext/memories" }
+ontocode-ontograph-extension = { path = "ext/ontograph" }
 ontocode-web-search-extension = { path = "ext/web-search" }
 ontocode-memories-read = { path = "memories/read" }
 ontocode-memories-write = { path = "memories/write" }

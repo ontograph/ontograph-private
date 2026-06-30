@@ -30,7 +30,10 @@ where
 {
     let mut builder = ExtensionRegistryBuilder::<Config>::with_event_sink(event_sink);
     ontocode_guardian::install(&mut builder, guardian_agent_spawner);
+    ontocode_excel_extension::install(&mut builder);
+    ontocode_lctx_extension::install(&mut builder);
     ontocode_memories_extension::install(&mut builder, ontocode_otel::global());
+    ontocode_ontograph_extension::install(&mut builder);
     ontocode_web_search_extension::install(&mut builder, auth_manager.clone());
     ontocode_image_generation_extension::install(&mut builder, auth_manager);
     Arc::new(builder.build())
@@ -92,6 +95,10 @@ mod tests {
     use ontocode_app_server_protocol::ServerNotification;
     use ontocode_app_server_protocol::ThreadGoal as AppServerThreadGoal;
     use ontocode_app_server_protocol::ThreadGoalStatus as AppServerThreadGoalStatus;
+    use ontocode_extension_api::ExtensionData;
+    use ontocode_extension_api::ToolName;
+    use ontocode_login::AuthManager;
+    use ontocode_login::CodexAuth;
     use ontocode_protocol::protocol::ThreadGoal;
     use ontocode_protocol::protocol::ThreadGoalStatus;
     use ontocode_protocol::protocol::ThreadGoalUpdatedEvent;
@@ -102,6 +109,89 @@ mod tests {
     use super::*;
     use crate::outgoing_message::OutgoingEnvelope;
     use crate::outgoing_message::OutgoingMessage;
+
+    struct NoopTestEventSink;
+
+    impl ExtensionEventSink for NoopTestEventSink {
+        fn emit(&self, _event: Event) {}
+    }
+
+    fn unused_test_spawner(
+        _forked_from_thread_id: ThreadId,
+        _options: StartThreadOptions,
+    ) -> AgentSpawnFuture<'static, NewThread, CodexErr> {
+        Box::pin(async { panic!("spawner not used") })
+    }
+
+    #[test]
+    fn thread_extensions_register_ontograph_tool() {
+        let registry = thread_extensions(
+            unused_test_spawner,
+            Arc::new(NoopTestEventSink),
+            AuthManager::from_auth_for_testing(CodexAuth::from_api_key("dummy")),
+        );
+
+        assert_eq!(
+            namespace_tool_names(&registry, "ontograph"),
+            vec![
+                ToolName::namespaced("ontograph", "discover"),
+                ToolName::namespaced("ontograph", "explain_module"),
+                ToolName::namespaced("ontograph", "impact"),
+                ToolName::namespaced("ontograph", "inspect"),
+                ToolName::namespaced("ontograph", "search"),
+            ]
+        );
+    }
+
+    #[test]
+    fn thread_extensions_register_lctx_tool() {
+        let registry = thread_extensions(
+            unused_test_spawner,
+            Arc::new(NoopTestEventSink),
+            AuthManager::from_auth_for_testing(CodexAuth::from_api_key("dummy")),
+        );
+
+        assert_eq!(
+            namespace_tool_names(&registry, "lctx"),
+            vec![ToolName::namespaced("lctx", "read")]
+        );
+    }
+
+    #[test]
+    fn thread_extensions_register_excel_tool() {
+        let registry = thread_extensions(
+            unused_test_spawner,
+            Arc::new(NoopTestEventSink),
+            AuthManager::from_auth_for_testing(CodexAuth::from_api_key("dummy")),
+        );
+
+        let mut excel_builder = ExtensionRegistryBuilder::<Config>::new();
+        ontocode_excel_extension::install(&mut excel_builder);
+        let excel_registry = excel_builder.build();
+
+        assert_eq!(
+            namespace_tool_names(&registry, "excel"),
+            namespace_tool_names(&excel_registry, "excel")
+        );
+    }
+
+    fn namespace_tool_names(
+        registry: &ExtensionRegistry<Config>,
+        namespace: &str,
+    ) -> Vec<ToolName> {
+        registry
+            .tool_contributors()
+            .iter()
+            .flat_map(|contributor| {
+                contributor.tools(
+                    &ExtensionData::new("session"),
+                    &ExtensionData::new("thread"),
+                )
+            })
+            .map(|tool| tool.tool_name())
+            .filter(|tool_name| tool_name.namespace.as_deref() == Some(namespace))
+            .collect()
+    }
 
     #[tokio::test]
     async fn app_server_event_sink_forwards_thread_goal_updates() {

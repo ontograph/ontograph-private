@@ -1,0 +1,29 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ontocode-lctx-extension"
+version.workspace = true
+
+[lib]
+name = "ontocode_lctx_extension"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+libc = { workspace = true }
+ontocode-core = { workspace = true }
+ontocode-extension-api = { workspace = true }
+ontocode-tools = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+ontocode-utils-output-truncation = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }

@@ -54,8 +54,11 @@ ontocode-backend-client = { workspace = true }
 ontocode-file-search = { workspace = true }
 ontocode-chatgpt = { workspace = true }
 ontocode-login = { workspace = true }
+ontocode-excel-extension = { workspace = true }
 ontocode-image-generation-extension = { workspace = true }
+ontocode-lctx-extension = { workspace = true }
 ontocode-memories-extension = { workspace = true }
+ontocode-ontograph-extension = { workspace = true }
 ontocode-web-search-extension = { workspace = true }
 ontocode-memories-write = { workspace = true }
 ontocode-mcp = { workspace = true }

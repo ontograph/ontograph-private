@@ -16,7 +16,7 @@ from codex_package.cli import main
 
 
 class PackageCliTest(unittest.TestCase):
-    def test_windows_package_does_not_include_neighboring_lean_ctx_backend(self) -> None:
+    def test_windows_package_uses_prebuilt_core_binaries(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             package_dir = root / "package"
@@ -25,7 +25,6 @@ class PackageCliTest(unittest.TestCase):
             executable(root / "rg.exe")
             executable(root / "ontocode-command-runner.exe")
             executable(root / "ontocode-windows-sandbox-setup.exe")
-            executable(root / "lean-ctx.exe")
 
             argv = [
                 "build_codex_package.py",
@@ -51,10 +50,8 @@ class PackageCliTest(unittest.TestCase):
                     self.assertEqual(main(), 0)
 
             metadata = json.loads((package_dir / "codex-package.json").read_text())
+            self.assertEqual(metadata["entrypoint"], "bin/codex.exe")
             self.assertNotIn("leanCtxBackend", metadata)
-            self.assertFalse(
-                (package_dir / "codex-resources" / "lean-ctx.exe").exists()
-            )
 
 
 def executable(path: Path) -> Path:
