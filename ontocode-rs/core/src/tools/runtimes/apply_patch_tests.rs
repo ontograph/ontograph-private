@@ -1,4 +1,6 @@
 use super::*;
+use crate::session::tests::make_session_and_context_with_rx;
+use crate::state::ActiveTurn;
 use crate::tools::sandboxing::SandboxAttempt;
 use core_test_support::PathBufExt;
 use ontocode_protocol::config_types::WindowsSandboxLevel;
@@ -12,8 +14,10 @@ use ontocode_sandboxing::SandboxManager;
 use ontocode_sandboxing::SandboxType;
 use ontocode_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
 use ontocode_sandboxing::policy_transforms::effective_network_sandbox_policy;
+use ontocode_tools::ToolName;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
+use std::sync::Arc;
 fn test_turn_environment(environment_id: &str) -> crate::session::turn_context::TurnEnvironment {
     crate::session::turn_context::TurnEnvironment {
         environment_id: environment_id.to_string(),
@@ -174,6 +178,81 @@ async fn sandbox_cwd_uses_patch_action_cwd() {
     };
 
     assert_eq!(runtime.sandbox_cwd(&req), Some(&req.action.cwd));
+}
+
+#[tokio::test]
+async fn run_blocks_unattended_read_only_turn_before_applying_patch() {
+    let (session, turn, _rx) = make_session_and_context_with_rx().await;
+    let active_turn = ActiveTurn::default();
+    let turn_state = Arc::clone(&active_turn.turn_state);
+    *session.active_turn.lock().await = Some(active_turn);
+    turn_state
+        .lock()
+        .await
+        .enable_unattended_read_only_filesystem();
+
+    let temp_dir = tempfile::tempdir().expect("create temp dir");
+    let path = temp_dir.path().join("blocked.txt").abs();
+    let req = ApplyPatchRequest {
+        turn_environment: test_turn_environment(ontocode_exec_server::LOCAL_ENVIRONMENT_ID),
+        action: ApplyPatchAction::new_add_for_test(&path, "hello".to_string()),
+        file_paths: vec![path.clone()],
+        changes: HashMap::from([(
+            path.to_path_buf(),
+            FileChange::Add {
+                content: "hello".to_string(),
+            },
+        )]),
+        exec_approval_requirement: ExecApprovalRequirement::Skip {
+            bypass_sandbox: false,
+            proposed_execpolicy_amendment: None,
+        },
+        additional_permissions: None,
+        permissions_preapproved: false,
+    };
+    let permissions = PermissionProfile::Disabled;
+    let manager = SandboxManager::new();
+    let attempt = SandboxAttempt {
+        sandbox: SandboxType::None,
+        permissions: &permissions,
+        enforce_managed_network: false,
+        manager: &manager,
+        sandbox_cwd: &path,
+        workspace_roots: std::slice::from_ref(&path),
+        codex_linux_sandbox_exe: None,
+        use_legacy_landlock: false,
+        windows_sandbox_level: WindowsSandboxLevel::Disabled,
+        windows_sandbox_private_desktop: false,
+        network_denial_cancellation_token: None,
+    };
+    let tool_ctx = ToolCtx {
+        session,
+        turn,
+        call_id: "call-1".to_string(),
+        tool_name: ToolName::plain("apply_patch"),
+    };
+    let mut runtime = ApplyPatchRuntime::new();
+
+    let output = runtime
+        .run(&req, &attempt, &tool_ctx)
+        .await
+        .expect("runtime should return a tool-shaped failure");
+
+    assert_eq!(output.exec_output.exit_code, 1);
+    assert_eq!(
+        output.exec_output.stderr.text,
+        output.exec_output.aggregated_output.text
+    );
+    assert!(
+        output
+            .exec_output
+            .stderr
+            .text
+            .contains(UNATTENDED_READ_ONLY_APPLY_PATCH_MESSAGE)
+    );
+    assert_eq!(output.delta, AppliedPatchDelta::default());
+    assert_eq!(runtime.committed_delta(), &AppliedPatchDelta::default());
+    assert!(!path.exists());
 }
 
 #[tokio::test]

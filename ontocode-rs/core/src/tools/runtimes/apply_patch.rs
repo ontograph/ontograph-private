@@ -37,6 +37,8 @@ use ontocode_utils_absolute_path::AbsolutePathBuf;
 use std::path::PathBuf;
 use std::time::Instant;
 
+const UNATTENDED_READ_ONLY_APPLY_PATCH_MESSAGE: &str = "apply_patch is disabled during automatic goal continuation because the turn is read-only. Preserve the patch/write set and mark the goal blocked if this blocker repeats.";
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash, serde::Serialize)]
 pub(crate) struct ApplyPatchApprovalKey {
     environment_id: String,
@@ -221,9 +223,24 @@ impl ToolRuntime<ApplyPatchRequest, ApplyPatchRuntimeOutput> for ApplyPatchRunti
         &mut self,
         req: &ApplyPatchRequest,
         attempt: &SandboxAttempt<'_>,
-        _ctx: &ToolCtx,
+        ctx: &ToolCtx,
     ) -> Result<ApplyPatchRuntimeOutput, ToolError> {
         let started_at = Instant::now();
+        if ctx.session.unattended_read_only_filesystem_for_turn().await {
+            let stderr = format!("{UNATTENDED_READ_ONLY_APPLY_PATCH_MESSAGE}\n");
+            return Ok(ApplyPatchRuntimeOutput {
+                exec_output: ExecToolCallOutput {
+                    exit_code: 1,
+                    stdout: StreamOutput::new(String::new()),
+                    stderr: StreamOutput::new(stderr.clone()),
+                    aggregated_output: StreamOutput::new(stderr),
+                    duration: started_at.elapsed(),
+                    timed_out: false,
+                },
+                delta: self.committed_delta.clone(),
+            });
+        }
+
         let fs = req.turn_environment.environment.get_filesystem();
         let sandbox = Self::file_system_sandbox_context_for_attempt(req, attempt);
         let mut stdout = Vec::new();
