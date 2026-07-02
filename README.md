@@ -21,11 +21,21 @@ Current private alpha scope:
 
 ## Install
 
-Install the current private Linux x64 alpha release:
+Install the latest private Linux x64 alpha release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ontograph/ontograph-private/main/scripts/install/install.sh | sh
 ```
+
+Or, from a checkout:
+
+```bash
+sh scripts/install/install.sh
+```
+
+Set `GH_TOKEN` or `GITHUB_TOKEN` if your GitHub session cannot read private
+release assets anonymously. To pin a release, pass `--release 0.1.0-alpha.9`
+or set `ONTOCODE_RELEASE=0.1.0-alpha.9`.
 
 ## Build From Source
 

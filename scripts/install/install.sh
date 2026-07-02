@@ -12,10 +12,11 @@ LEGACY_CODEX_HOME_DIR="$HOME/.codex"
 
 usage() {
   cat <<EOF
-Usage: install.sh [--release VERSION]
+Usage: install.sh [--release VERSION|latest]
 
 Environment:
-  ONTOCODE_RELEASE       Version to install; overridden by --release.
+  ONTOCODE_RELEASE       Version to install. Default: latest private alpha.
+                         Overridden by --release.
   ONTOCODE_RELEASE_REPO  GitHub repo to download from. Default: $REPO
   ONTOCODE_INSTALL_DIR   Install directory. Default: $BIN_DIR
   GH_TOKEN/GITHUB_TOKEN  Optional GitHub token for private release downloads.
