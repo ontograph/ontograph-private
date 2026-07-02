@@ -24,7 +24,7 @@ Current private alpha scope:
 Install the latest private Linux x64 alpha release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ontograph/ontograph-private/main/scripts/install/install.sh | sh
+curl -fL https://github.com/ontograph/ontograph-private/releases/latest/download/install-ontocode-linux-x64.sh | sh
 ```
 
 Or, from a checkout:
@@ -33,9 +33,9 @@ Or, from a checkout:
 sh scripts/install/install.sh
 ```
 
-Set `GH_TOKEN` or `GITHUB_TOKEN` if your GitHub session cannot read private
-release assets anonymously. To pin a release, pass `--release 0.1.0-alpha.9`
-or set `ONTOCODE_RELEASE=0.1.0-alpha.9`.
+Set `GH_TOKEN` or `GITHUB_TOKEN` if private release downloads require a token.
+To pin a release, pass `--release 0.1.0-alpha.9` or set
+`ONTOCODE_RELEASE=0.1.0-alpha.9`.
 
 ## Build From Source
 
