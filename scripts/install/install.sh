@@ -98,10 +98,15 @@ need_asset() {
 }
 
 if [ "$RELEASE" = "latest" ] || [ -z "$RELEASE" ]; then
-  tag="$(curl_json "https://api.github.com/repos/$REPO/releases?per_page=1" | json_value tag_name)"
+  if command -v gh >/dev/null 2>&1; then
+    tag="$(gh release list --repo "$REPO" --limit 1 | cut -f3)"
+  else
+    tag="$(curl_json "https://api.github.com/repos/$REPO/releases?per_page=1" | json_value tag_name)"
+  fi
 else
   tag="rust-v$(normalize_version "$RELEASE")"
 fi
+[ -n "$tag" ] || { echo "Could not resolve an Ontocode release tag." >&2; exit 1; }
 
 version="$(normalize_version "$tag")"
 asset="ontocode-$version-$target"
@@ -117,20 +122,36 @@ archive="$tmp_dir/$asset"
 checksums="$tmp_dir/SHA256SUMS"
 
 echo "==> Downloading Ontocode CLI $version for $target"
-if curl_file "$asset_url" "$archive"; then
+if command -v gh >/dev/null 2>&1 &&
+  gh release download "$tag" --repo "$REPO" --pattern "$asset" --dir "$tmp_dir" &&
+  gh release download "$tag" --repo "$REPO" --pattern SHA256SUMS --dir "$tmp_dir"; then
   :
 else
-  curl_exit=$?
-  if [ "$curl_exit" -eq 22 ]; then
+  if curl_file "$asset_url" "$archive"; then
+    :
+  else
+    curl_exit=$?
+    if [ "$curl_exit" -eq 22 ]; then
+      asset="$legacy_asset"
+      archive="$tmp_dir/$asset"
+      echo "==> Falling back to legacy release asset name $asset"
+      curl_file "$legacy_asset_url" "$archive"
+    else
+      exit "$curl_exit"
+    fi
+  fi
+  curl_file "$checksums_url" "$checksums"
+fi
+if [ ! -s "$archive" ]; then
+  if command -v gh >/dev/null 2>&1 &&
+    gh release download "$tag" --repo "$REPO" --pattern "$legacy_asset" --dir "$tmp_dir"; then
     asset="$legacy_asset"
     archive="$tmp_dir/$asset"
     echo "==> Falling back to legacy release asset name $asset"
-    curl_file "$legacy_asset_url" "$archive"
   else
-    exit "$curl_exit"
+    need_asset "$archive"
   fi
 fi
-curl_file "$checksums_url" "$checksums"
 need_asset "$archive"
 need_asset "$checksums"
 
