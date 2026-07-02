@@ -21,11 +21,27 @@ Current private alpha scope:
 
 ## Install
 
-Install the current private Linux x64 alpha release:
+Install the latest private Linux x64 alpha release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ontograph/ontograph-private/main/scripts/install/install.sh | sh
+tmp="$(mktemp -d)"
+tag="$(gh release list --repo ontograph/ontograph-private --limit 1 | cut -f3)"
+gh release download "$tag" --repo ontograph/ontograph-private --pattern install-ontocode-linux-x64.sh --dir "$tmp"
+sh "$tmp/install-ontocode-linux-x64.sh"
 ```
+
+Or, from a checkout:
+
+```bash
+sh scripts/install/install.sh
+```
+
+Use an authenticated `gh` session for private release downloads.
+To pin a release, pass `--release 0.1.0-alpha.9` or set
+`ONTOCODE_RELEASE=0.1.0-alpha.9`.
+
+If the installed binary reports a missing `GLIBC_2.38` or `GLIBC_2.39`, build
+from source on that host instead.
 
 ## Build From Source
 

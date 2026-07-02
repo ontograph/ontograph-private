@@ -12,10 +12,11 @@ LEGACY_CODEX_HOME_DIR="$HOME/.codex"
 
 usage() {
   cat <<EOF
-Usage: install.sh [--release VERSION]
+Usage: install.sh [--release VERSION|latest]
 
 Environment:
-  ONTOCODE_RELEASE       Version to install; overridden by --release.
+  ONTOCODE_RELEASE       Version to install. Default: latest private alpha.
+                         Overridden by --release.
   ONTOCODE_RELEASE_REPO  GitHub repo to download from. Default: $REPO
   ONTOCODE_INSTALL_DIR   Install directory. Default: $BIN_DIR
   GH_TOKEN/GITHUB_TOKEN  Optional GitHub token for private release downloads.
@@ -97,10 +98,15 @@ need_asset() {
 }
 
 if [ "$RELEASE" = "latest" ] || [ -z "$RELEASE" ]; then
-  tag="$(curl_json "https://api.github.com/repos/$REPO/releases?per_page=1" | json_value tag_name)"
+  if command -v gh >/dev/null 2>&1; then
+    tag="$(gh release list --repo "$REPO" --limit 1 | cut -f3)"
+  else
+    tag="$(curl_json "https://api.github.com/repos/$REPO/releases?per_page=1" | json_value tag_name)"
+  fi
 else
   tag="rust-v$(normalize_version "$RELEASE")"
 fi
+[ -n "$tag" ] || { echo "Could not resolve an Ontocode release tag." >&2; exit 1; }
 
 version="$(normalize_version "$tag")"
 asset="ontocode-$version-$target"
@@ -124,6 +130,10 @@ elif [ -s "./$legacy_asset" ]; then
   archive="$tmp_dir/$asset"
   echo "==> Using local legacy release asset ./$asset"
   cp "./$asset" "$archive"
+elif command -v gh >/dev/null 2>&1 &&
+  gh release download "$tag" --repo "$REPO" --pattern "$asset" --dir "$tmp_dir" &&
+  gh release download "$tag" --repo "$REPO" --pattern SHA256SUMS --dir "$tmp_dir"; then
+  :
 elif curl_file "$asset_url" "$archive"; then
   :
 else
@@ -137,10 +147,20 @@ else
     exit "$curl_exit"
   fi
 fi
+if [ ! -s "$archive" ]; then
+  if command -v gh >/dev/null 2>&1 &&
+    gh release download "$tag" --repo "$REPO" --pattern "$legacy_asset" --dir "$tmp_dir"; then
+    asset="$legacy_asset"
+    archive="$tmp_dir/$asset"
+    echo "==> Falling back to legacy release asset name $asset"
+  else
+    need_asset "$archive"
+  fi
+fi
 if [ -s "./SHA256SUMS" ]; then
   echo "==> Using local SHA256SUMS"
   cp ./SHA256SUMS "$checksums"
-else
+elif [ ! -s "$checksums" ]; then
   curl_file "$checksums_url" "$checksums"
 fi
 need_asset "$archive"
