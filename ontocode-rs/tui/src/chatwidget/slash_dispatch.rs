@@ -44,7 +44,8 @@ const SIDE_SLASH_COMMAND_UNAVAILABLE_HINT: &str =
 const GOAL_USAGE: &str = "Usage: /goal <objective>";
 const GOAL_USAGE_HINT: &str = "Example: /goal improve benchmark coverage";
 const RAW_USAGE: &str = "Usage: /raw [on|off]";
-const AGENT_USAGE: &str = "Usage: /agent <create|send|wait|list|close> ...";
+const AGENT_USAGE: &str = "Usage: /agent <create|send|wait|list|close|delete> ...";
+const PROMPT_REVIEW_USAGE: &str = "Usage: /prompt-review <prompt text>";
 const CLAUDE_PROVIDER_NAME: &str = "claude";
 const CLAUDE_RUNTIME_UNAVAILABLE_REASON: &str = "Claude runtime is not available yet.";
 const KIMI_PROVIDER_NAME: &str = "kimi";
@@ -180,21 +181,39 @@ impl ChatWidget {
             "/agent wait worker_1",
             "/agent list",
             "/agent close worker_1",
+            "/agent delete worker_1",
         ]
         .join("\n")
     }
 
-    fn build_agent_command_message(cmd: SlashCommand, args: &str) -> Result<String, String> {
+    fn build_prompt_review_message(args: &str) -> String {
+        format!(
+            "Review this prompt before execution.\n\
+             - Identify prompt-shape issues, impossible role/model/tool specs, ambiguous instructions, and hidden conflicts.\n\
+             - If the prompt is executable, paraphrase it as a concrete execution plan with normalized tool arguments.\n\
+             - If it is not executable, explain the exact issue and show the corrected prompt shape.\n\
+             - Do not execute the prompt or start the requested work.\n\n\
+             Prompt to review:\n{args}"
+        )
+    }
+
+    fn build_agent_command_message(&self, cmd: SlashCommand, args: &str) -> Result<String, String> {
         let Some(verb) = args.split_whitespace().next() else {
             return Err(Self::agent_usage_message());
         };
 
         let details = match verb.to_ascii_lowercase().as_str() {
-            "create" => "Call `spawn_agent`.",
+            "create" => {
+                if self.config.multi_agent_v2.hide_spawn_agent_metadata {
+                    "Call `spawn_agent`. The active spawn_agent schema hides `model`, `reasoning_effort`, and `service_tier`, so the child will inherit the parent model, reasoning effort, and service tier."
+                } else {
+                    "Call `spawn_agent`. If the request includes `--model`, `--reasoning`, or `--service-tier`, map them to `model`, `reasoning_effort`, and `service_tier`; omitted values inherit the parent settings."
+                }
+            }
             "send" => "Use `send_message` or `followup_task`.",
             "wait" => "Call `wait_agent`.",
             "list" => "Call `list_agents`.",
-            "close" => "Call `close_agent`.",
+            "close" | "delete" => "Call `close_agent`.",
             _ => return Err(Self::agent_usage_message()),
         };
 
@@ -752,6 +771,9 @@ impl ChatWidget {
             }
             SlashCommand::Review => {
                 self.open_review_popup();
+            }
+            SlashCommand::PromptReview => {
+                self.add_info_message(PROMPT_REVIEW_USAGE.to_string(), /*hint*/ None);
             }
             SlashCommand::Rename => {
                 self.session_telemetry
@@ -1344,7 +1366,7 @@ impl ChatWidget {
                 self.request_side_conversation(parent_thread_id, Some(user_message));
             }
             SlashCommand::Agent | SlashCommand::MultiAgents if !trimmed.is_empty() => {
-                let agent_message = match Self::build_agent_command_message(cmd, trimmed) {
+                let agent_message = match self.build_agent_command_message(cmd, trimmed) {
                     Ok(message) => message,
                     Err(usage) => {
                         self.add_error_message(usage);
@@ -1377,6 +1399,30 @@ impl ChatWidget {
                 self.submit_op(AppCommand::review(ReviewTarget::Custom {
                     instructions: args,
                 }));
+            }
+            SlashCommand::PromptReview if !trimmed.is_empty() => {
+                let prompt_review_message = Self::build_prompt_review_message(trimmed);
+                let user_message = self.prepared_inline_user_message(
+                    prompt_review_message,
+                    text_elements,
+                    local_images,
+                    remote_image_urls,
+                    mention_bindings,
+                    source,
+                );
+                if self.is_session_configured() {
+                    self.submit_user_message_with_history_record(
+                        user_message,
+                        UserMessageHistoryRecord::Override(
+                            crate::chatwidget::user_messages::UserMessageHistoryOverride {
+                                text: String::new(),
+                                text_elements: Vec::new(),
+                            },
+                        ),
+                    );
+                } else {
+                    self.queue_user_message(user_message);
+                }
             }
             SlashCommand::Resume if !trimmed.is_empty() => {
                 self.app_event_tx
@@ -1576,6 +1622,7 @@ impl ChatWidget {
             | SlashCommand::Keymap
             | SlashCommand::Agent
             | SlashCommand::MultiAgents
+            | SlashCommand::PromptReview
             | SlashCommand::Permissions
             | SlashCommand::ElevateSandbox
             | SlashCommand::SandboxReadRoot

@@ -30,6 +30,12 @@ pub enum SlashCommand {
     Skills,
     Hooks,
     Review,
+    #[strum(
+        to_string = "prompt-review",
+        serialize = "prompt_review",
+        serialize = "promt_review"
+    )]
+    PromptReview,
     Rename,
     New,
     Archive,
@@ -88,6 +94,7 @@ impl SlashCommand {
             SlashCommand::Init => "create an AGENTS.md file with instructions for Codex",
             SlashCommand::Compact => "summarize conversation to prevent hitting the context limit",
             SlashCommand::Review => "review my current changes and find issues",
+            SlashCommand::PromptReview => "review and rewrite a prompt before execution",
             SlashCommand::Rename => "rename the current thread",
             SlashCommand::Resume => "resume a saved chat",
             SlashCommand::Archive => "archive this session and exit",
@@ -156,6 +163,7 @@ impl SlashCommand {
         matches!(
             self,
             SlashCommand::Review
+                | SlashCommand::PromptReview
                 | SlashCommand::Rename
                 | SlashCommand::Plan
                 | SlashCommand::Goal
@@ -209,6 +217,7 @@ impl SlashCommand {
             | SlashCommand::Experimental
             | SlashCommand::Memories
             | SlashCommand::Review
+            | SlashCommand::PromptReview
             | SlashCommand::Plan
             | SlashCommand::Clear
             | SlashCommand::Logout
@@ -310,6 +319,24 @@ mod tests {
         assert!(SlashCommand::Logout.supports_inline_args());
         assert!(SlashCommand::Agent.supports_inline_args());
         assert!(SlashCommand::MultiAgents.supports_inline_args());
+        assert!(SlashCommand::PromptReview.supports_inline_args());
+    }
+
+    #[test]
+    fn prompt_review_command_aliases_parse() {
+        assert_eq!(SlashCommand::PromptReview.command(), "prompt-review");
+        assert_eq!(
+            SlashCommand::from_str("prompt-review"),
+            Ok(SlashCommand::PromptReview)
+        );
+        assert_eq!(
+            SlashCommand::from_str("prompt_review"),
+            Ok(SlashCommand::PromptReview)
+        );
+        assert_eq!(
+            SlashCommand::from_str("promt_review"),
+            Ok(SlashCommand::PromptReview)
+        );
     }
 
     #[test]

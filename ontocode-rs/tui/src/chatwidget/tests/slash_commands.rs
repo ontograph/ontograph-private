@@ -1206,6 +1206,105 @@ async fn slash_subagents_list_submits_manager_instruction() {
 }
 
 #[tokio::test]
+async fn slash_agent_supported_verbs_submit_manager_instruction() {
+    let cases = [
+        (
+            "/agent create worker_1 investigate the parser regression",
+            "Interpret the following `/agent create worker_1 investigate the parser regression` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `spawn_agent`. If the request includes `--model`, `--reasoning`, or `--service-tier`, map them to `model`, `reasoning_effort`, and `service_tier`; omitted values inherit the parent settings.\n- Do not invent a new runtime, registry, or dispatch path.",
+        ),
+        (
+            "/agent send worker_1 check the latest failing test",
+            "Interpret the following `/agent send worker_1 check the latest failing test` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Use `send_message` or `followup_task`.\n- Do not invent a new runtime, registry, or dispatch path.",
+        ),
+        (
+            "/agent wait worker_1",
+            "Interpret the following `/agent wait worker_1` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `wait_agent`.\n- Do not invent a new runtime, registry, or dispatch path.",
+        ),
+        (
+            "/agent close worker_1",
+            "Interpret the following `/agent close worker_1` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `close_agent`.\n- Do not invent a new runtime, registry, or dispatch path.",
+        ),
+        (
+            "/agent delete worker_1",
+            "Interpret the following `/agent delete worker_1` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `close_agent`.\n- Do not invent a new runtime, registry, or dispatch path.",
+        ),
+    ];
+
+    for (command, expected) in cases {
+        let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+        chat.thread_id = Some(ThreadId::new());
+
+        submit_composer_text(&mut chat, command);
+
+        match next_submit_op(&mut op_rx) {
+            Op::UserTurn { items, .. } => assert_eq!(
+                items,
+                vec![UserInput::Text {
+                    text: expected.to_string(),
+                    text_elements: Vec::new(),
+                }]
+            ),
+            other => panic!("expected Op::UserTurn for {command}, got {other:?}"),
+        }
+        assert_eq!(chat.bottom_pane.composer_text(), "");
+    }
+}
+
+#[tokio::test]
+async fn slash_agent_create_reports_inherited_model_when_spawn_metadata_is_hidden() {
+    let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    chat.thread_id = Some(ThreadId::new());
+    chat.config.multi_agent_v2.hide_spawn_agent_metadata = true;
+
+    submit_composer_text(
+        &mut chat,
+        "/agent create worker_2 --model gpt-5.4-mini review the patch",
+    );
+
+    match next_submit_op(&mut op_rx) {
+        Op::UserTurn { items, .. } => assert_eq!(
+            items,
+            vec![UserInput::Text {
+                text: "Interpret the following `/agent create worker_2 --model gpt-5.4-mini review the patch` request as a manager instruction.\nUse the existing multi-agent tools only.\n- Call `spawn_agent`. The active spawn_agent schema hides `model`, `reasoning_effort`, and `service_tier`, so the child will inherit the parent model, reasoning effort, and service tier.\n- Do not invent a new runtime, registry, or dispatch path.".to_string(),
+                text_elements: Vec::new(),
+            }]
+        ),
+        other => panic!("expected Op::UserTurn for hidden-metadata /agent create, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn slash_prompt_review_submits_review_only_instruction() {
+    let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    chat.thread_id = Some(ThreadId::new());
+
+    submit_composer_text(
+        &mut chat,
+        "/prompt-review manager: current session; senior-reviewer: gemini-pro-agent; implementation-worker: gpt-5.4-mini high",
+    );
+
+    let expected_prompt = "manager: current session; senior-reviewer: gemini-pro-agent; implementation-worker: gpt-5.4-mini high";
+    match next_submit_op(&mut op_rx) {
+        Op::UserTurn { items, .. } => assert_eq!(
+            items,
+            vec![UserInput::Text {
+                text: format!(
+                    "Review this prompt before execution.\n\
+                     - Identify prompt-shape issues, impossible role/model/tool specs, ambiguous instructions, and hidden conflicts.\n\
+                     - If the prompt is executable, paraphrase it as a concrete execution plan with normalized tool arguments.\n\
+                     - If it is not executable, explain the exact issue and show the corrected prompt shape.\n\
+                     - Do not execute the prompt or start the requested work.\n\n\
+                     Prompt to review:\n{expected_prompt}"
+                ),
+                text_elements: Vec::new(),
+            }]
+        ),
+        other => panic!("expected Op::UserTurn for /prompt-review, got {other:?}"),
+    }
+    assert_eq!(chat.bottom_pane.composer_text(), "");
+}
+
+#[tokio::test]
 async fn queued_subagents_list_dispatches_after_active_turn() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
@@ -1241,7 +1340,7 @@ async fn slash_agent_invalid_args_show_usage() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(
-        rendered.contains("Usage: /agent <create|send|wait|list|close> ..."),
+        rendered.contains("Usage: /agent <create|send|wait|list|close|delete> ..."),
         "expected usage message, got: {rendered:?}"
     );
     assert_eq!(recall_latest_after_clearing(&mut chat), "/agent nope");
