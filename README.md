@@ -24,10 +24,7 @@ Current private alpha scope:
 Install the latest private Linux x64 alpha release:
 
 ```bash
-tmp="$(mktemp -d)"
-tag="$(gh release list --repo ontograph/ontograph-private --limit 1 | cut -f3)"
-gh release download "$tag" --repo ontograph/ontograph-private --pattern install-ontocode-linux-x64.sh --dir "$tmp"
-sh "$tmp/install-ontocode-linux-x64.sh"
+curl --http1.1 -fsSL https://raw.githubusercontent.com/ontograph/ontograph-private/main/scripts/install/install.sh | sh
 ```
 
 Or, from a checkout:
